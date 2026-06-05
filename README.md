@@ -1,4 +1,4 @@
-# latex2word
+# tex2word
 
 An open-source, cross-platform **LaTeX → Microsoft Word (`.docx`)** converter
 that produces *genuinely editable* Word: native paragraph styles, **native OMML
@@ -36,6 +36,10 @@ latex2word convert paper.tex -o paper.docx
 latex2word convert paper.tex -o paper.docx --report report.json
 latex2word convert paper.tex -o paper.docx --reference-doc journal.docx
 ```
+
+> **Naming:** the package is published on PyPI as **`tex2word`**, but it installs
+> the **`latex2word`** command and the `latex2word` import module — so
+> `pip install tex2word`, then run `latex2word …` or `import latex2word`.
 
 Or, for a development checkout with [uv](https://docs.astral.sh/uv/):
 
