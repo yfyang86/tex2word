@@ -7,10 +7,10 @@ import os
 
 import pytest
 
-from latex2word import convert_source
-from latex2word.frontend import parse_document
-from latex2word.roundtrip import recover_ir, to_latex
-from latex2word.validate import validate_docx
+from tex2word import convert_source
+from tex2word.frontend import parse_document
+from tex2word.roundtrip import recover_ir, to_latex
+from tex2word.validate import validate_docx
 
 CORPUS = os.path.join(os.path.dirname(__file__), "corpus")
 TEX_FILES = sorted(glob.glob(os.path.join(CORPUS, "*.tex")))

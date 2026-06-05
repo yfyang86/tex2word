@@ -1,4 +1,4 @@
-"""Command-line interface: ``latex2word convert in.tex -o out.docx``."""
+"""Command-line interface: ``tex2word convert in.tex -o out.docx``."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .pipeline import convert_file
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="latex2word",
+        prog="tex2word",
         description="Convert LaTeX to a native Microsoft Word (.docx) document.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     bench = sub.add_parser(
         "benchmark",
         help="convert every .tex in a directory and report quantitative metrics "
-             "(math-OMML %, validity, warnings, aborts)",
+             "(math-OMML %%, validity, warnings, aborts)",
     )
     bench.add_argument("directory", help="directory of .tex files (searched recursively)")
     bench.add_argument("-o", "--output", default=None, help="write the metrics JSON here")
@@ -84,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     rev = sub.add_parser(
-        "to-latex", help="recover LaTeX from a latex2word-produced .docx (round-trip)"
+        "to-latex", help="recover LaTeX from a tex2word-produced .docx (round-trip)"
     )
     rev.add_argument("input", help="input .docx (must carry the round-trip manifest)")
     rev.add_argument("-o", "--output", default=None, help="output .tex path (default: stdout)")

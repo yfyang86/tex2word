@@ -5,8 +5,8 @@ import zipfile
 
 from lxml import etree
 
-from latex2word import convert_source
-from latex2word.validate import _check_content_model, validate_docx
+from tex2word import convert_source
+from tex2word.validate import _check_content_model, validate_docx
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

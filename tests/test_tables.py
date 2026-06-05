@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
 
 
 def _table(src: str) -> ir.Table:
@@ -118,7 +118,7 @@ def test_pwidth_renders_gridcol_and_tcw():
 
 
 def test_table_colour_roundtrips():
-    from latex2word.roundtrip import recover_ir, to_latex
+    from tex2word.roundtrip import recover_ir, to_latex
 
     docx = convert_source(
         r"\begin{document}\begin{tabular}{ll}a & \cellcolor{yellow} b \\\end{tabular}\end{document}"
@@ -186,7 +186,7 @@ def test_column_processor_alignment():
 
 
 def test_cmidrule_round_trips():
-    from latex2word.roundtrip import recover_ir, to_latex
+    from tex2word.roundtrip import recover_ir, to_latex
 
     src = (
         r"\begin{document}\begin{tabular}{lll}"
@@ -198,7 +198,7 @@ def test_cmidrule_round_trips():
 
 
 def test_nested_table_renders_and_is_valid():
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     src = (
         r"\begin{document}\begin{tabular}{ll}"
@@ -249,7 +249,7 @@ def test_minipage_grid_of_subtables_recovered():
 
 
 def test_resizebox_table_renders_valid_docx():
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     src = (
         r"\begin{document}\begin{table}\resizebox{\textwidth}{!}{"

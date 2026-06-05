@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from lxml import etree
 
-from latex2word import ir
-from latex2word.frontend import docx_reader as _R
+from tex2word import ir
+from tex2word.frontend import docx_reader as _R
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

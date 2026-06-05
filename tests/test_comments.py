@@ -7,10 +7,10 @@ import zipfile
 
 from lxml import etree
 
-from latex2word import convert_source, ir
-from latex2word.backend.latex_writer import write_latex
-from latex2word.frontend.docx_reader import read_docx
-from latex2word.roundtrip import to_latex
+from tex2word import convert_source, ir
+from tex2word.backend.latex_writer import write_latex
+from tex2word.frontend.docx_reader import read_docx
+from tex2word.roundtrip import to_latex
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
@@ -91,7 +91,7 @@ def test_todo_becomes_a_word_comment():
     assert "word/comments.xml" in z.namelist()
     assert "expand this" in z.read("word/comments.xml").decode()
     assert "commentReference" in z.read("word/document.xml").decode()
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     assert validate_docx(res.docx) == []
 

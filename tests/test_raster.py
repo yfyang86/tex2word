@@ -6,8 +6,8 @@ import zipfile
 import pytest
 from conftest import NS, document_root
 
-from latex2word import convert_file
-from latex2word.backend import raster
+from tex2word import convert_file
+from tex2word.backend import raster
 
 
 def _make_pdf(path) -> None:

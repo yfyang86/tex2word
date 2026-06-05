@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_file
-from latex2word.bib.bbl import bbl_style, parse_bbl
+from tex2word import convert_file
+from tex2word.bib.bbl import bbl_style, parse_bbl
 
 NUMERIC_BBL = r"""
 \begin{thebibliography}{1}

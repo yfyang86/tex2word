@@ -5,7 +5,7 @@ import zipfile
 
 from conftest import NS, document_root
 
-from latex2word import convert_source
+from tex2word import convert_source
 
 
 def _zip(docx: bytes) -> zipfile.ZipFile:

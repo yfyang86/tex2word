@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from latex2word import ir
+from tex2word import ir
 
 
 def test_json_round_trip():

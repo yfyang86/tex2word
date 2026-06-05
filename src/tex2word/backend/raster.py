@@ -2,9 +2,9 @@
 
 Word cannot embed PDF/EPS directly, so the PRD's image path converts them. This
 uses ``pypdfium2`` (Google's PDFium, Apache-2.0/BSD) plus Pillow when available
--- both permissive, so latex2word carries no GPL/AGPL dependency. When the
+-- both permissive, so tex2word carries no GPL/AGPL dependency. When the
 backend is not installed (or a format like EPS is unsupported), the caller
-degrades to a placeholder + a warning suggesting ``pip install latex2word[pdf]``.
+degrades to a placeholder + a warning suggesting ``pip install tex2word[pdf]``.
 """
 
 from __future__ import annotations

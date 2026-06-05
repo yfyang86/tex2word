@@ -1,4 +1,4 @@
-# latex2word
+# tex2word
 
 An open-source, cross-platform **LaTeX → Microsoft Word (`.docx`)** converter
 that produces *genuinely editable* Word: native paragraph styles, **native OMML
@@ -32,22 +32,22 @@ pip install "tex2word[mathml]"       # + LaTeX->MathML->OMML for hard math (late
 pip install "tex2word[csl]"          # + real CSL citation styles (citeproc-py)
 pip install "tex2word[pdf,mathml,csl,mathimg]"   # everything
 
-latex2word convert paper.tex -o paper.docx
-latex2word convert paper.tex -o paper.docx --report report.json
-latex2word convert paper.tex -o paper.docx --reference-doc journal.docx
+tex2word convert paper.tex -o paper.docx
+tex2word convert paper.tex -o paper.docx --report report.json
+tex2word convert paper.tex -o paper.docx --reference-doc journal.docx
 ```
 
 Or, for a development checkout with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync --all-extras
-uv run latex2word convert paper.tex -o paper.docx
+uv run tex2word convert paper.tex -o paper.docx
 ```
 
 Or from Python:
 
 ```python
-from latex2word import convert_source, convert_file
+from tex2word import convert_source, convert_file
 
 out_path, result = convert_file("paper.tex")
 print(result.report.summary())   # math coverage + warnings
@@ -109,14 +109,14 @@ print(result.report.summary())   # math coverage + warnings
   secondary path → image fallback `--math-image-fallback` → raw) records which
   path each equation took.
 - **Round-trip**: the IR is embedded as a JSON manifest custom part, so the
-  exact IR can be recovered from the `.docx` (`latex2word.roundtrip.recover_ir`)
-  and converted **back to LaTeX** (`latex2word to-latex out.docx`); the corpus
+  exact IR can be recovered from the `.docx` (`tex2word.roundtrip.recover_ir`)
+  and converted **back to LaTeX** (`tex2word to-latex out.docx`); the corpus
   `latex→docx→latex` keeps the same block structure. Reconcile (on by default)
   merges Word edits against the manifest, and **Word Track Changes are accepted**
   on read (insertions kept, deletions dropped).
 - **Reports & validation**: `--report report.json|report.html` writes a coverage
-  report; `latex2word.validate.validate_docx` structurally validates output;
-  `latex2word benchmark <dir>` reports a quantitative baseline (math-OMML %,
+  report; `tex2word.validate.validate_docx` structurally validates output;
+  `tex2word benchmark <dir>` reports a quantitative baseline (math-OMML %,
   validity, warnings, 0-abort) across a paper set (CI-gated on the corpus + UATs:
   currently 100% native-OMML math, 100% valid, 0 aborts).
 - **Reproducible**: set `SOURCE_DATE_EPOCH` and the same input yields
@@ -144,7 +144,7 @@ LaTeX ─▶ front-end (preprocess, macro-expand, pylatexenc walk) ─▶ IR
       ─▶ back-end (raw OOXML via lxml: document/styles/numbering) ─▶ .docx
 ```
 
-The **IR** ([`src/latex2word/ir.py`](src/latex2word/ir.py)) is the format-neutral seam, so a LaTeXML front-end can replace the static parser post-V1 without touching the back-end.
+The **IR** ([`src/tex2word/ir.py`](src/tex2word/ir.py)) is the format-neutral seam, so a LaTeXML front-end can replace the static parser post-V1 without touching the back-end.
 
 ## Development
 

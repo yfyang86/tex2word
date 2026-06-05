@@ -61,7 +61,7 @@ def convert_source(
 
         image_renderer = default_renderer()
         if image_renderer is None:
-            report.warn("math", "no math-image backend (install latex2word[mathimg] or TeX)")
+            report.warn("math", "no math-image backend (install tex2word[mathimg] or TeX)")
 
     reference = _load_reference(reference_doc, report)
     hf_refs, hf_parts, hf_rels, hf_extra = _header_footer_wiring(reference, report)

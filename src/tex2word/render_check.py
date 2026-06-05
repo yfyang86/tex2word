@@ -1,7 +1,7 @@
 """V4-1 (partial): a render smoke-check — does the produced .docx open and
 render in a real word processor?
 
-The structural validator (:mod:`latex2word.validate`) proves the OOXML is
+The structural validator (:mod:`tex2word.validate`) proves the OOXML is
 well-formed and schema-ordered, but not that it *renders*. This module drives
 LibreOffice headless to convert ``.docx`` → PDF and inspects the PDF with
 ``pypdfium2`` (page count + extracted text). It is a smoke check (did it render
@@ -92,7 +92,7 @@ def check_docx(docx_path: str | Path, expect: list[str] | None = None) -> list[s
 
 
 def _main(argv: list[str]) -> int:
-    """CLI: ``python -m latex2word.render_check a.tex b.tex …`` (or .docx).
+    """CLI: ``python -m tex2word.render_check a.tex b.tex …`` (or .docx).
 
     Converts each .tex with the library, renders, and inspects. If no renderer
     is installed at all it SKIPs (exit 0); but once soffice *is* present, a

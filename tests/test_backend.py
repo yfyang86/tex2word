@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from conftest import NS, document_root, part_names
 
-from latex2word import convert_source
+from tex2word import convert_source
 
 
 def _xpath(root, expr):

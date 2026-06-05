@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import os
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.validate import validate_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.validate import validate_docx
 
 UAT_DIR = os.path.join(os.path.dirname(__file__), "uat", "arXiv-2605.23904v2")
 

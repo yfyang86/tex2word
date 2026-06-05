@@ -7,10 +7,10 @@ import importlib.util
 import pytest
 from lxml import etree
 
-from latex2word.mathml.cascade import MathCascade
-from latex2word.mathml.latex_math import MathUnsupported, parse
-from latex2word.mathml.mathml_to_omml import latex_via_mathml, mathml_to_omath
-from latex2word.report import ConversionReport
+from tex2word.mathml.cascade import MathCascade
+from tex2word.mathml.latex_math import MathUnsupported, parse
+from tex2word.mathml.mathml_to_omml import latex_via_mathml, mathml_to_omath
+from tex2word.report import ConversionReport
 
 NS = {"m": "http://schemas.openxmlformats.org/officeDocument/2006/math"}
 HAVE_PMML = importlib.util.find_spec("latex2mathml") is not None

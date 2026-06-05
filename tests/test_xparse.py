@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from latex2word.frontend.macros import expand_macros, parse_argspec
+from tex2word.frontend.macros import expand_macros, parse_argspec
 
 
 def test_parse_argspec_kinds():
@@ -63,8 +63,8 @@ def test_declare_and_renew_document_command():
 
 
 def test_xparse_used_in_document():
-    from latex2word import ir
-    from latex2word.frontend import parse_document
+    from tex2word import ir
+    from tex2word.frontend import parse_document
 
     src = (
         r"\NewDocumentCommand{\kw}{s m}{\IfBooleanTF{#1}{\textbf{#2}}{\emph{#2}}}"

@@ -13,16 +13,16 @@ from __future__ import annotations
 
 import os
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.frontend.macros import (
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.frontend.macros import (
     Macro,
     _is_safe_macro,
     _load_local_package_macros,
     expand_macros,
 )
-from latex2word.roundtrip import recover_ir
-from latex2word.validate import validate_docx
+from tex2word.roundtrip import recover_ir
+from tex2word.validate import validate_docx
 
 UAT_DIR = os.path.join(os.path.dirname(__file__), "uat", "arXiv-2507.17026v2")
 

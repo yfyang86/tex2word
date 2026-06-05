@@ -7,10 +7,10 @@ import zipfile
 
 from lxml import etree
 
-from latex2word import convert_file, ir
-from latex2word.frontend import docx_reader as _R
-from latex2word.frontend.docx_reader import read_docx
-from latex2word.roundtrip import to_latex
+from tex2word import convert_file, ir
+from tex2word.frontend import docx_reader as _R
+from tex2word.frontend.docx_reader import read_docx
+from tex2word.roundtrip import to_latex
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
@@ -35,7 +35,7 @@ def _part(docx: bytes, name: str) -> str:
 
 def test_bibliography_is_wrapped_in_a_tagged_sdt(tmp_path):
     doc_xml = _part(_bib_docx(tmp_path), "word/document.xml")
-    assert "latex2word:bibliography" in doc_xml
+    assert "tex2word:bibliography" in doc_xml
     assert "<w:sdt>" in doc_xml or "w:sdt>" in doc_xml
 
 
@@ -66,7 +66,7 @@ _PNG = bytes.fromhex(
 
 def _figure_docx(tmp_path, embed_manifest=False) -> bytes:
     (tmp_path / "p.png").write_bytes(_PNG)
-    from latex2word import convert_source
+    from tex2word import convert_source
 
     return convert_source(
         r"\begin{document}\begin{figure}\includegraphics{p.png}"
@@ -76,7 +76,7 @@ def _figure_docx(tmp_path, embed_manifest=False) -> bytes:
 
 
 def test_figure_is_wrapped_in_a_tagged_sdt(tmp_path):
-    assert "latex2word:figure" in _part(_figure_docx(tmp_path), "word/document.xml")
+    assert "tex2word:figure" in _part(_figure_docx(tmp_path), "word/document.xml")
 
 
 def test_reader_recovers_figure_from_sdt(tmp_path):

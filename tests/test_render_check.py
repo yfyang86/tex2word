@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from latex2word.render_check import check_docx, find_soffice, inspect_pdf
+from tex2word.render_check import check_docx, find_soffice, inspect_pdf
 
 pytest.importorskip("pypdfium2")  # the `pdf` extra backend (PDFium)
 plt = pytest.importorskip("matplotlib.pyplot")  # authors the test PDFs (permissive)
@@ -53,7 +53,7 @@ def test_find_soffice_returns_path_or_none():
 
 
 def test_main_skips_cleanly_when_no_soffice(monkeypatch, tmp_path):
-    import latex2word.render_check as rc
+    import tex2word.render_check as rc
 
     monkeypatch.setattr(rc, "find_soffice", lambda: None)
     docx = tmp_path / "x.docx"
@@ -63,7 +63,7 @@ def test_main_skips_cleanly_when_no_soffice(monkeypatch, tmp_path):
 
 def test_main_fails_when_renderer_present_but_no_pdf(monkeypatch, tmp_path):
     # blocking-gate contract: soffice present + no PDF produced == failure
-    import latex2word.render_check as rc
+    import tex2word.render_check as rc
 
     monkeypatch.setattr(rc, "find_soffice", lambda: "/usr/bin/soffice")
     monkeypatch.setattr(rc, "render_to_pdf", lambda *a, **k: None)
@@ -73,7 +73,7 @@ def test_main_fails_when_renderer_present_but_no_pdf(monkeypatch, tmp_path):
 
 
 def test_main_ok_when_render_succeeds(monkeypatch, tmp_path):
-    import latex2word.render_check as rc
+    import tex2word.render_check as rc
 
     pdf = tmp_path / "x.pdf"
     _make_pdf(pdf, "rendered content")

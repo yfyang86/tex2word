@@ -8,8 +8,8 @@ import zlib
 from conftest import NS
 from lxml import etree
 
-from latex2word import convert_file, convert_source, ir
-from latex2word.backend import images
+from tex2word import convert_file, convert_source, ir
+from tex2word.backend import images
 
 
 def _make_png(path, w, h):
@@ -86,7 +86,7 @@ def test_missing_image_degrades_gracefully(tmp_path):
 
 # -- SPRINT-V4-6/7: \includegraphics options + alt-text ---------------------- #
 
-from latex2word.frontend import parse_document  # noqa: E402
+from tex2word.frontend import parse_document  # noqa: E402
 
 _A_NS = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main",
          "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"}
@@ -153,7 +153,7 @@ def test_options_parsed_into_ir():
 
 def test_relative_linewidth_width_is_not_fixed(tmp_path):
     # \linewidth-relative width must fall back to fit-to-column, NOT 0.5pt
-    from latex2word import ir as _ir
+    from tex2word import ir as _ir
     doc, _ = parse_document(r"\includegraphics[width=0.5\linewidth]{x.png}", ".")
     fig = next(b for b in doc.blocks if isinstance(b, _ir.Figure))
     assert fig.image.width is None  # not 0.5pt
@@ -200,7 +200,7 @@ def test_inline_image_renders_in_paragraph(tmp_path):
 
 
 def test_inline_image_round_trips(tmp_path):
-    from latex2word.roundtrip import recover_ir, to_latex
+    from tex2word.roundtrip import recover_ir, to_latex
 
     _make_png(tmp_path / "pic.png", 16, 16)
     res = convert_source(
@@ -212,7 +212,7 @@ def test_inline_image_round_trips(tmp_path):
 
 
 def test_foreign_reader_keeps_inline_image_inline(tmp_path):
-    from latex2word.frontend.docx_reader import read_docx
+    from tex2word.frontend.docx_reader import read_docx
 
     docx = _convert(tmp_path, r"a \includegraphics{pic.png} b").docx
     block = read_docx(docx).blocks[0]
