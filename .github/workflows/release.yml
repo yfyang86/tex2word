@@ -41,7 +41,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment:
       name: pypi
-      url: https://pypi.org/project/latex2word/
+      url: https://pypi.org/project/tex2word/
     permissions:
       # Required for PyPI Trusted Publishing (OIDC). No API token needed.
       id-token: write

@@ -26,11 +26,11 @@ Requires Python 3.12+.
 From PyPI:
 
 ```bash
-pip install latex2word                 # core (PNG/JPEG figures)
-pip install "latex2word[pdf]"          # + PDF figure rasterisation (pypdfium2, Apache-2.0)
-pip install "latex2word[mathml]"       # + LaTeX->MathML->OMML for hard math (latex2mathml)
-pip install "latex2word[csl]"          # + real CSL citation styles (citeproc-py)
-pip install "latex2word[pdf,mathml,csl,mathimg]"   # everything
+pip install tex2word                 # core (PNG/JPEG figures)
+pip install "tex2word[pdf]"          # + PDF figure rasterisation (pypdfium2, Apache-2.0)
+pip install "tex2word[mathml]"       # + LaTeX->MathML->OMML for hard math (latex2mathml)
+pip install "tex2word[csl]"          # + real CSL citation styles (citeproc-py)
+pip install "tex2word[pdf,mathml,csl,mathimg]"   # everything
 
 latex2word convert paper.tex -o paper.docx
 latex2word convert paper.tex -o paper.docx --report report.json
@@ -84,7 +84,7 @@ print(result.report.summary())   # math coverage + warnings
   `booktabs`, `\multicolumn`→column span, `\multirow`→vertical merge, and
   repeating header rows; captioned `figure`/`table`, `\includegraphics`
   (PNG/JPEG embedded directly; **PDF figures rasterised** to PNG when the
-  optional `latex2word[pdf]` extra — pypdfium2 — is installed). An
+  optional `tex2word[pdf]` extra — pypdfium2 — is installed). An
   `\includegraphics` in running text (an icon/logo) is embedded **inline**.
 - **Custom macros**: `\newcommand`/`\renewcommand`/`\def` are expanded before
   parsing. Common `mathtools`/`physics` math (`\abs`, `\norm`, `\dv`, `\ket`, …)
@@ -124,7 +124,7 @@ print(result.report.summary())   # math coverage + warnings
 - **Live citations** (opt-in `--citations zotero`): emit
   `ADDIN ZOTERO_ITEM CSL_CITATION` / `CSL_BIBLIOGRAPHY` fields so citations are
   editable by Zotero/Mendeley in Word (default is static formatted text).
-- **Real CSL styles** (opt-in `--csl style.csl`, needs `latex2word[csl]`): a
+- **Real CSL styles** (opt-in `--csl style.csl`, needs `tex2word[csl]`): a
   genuine `citeproc-py` engine formats in-text citations and the reference list
   against any `.csl` style, with proper sorting; the built-in heuristic is the
   fallback. `\nocite{key}`/`\nocite{*}` are honoured.

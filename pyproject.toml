@@ -1,5 +1,5 @@
 [project]
-name = "latex2word"
+name = "tex2word"
 version = "0.8.0"
 description = "Open-source, production-grade LaTeX -> Microsoft Word (.docx) converter with native OMML math and live fields"
 readme = "README.md"
@@ -65,6 +65,11 @@ latex2word = "latex2word.cli:main"
 [build-system]
 requires = ["uv_build>=0.8.17,<0.9.0"]
 build-backend = "uv_build"
+
+# The PyPI distribution is published as "tex2word", but the import package
+# remains "latex2word", so point the build backend at the actual module dir.
+[tool.uv.build-backend]
+module-name = "latex2word"
 
 [dependency-groups]
 dev = [
