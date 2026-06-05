@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from latex2word.mathml.cascade import ImageMathRenderer, MathCascade
-from latex2word.report import ConversionReport
+from tex2word.mathml.cascade import ImageMathRenderer, MathCascade
+from tex2word.report import ConversionReport
 
 
 def test_omml_path_for_supported_math():
@@ -64,7 +64,7 @@ def test_block_counts_each_line_without_alignment():
 def test_unexpected_parser_error_never_aborts(monkeypatch):
     # a non-MathUnsupported bug in the direct path must degrade gracefully
     # (to raw here, pMML disabled), never propagate and abort the conversion.
-    from latex2word.mathml import cascade as cascade_mod
+    from tex2word.mathml import cascade as cascade_mod
 
     def boom(latex):
         raise IndexError("simulated parser bug")

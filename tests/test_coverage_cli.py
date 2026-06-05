@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source
-from latex2word.cli import main
-from latex2word.report import ConversionReport, aggregate_html
+from tex2word import convert_source
+from tex2word.cli import main
+from tex2word.report import ConversionReport, aggregate_html
 
 # -- T14: coverage dashboard ------------------------------------------------- #
 

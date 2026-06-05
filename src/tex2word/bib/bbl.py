@@ -3,7 +3,7 @@
 When a ``.bbl`` sits next to the ``.tex``, it carries the *exact* reference
 formatting, ordering, and labels produced by the chosen ``.bst`` style -- far
 better than our heuristic ``.bib``->CSL rendering. We parse its ``\\bibitem``
-entries into note-bearing :class:`~latex2word.ir.CSLItem`s (``_order`` preserves
+entries into note-bearing :class:`~tex2word.ir.CSLItem`s (``_order`` preserves
 the order; ``_label`` carries the author-year marker when present).
 """
 

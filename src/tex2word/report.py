@@ -96,7 +96,7 @@ class ConversionReport:
             for k, v in sorted(self.construct_counts().items())
         )
         return f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>latex2word conversion report</title>
+<html><head><meta charset="utf-8"><title>tex2word conversion report</title>
 <style>
  body{{font-family:system-ui,sans-serif;margin:2rem;max-width:60rem}}
  table{{border-collapse:collapse;width:100%;margin:1rem 0}}
@@ -105,7 +105,7 @@ class ConversionReport:
  .bar{{height:1.4rem;background:#e6f4ea;border:1px solid #b7d7be}}
  .bar>span{{display:block;height:100%;background:#34a853}}
 </style></head><body>
-<h1>latex2word conversion report</h1>
+<h1>tex2word conversion report</h1>
 <h2>Math coverage</h2>
 <div class="bar"><span style="width:{pct:.0f}%"></span></div>
 <p>{cov['math_omml']} OMML &middot; {cov['math_image']} image &middot;
@@ -153,7 +153,7 @@ def aggregate_html(results: list[tuple[str, ConversionReport]]) -> str:
         for k, v in construct_totals.most_common(40)
     )
     return f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>latex2word corpus coverage</title>
+<html><head><meta charset="utf-8"><title>tex2word corpus coverage</title>
 <style>
  body{{font-family:system-ui,sans-serif;margin:2rem;max-width:64rem}}
  table{{border-collapse:collapse;width:100%;margin:1rem 0}}
@@ -161,7 +161,7 @@ def aggregate_html(results: list[tuple[str, ConversionReport]]) -> str:
  .bar{{height:1.4rem;background:#e6f4ea;border:1px solid #b7d7be;max-width:40rem}}
  .bar>span{{display:block;height:100%;background:#34a853}}
 </style></head><body>
-<h1>latex2word corpus coverage</h1>
+<h1>tex2word corpus coverage</h1>
 <p>{len(results)} document(s) &middot; {tot['math_total']} equations &middot;
    {tot['math_omml']} editable OMML &middot; {tot['math_raw']} raw fallback</p>
 <div class="bar"><span style="width:{grand_pct:.0f}%"></span></div>

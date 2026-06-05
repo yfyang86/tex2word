@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from latex2word import convert_source
-from latex2word.backend.package import MANIFEST_PART
-from latex2word.roundtrip import read_manifest, recover_ir
+from tex2word import convert_source
+from tex2word.backend.package import MANIFEST_PART
+from tex2word.roundtrip import read_manifest, recover_ir
 
 SRC = r"""
 \title{RT}
@@ -19,7 +19,7 @@ def test_manifest_is_embedded():
     assert MANIFEST_PART in _names(result.docx)
     payload = read_manifest(result.docx)
     assert payload is not None
-    assert payload["tool"] == "latex2word"
+    assert payload["tool"] == "tex2word"
     assert "ir" in payload
     assert payload["labels"]["eq:e"]["bookmark"] == "eq_e"
 

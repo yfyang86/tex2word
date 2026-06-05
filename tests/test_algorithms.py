@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
 
 ALGORITHMIC = r"""
 \begin{document}

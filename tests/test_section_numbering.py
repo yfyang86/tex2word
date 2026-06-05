@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source
-from latex2word.backend import fields
+from tex2word import convert_source
+from tex2word.backend import fields
 
 SRC = r"""
 \begin{document}
@@ -64,7 +64,7 @@ def test_by_section_ref_bookmark_wraps_full_number():
 
 
 def test_output_valid_in_both_modes():
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     assert validate_docx(convert_source(SRC).docx) == []
     assert validate_docx(convert_source(SRC, number_by_section=True).docx) == []

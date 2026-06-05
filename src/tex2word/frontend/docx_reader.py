@@ -1,6 +1,6 @@
 """OOXML document.xml -> IR (round-trip reader, SPRINT-V3 A2/M3).
 
-Best-effort reader for a *foreign* ``.docx`` (or one whose latex2word manifest
+Best-effort reader for a *foreign* ``.docx`` (or one whose tex2word manifest
 was stripped): maps Word styles back to sectioning/blocks, runs to text/
 emphasis, ``m:oMath`` to math (via the OMML->LaTeX reader), complex fields to
 ``\\ref``/``\\cite``/links, and tables/lists to their IR nodes. The result feeds
@@ -29,9 +29,9 @@ _HEADING_LEVEL = {
     "Heading1": 1, "Heading2": 2, "Heading3": 3, "Heading4": 4, "Heading5": 5,
 }
 _TOC_TITLES = {"Contents", "List of Figures", "List of Tables"}
-#: must match latex2word.backend.document.{BIB,FIG}_SDT_TAG
-_BIB_SDT_TAG = "latex2word:bibliography"
-_FIG_SDT_TAG = "latex2word:figure"
+#: must match tex2word.backend.document.{BIB,FIG}_SDT_TAG
+_BIB_SDT_TAG = "tex2word:bibliography"
+_FIG_SDT_TAG = "tex2word:figure"
 
 
 def _plain_text(inlines: list[ir.Inline]) -> str:

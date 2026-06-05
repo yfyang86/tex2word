@@ -4,7 +4,7 @@ Runs every ``.tex`` under a directory through the converter and records the
 metrics the PRD asks us to "establish a baseline" for: native-OMML math share,
 schema validity, warning/error counts, block count, and hard aborts. The result
 is a machine-readable summary so regressions are measurable (not just "looks
-fine"). Wired into the CLI as ``latex2word benchmark <dir>``.
+fine"). Wired into the CLI as ``tex2word benchmark <dir>``.
 """
 
 from __future__ import annotations

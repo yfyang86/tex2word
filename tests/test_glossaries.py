@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.validate import validate_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.validate import validate_docx
 
 _PRE = (
     r"\newacronym{ml}{ML}{machine learning}"
@@ -66,7 +66,7 @@ def test_acronyms_valid_and_warning_free():
 
 
 def test_acronym_round_trips_as_text():
-    from latex2word.roundtrip import recover_ir, to_latex
+    from tex2word.roundtrip import recover_ir, to_latex
 
     res = convert_source(
         _PRE + r"\begin{document}\acrfull{ml}\end{document}", embed_manifest=True

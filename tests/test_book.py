@@ -3,10 +3,10 @@ from __future__ import annotations
 import io
 import zipfile
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.roundtrip import recover_ir, to_latex
-from latex2word.validate import validate_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.roundtrip import recover_ir, to_latex
+from tex2word.validate import validate_docx
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

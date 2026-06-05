@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from latex2word.mathml import latex_math as L
-from latex2word.mathml import omml
-from latex2word.mathml.latex_math import MathUnsupported
+from tex2word.mathml import latex_math as L
+from tex2word.mathml import omml
+from tex2word.mathml.latex_math import MathUnsupported
 
 NS = {"m": "http://schemas.openxmlformats.org/officeDocument/2006/math"}
 
@@ -227,7 +227,7 @@ def test_derivative_macros_are_fractions():
 
 def test_user_macro_still_overrides_builtin():
     # if the document \newcommand-s \abs, the expander wins (built-in unused)
-    from latex2word.frontend.macros import expand_macros
+    from tex2word.frontend.macros import expand_macros
     out = expand_macros(r"\newcommand{\abs}[1]{ABS(#1)}\abs{y}")
     assert "ABS(y)" in out
 
@@ -239,7 +239,7 @@ def _conv_root(src):
     import io
     import zipfile
 
-    from latex2word import convert_source
+    from tex2word import convert_source
     docx = convert_source(rf"\begin{{document}}{src}\end{{document}}").docx
     return etree.fromstring(zipfile.ZipFile(io.BytesIO(docx)).read("word/document.xml"))
 

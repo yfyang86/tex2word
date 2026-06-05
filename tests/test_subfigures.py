@@ -5,8 +5,8 @@ import zlib
 
 from conftest import NS, document_root
 
-from latex2word import convert_file, ir
-from latex2word.frontend import parse_document
+from tex2word import convert_file, ir
+from tex2word.frontend import parse_document
 
 
 def _png(path, w=40, h=30, rgb=(0, 128, 255)):
@@ -65,8 +65,8 @@ def test_subfloat_command_parsed():
 
 def test_subfigure_labels_resolve_to_parent_number():
     doc, _ = parse_document(SUBCAPTION_SRC)
-    from latex2word.report import ConversionReport
-    from latex2word.transforms.crossref import resolve_crossrefs
+    from tex2word.report import ConversionReport
+    from tex2word.transforms.crossref import resolve_crossrefs
 
     resolve_crossrefs(doc, ConversionReport())
     # parent + both sub-labels point at the same (figure number) bookmark
@@ -111,7 +111,7 @@ def test_subfigures_render_side_by_side(tmp_path):
         "//wp:extent",
         namespaces={"wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"},
     )
-    from latex2word.backend.images import _MAX_WIDTH_EMU
+    from tex2word.backend.images import _MAX_WIDTH_EMU
 
     assert all(int(e.get("cx")) < _MAX_WIDTH_EMU for e in extents)
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from latex2word import ir
-from latex2word.report import ConversionReport
-from latex2word.transforms.crossref import resolve_crossrefs, sanitize_bookmark
+from tex2word import ir
+from tex2word.report import ConversionReport
+from tex2word.transforms.crossref import resolve_crossrefs, sanitize_bookmark
 
 
 def test_sanitize_bookmark():

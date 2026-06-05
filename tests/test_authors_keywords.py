@@ -5,9 +5,9 @@ from __future__ import annotations
 import io
 import zipfile
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.roundtrip import to_latex
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.roundtrip import to_latex
 
 
 def _text(inlines) -> str:

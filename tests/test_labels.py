@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend.docx_reader import read_docx
-from latex2word.roundtrip import recover_ir
+from tex2word import convert_source, ir
+from tex2word.frontend.docx_reader import read_docx
+from tex2word.roundtrip import recover_ir
 
 
 def _label_map(docx: bytes) -> dict[str, str]:

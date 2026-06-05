@@ -7,15 +7,15 @@ import importlib.util
 import pytest
 from conftest import NS
 
-from latex2word import convert_source, ir
-from latex2word.backend.document import DocumentWriter
-from latex2word.mathml.cascade import MathCascade
-from latex2word.mathml.imagemath import (
+from tex2word import convert_source, ir
+from tex2word.backend.document import DocumentWriter
+from tex2word.mathml.cascade import MathCascade
+from tex2word.mathml.imagemath import (
     DvipngMathRenderer,
     MatplotlibMathRenderer,
     default_renderer,
 )
-from latex2word.report import ConversionReport
+from tex2word.report import ConversionReport
 
 HAVE_MPL = importlib.util.find_spec("matplotlib") is not None
 needs_mpl = pytest.mark.skipif(not HAVE_MPL, reason="matplotlib not installed")

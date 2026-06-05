@@ -46,8 +46,8 @@ _TOC_SPEC = {
 _PIC_URI = "http://schemas.openxmlformats.org/drawingml/2006/picture"
 _IMAGE_REL_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 #: w:sdt tags marking regions for faithful round-trip recovery.
-BIB_SDT_TAG = "latex2word:bibliography"
-FIG_SDT_TAG = "latex2word:figure"
+BIB_SDT_TAG = "tex2word:bibliography"
+FIG_SDT_TAG = "tex2word:figure"
 
 
 class DocumentWriter:
@@ -477,7 +477,7 @@ class DocumentWriter:
                     data, images.ImageInfo("png", w, h), name, max_width_emu, image
                 )
             hint = (
-                "install latex2word[pdf]" if fmt == "pdf" and not raster.has_pdf_support()
+                "install tex2word[pdf]" if fmt == "pdf" and not raster.has_pdf_support()
                 else f"{fmt} rasterisation not supported"
             )
             self.report.warn("includegraphics", f"image not embedded ({hint}): {image.path}")
@@ -847,7 +847,7 @@ class DocumentWriter:
         # the comment body (lives in comments.xml)
         cp = self._styled_paragraph("Normal")
         self._inlines([ir.Text(node.text)], cp)
-        attrs = {"w:id": cid, "w:author": node.author or "latex2word",
+        attrs = {"w:id": cid, "w:author": node.author or "tex2word",
                  "w:date": "2026-01-01T00:00:00Z"}
         self._comments.append(el("w:comment", cp, **attrs))
 

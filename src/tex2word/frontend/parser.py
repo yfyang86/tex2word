@@ -1366,7 +1366,7 @@ def _build_context():
     """Augment pylatexenc's default DB with arg signatures it lacks."""
     ctx = get_default_latex_context_db()
     ctx.add_context_category(
-        "latex2word",
+        "tex2word",
         macros=[
             # sectioning: \cmd*[short]{title} -- pylatexenc's defaults omit the
             # run-in \paragraph/\subparagraph, dropping their titles into the body
@@ -1571,7 +1571,7 @@ def _is_book_class(source: str) -> bool:
 def parse_document(
     source: str, base_dir: str = ".", csl_path: str | None = None
 ) -> tuple[ir.Document, ConversionReport]:
-    """Parse LaTeX ``source`` into an IR :class:`~latex2word.ir.Document`.
+    """Parse LaTeX ``source`` into an IR :class:`~tex2word.ir.Document`.
 
     ``csl_path`` is an optional ``.csl`` style; when set (and ``citeproc-py`` is
     installed) citations and the reference list are formatted by the real CSL

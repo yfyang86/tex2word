@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source, ir
-from latex2word.backend.numbering import HEADING_NUM_ID
-from latex2word.frontend import parse_document
+from tex2word import convert_source, ir
+from tex2word.backend.numbering import HEADING_NUM_ID
+from tex2word.frontend import parse_document
 
 
 def _headings(src: str) -> list[ir.Heading]:
@@ -59,7 +59,7 @@ def test_section_ref_uses_paragraph_number_switch():
 
 
 def test_numbering_part_defines_heading_scheme():
-    from latex2word.backend.numbering import numbering_xml
+    from tex2word.backend.numbering import numbering_xml
 
     xml = numbering_xml().decode()
     assert 'w:numId="3"' in xml

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from latex2word import ir
-from latex2word.frontend import parse_document
-from latex2word.frontend.macros import expand_macros
+from tex2word import ir
+from tex2word.frontend import parse_document
+from tex2word.frontend.macros import expand_macros
 
 SAMPLE = r"""
 \title{Sample}

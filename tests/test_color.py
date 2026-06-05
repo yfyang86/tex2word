@@ -7,11 +7,11 @@ import zipfile
 
 from conftest import NS
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.frontend.colors import ColorTable, color_from_model
-from latex2word.roundtrip import recover_ir, to_latex
-from latex2word.validate import validate_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.frontend.colors import ColorTable, color_from_model
+from tex2word.roundtrip import recover_ir, to_latex
+from tex2word.validate import validate_docx
 
 
 def _doc_xml(src: str) -> str:
@@ -129,7 +129,7 @@ def test_color_roundtrips_to_ir_and_latex():
 
 def test_color_survives_foreign_docx_read():
     # build with our writer, strip the manifest, read back from OOXML
-    from latex2word.frontend.docx_reader import read_docx
+    from tex2word.frontend.docx_reader import read_docx
 
     docx = convert_source(
         r"\begin{document}\textcolor{red}{x}\end{document}", embed_manifest=False
@@ -164,7 +164,7 @@ def test_rpr_children_in_schema_order():
 
 def test_highlight_none_not_read_as_highlight():
     # a foreign run with w:highlight w:val="none" must NOT become \hl
-    from latex2word.frontend.docx_reader import read_docx
+    from tex2word.frontend.docx_reader import read_docx
     docx = convert_source(r"\begin{document}x\end{document}", embed_manifest=False).docx
     # sanity: a plain run round-trips with no highlight emphasis
     doc = read_docx(docx)

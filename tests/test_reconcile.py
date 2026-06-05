@@ -5,8 +5,8 @@ from __future__ import annotations
 import io
 import zipfile
 
-from latex2word import convert_source, ir
-from latex2word.roundtrip import reconcile_blocks, to_latex
+from tex2word import convert_source, ir
+from tex2word.roundtrip import reconcile_blocks, to_latex
 
 SRC = r"""\begin{document}
 \section{Intro}
@@ -76,7 +76,7 @@ import os  # noqa: E402
 
 import pytest  # noqa: E402
 
-from latex2word.roundtrip import _block_signature, recover_ir  # noqa: E402
+from tex2word.roundtrip import _block_signature, recover_ir  # noqa: E402
 
 _CORPUS = os.path.join(os.path.dirname(__file__), "corpus")
 _UAT = os.path.join(os.path.dirname(__file__), "uat")
@@ -91,7 +91,7 @@ _IDENTITY_DOCS = [
 
 def _reconciled_is_identity(path: str) -> bool:
     """An *unedited* docx must reconcile to its manifest IR exactly (identity)."""
-    from latex2word.frontend.docx_reader import read_docx
+    from tex2word.frontend.docx_reader import read_docx
 
     docx = convert_source(
         open(path, encoding="utf-8").read(), base_dir=os.path.dirname(path)

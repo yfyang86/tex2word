@@ -7,7 +7,7 @@ last resort before raw text). Two backends:
 * :class:`DvipngMathRenderer` -- a real TeX engine (``latex`` + ``dvipng``):
   full fidelity, handles everything, but needs TeX Live installed.
 * :class:`MatplotlibMathRenderer` -- pure-Python via matplotlib's ``mathtext``
-  (optional ``latex2word[mathimg]``): self-contained, covers a broad subset.
+  (optional ``tex2word[mathimg]``): self-contained, covers a broad subset.
 
 :func:`default_renderer` picks the best available (dvipng > matplotlib > none).
 Image math loses editability, so it is opt-in (``--math-image-fallback``).

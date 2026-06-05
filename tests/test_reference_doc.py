@@ -5,8 +5,8 @@ from __future__ import annotations
 import io
 import zipfile
 
-from latex2word import convert_source
-from latex2word.templates.reference import extract_reference, merge_styles
+from tex2word import convert_source
+from tex2word.templates.reference import extract_reference, merge_styles
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
@@ -107,7 +107,7 @@ def _part(docx: bytes, name: str) -> bytes:
 
 
 def test_merge_keeps_reference_styles_and_adds_ours():
-    from latex2word.templates import load_styles_xml
+    from tex2word.templates import load_styles_xml
 
     merged = merge_styles(_REF_STYLES, load_styles_xml()).decode()
     # the reference's Heading1 (red) wins, not our bundled one
@@ -148,7 +148,7 @@ def test_no_reference_uses_builtin_letter(tmp_path):
 
 
 def test_output_with_reference_is_valid(tmp_path):
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     assert validate_docx(_convert_with_reference(tmp_path)) == []
 
@@ -218,6 +218,6 @@ def test_header_with_unresolvable_subresource_is_skipped(tmp_path):
 
 
 def test_output_with_headers_is_valid(tmp_path):
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     assert validate_docx(_convert_with_reference(tmp_path)) == []

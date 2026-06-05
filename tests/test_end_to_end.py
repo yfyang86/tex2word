@@ -6,7 +6,7 @@ import zipfile
 
 from conftest import NS, document_root
 
-from latex2word import convert_file, convert_source
+from tex2word import convert_file, convert_source
 
 CORPUS = os.path.join(os.path.dirname(__file__), "corpus")
 

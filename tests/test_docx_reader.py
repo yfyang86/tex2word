@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend.docx_reader import read_docx
-from latex2word.roundtrip import to_latex
+from tex2word import convert_source, ir
+from tex2word.frontend.docx_reader import read_docx
+from tex2word.roundtrip import to_latex
 
 
 def _foreign(src: str) -> ir.Document:
@@ -58,7 +58,7 @@ def test_reads_zotero_citation(tmp_path):
         r"\begin{document}\cite{e1905}\bibliographystyle{plain}\bibliography{refs}\end{document}",
         encoding="utf-8",
     )
-    from latex2word import convert_file
+    from tex2word import convert_file
 
     _, result = convert_file(str(tex), embed_manifest=False, citation_mode="zotero")
     doc = read_docx(result.docx)
@@ -93,7 +93,7 @@ def test_to_latex_foreign_roundtrips_structure():
     )
     docx = convert_source(src, embed_manifest=False).docx
     latex = to_latex(docx)
-    from latex2word.frontend import parse_document
+    from tex2word.frontend import parse_document
 
     recovered, _ = parse_document(latex)
     kinds = [type(b).__name__ for b in recovered.blocks]
@@ -107,7 +107,7 @@ import zlib  # noqa: E402
 
 from lxml import etree  # noqa: E402
 
-from latex2word.frontend import docx_reader as _R  # noqa: E402
+from tex2word.frontend import docx_reader as _R  # noqa: E402
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

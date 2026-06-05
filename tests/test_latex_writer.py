@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.backend.latex_writer import latex_escape, write_latex
-from latex2word.cli import main
-from latex2word.frontend import parse_document
-from latex2word.roundtrip import to_latex
+from tex2word import convert_source, ir
+from tex2word.backend.latex_writer import latex_escape, write_latex
+from tex2word.cli import main
+from tex2word.frontend import parse_document
+from tex2word.roundtrip import to_latex
 
 K = "@type"
 

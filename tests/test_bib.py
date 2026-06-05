@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_file, convert_source
-from latex2word.bib.bibtex import parse_bibtex
-from latex2word.bib.render import build_bibliography, format_reference, style_family
+from tex2word import convert_file, convert_source
+from tex2word.bib.bibtex import parse_bibtex
+from tex2word.bib.render import build_bibliography, format_reference, style_family
 
 BIB = r"""
 @article{e1905,

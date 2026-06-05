@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from latex2word import convert_file
+from tex2word import convert_file
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _CSL = str(Path(__file__).parent / "fixtures" / "numeric.csl")
@@ -78,7 +78,7 @@ def test_csl_bibliography_not_double_numbered(tmp_path):
 
 
 def test_csl_output_is_valid(tmp_path):
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     _, result = convert_file(_project(tmp_path), str(tmp_path / "out.docx"), csl=_CSL)
     assert validate_docx(result.docx) == []

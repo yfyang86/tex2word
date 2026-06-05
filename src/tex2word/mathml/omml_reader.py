@@ -1,8 +1,8 @@
 """OMML -> LaTeX (round-trip math reader, SPRINT-V3 A2/M2).
 
 Parses an ``m:oMath`` element back into the math AST (reusing
-:mod:`latex2word.mathml.latex_math`) and serialises that AST to LaTeX. This is
-the inverse of :mod:`latex2word.mathml.omml` and covers the constructs that
+:mod:`tex2word.mathml.latex_math`) and serialises that AST to LaTeX. This is
+the inverse of :mod:`tex2word.mathml.omml` and covers the constructs that
 writer emits, so a forward+reverse pass round-trips the common math core.
 """
 

@@ -4,9 +4,9 @@ that came back empty."""
 
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.validate import validate_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.validate import validate_docx
 
 
 def _blocks(src: str) -> list[ir.Block]:
