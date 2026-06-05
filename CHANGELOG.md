@@ -2,8 +2,7 @@
 
 All notable changes to **latex2word** are recorded here. The project converts
 LaTeX to editable Word (`.docx`) with native OMML math and live fields; see
-[`README.md`](README.md) for the feature overview and [`PRD/`](PRD/) for the
-roadmap.
+[`README.md`](README.md) for the feature overview.
 
 ## 0.8.0 — templates, collaboration round-trip & class breadth
 
@@ -196,7 +195,7 @@ document, and citation features. 425 tests, ruff + mypy clean.
   the built-in heuristic as a graceful fallback. `\nocite{key}`/`\nocite{*}`.
 
 ### Meta
-- Forward-looking [`PRD/v2.md`](PRD/v2.md); `csl` packaging extra; this changelog.
+- `csl` packaging extra; this changelog.
 
 ## 0.5.0 — V4 inline/table/math fidelity
 

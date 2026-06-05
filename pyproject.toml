@@ -1,16 +1,52 @@
 [project]
 name = "latex2word"
 version = "0.8.0"
-description = "Open-source, production-grade LaTeX -> Microsoft Word (.docx) converter"
+description = "Open-source, production-grade LaTeX -> Microsoft Word (.docx) converter with native OMML math and live fields"
+readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-    { name = "latex2word contributors" }
+    { name = "Yifan Yang", email = "yfyang.86@hotmail.com" }
 ]
-license = { text = "MIT" }
+maintainers = [
+    { name = "Yifan Yang", email = "yfyang.86@hotmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "latex",
+    "word",
+    "docx",
+    "converter",
+    "ooxml",
+    "omml",
+    "tex",
+    "office",
+    "document",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: Markup :: LaTeX",
+    "Topic :: Text Processing :: Markup :: XML",
+    "Topic :: Office/Business :: Office Suites",
+    "Typing :: Typed",
+]
 dependencies = [
     "lxml>=5.0",
     "pylatexenc>=2.10",
 ]
+
+[project.urls]
+Homepage = "https://github.com/yfyang86/tex2word"
+Repository = "https://github.com/yfyang86/tex2word"
+Issues = "https://github.com/yfyang86/tex2word/issues"
+Changelog = "https://github.com/yfyang86/tex2word/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 # Rasterise PDF figures to embeddable PNG (Word can't embed PDF directly).
