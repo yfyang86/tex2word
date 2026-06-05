@@ -1,8 +1,36 @@
 # Changelog
 
-All notable changes to **latex2word** are recorded here. The project converts
-LaTeX to editable Word (`.docx`) with native OMML math and live fields; see
+All notable changes to **tex2word** are recorded here. tex2word converts LaTeX
+to editable Word (`.docx`) with native OMML math and live fields; see
 [`README.md`](README.md) for the feature overview.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+> **Naming:** the project is published on PyPI as `tex2word`, while the import
+> package and CLI command remain `latex2word` — i.e. `pip install tex2word`,
+> then `import latex2word` / run `latex2word convert`.
+
+## 0.8.1 — PyPI packaging & release tooling
+
+First public PyPI release. No functional changes to the converter — this release
+makes the project installable from PyPI and publishable from CI.
+
+- **Published to PyPI as `tex2word`.** The distribution name now matches the
+  repository; the import package and `latex2word` CLI are unchanged
+  (`[tool.uv.build-backend] module-name` points the build backend at the module).
+- **MIT licensed.** Added a top-level [`LICENSE`](LICENSE) and PEP 639 metadata
+  (`license = "MIT"` + `license-files`).
+- **Complete packaging metadata.** Author/maintainer, `readme`, keywords, trove
+  classifiers, and project URLs (Homepage/Repository/Issues/Changelog).
+- **Documented install extras.** `pip install "tex2word[pdf,mathml,csl,mathimg]"`.
+- **CI workflow.** ruff + mypy + pytest on Python 3.12 and 3.13, plus an
+  sdist/wheel build gated by `twine check`.
+- **Release workflow.** Pushing a `vX.Y.Z` tag builds and publishes to PyPI via
+  Trusted Publishing (OIDC — no stored token) and cuts a GitHub release. Actions
+  pinned to the Node-24 majors (`actions/checkout@v5`, `astral-sh/setup-uv@v6`).
+- **Docs.** Fixed broken internal links, corrected the author line, and added
+  PyPI install instructions to the README.
 
 ## 0.8.0 — templates, collaboration round-trip & class breadth
 
@@ -72,7 +100,7 @@ mypy clean.
   PDFium)** + Pillow — both permissive. `backend/raster.py` and the
   `render_check` PDF inspector now use PDFium; tests author fixture PDFs with
   matplotlib. latex2word is now MIT with only Apache-2.0/BSD/MIT/PSF/HPND deps on
-  every install path. See [`LICENSING.md`](LICENSING.md).
+  every install path.
 
 ## 0.7.0 — round-trip reconcile by default
 
@@ -88,8 +116,7 @@ every structured block. 487 tests, ruff + mypy clean.
   never replaced by a lossy read-back. Supporting work: prose-only / synonym-
   folded / citation-artifact-stripped block signatures, `Table N:` caption and
   `Abstract` recovery in the reader, and a `book`-flag fix in the merge path.
-  Pass `--no-reconcile` (CLI) / `reconcile=False` for the manifest verbatim. See
-  [`reconcile/`](reconcile/) for the investigation and Go/No-go.
+  Pass `--no-reconcile` (CLI) / `reconcile=False` for the manifest verbatim.
 - **LaTeXML front-end now runs end-to-end (V4-3).** Fixed the silent fallback:
   `run_latexml` wrote to `--dest=-`, which this LaTeXML treats as a *filename*
   (not stdout), so it captured 0 bytes and always fell back to the pure parser.
@@ -219,4 +246,4 @@ Pre-changelog. The `front-end → IR → OOXML` pipeline: native OMML math, live
 `SEQ`/`REF`/`PAGEREF`/`STYLEREF` fields, BibTeX→CSL and live Zotero citations,
 figures (incl. PDF rasterisation + subfigures), theorems and algorithms, the
 Word→LaTeX round-trip, the math decision-cascade + image fallback, the LaTeXML
-front-end option, and the embedded round-trip manifest. See `SPRINT-V1`…`V3`.
+front-end option, and the embedded round-trip manifest.
