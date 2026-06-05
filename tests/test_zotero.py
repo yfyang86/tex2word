@@ -6,7 +6,7 @@ import json
 
 from conftest import NS, document_root
 
-from latex2word import convert_file
+from tex2word import convert_file
 
 BIB = r"""
 @article{e1905, author={Einstein, Albert}, title={Zur Elektrodynamik},
@@ -74,7 +74,7 @@ def test_zotero_cached_text_matches_static(tmp_path):
 
 
 def test_zotero_output_valid(tmp_path):
-    from latex2word.validate import validate_docx
+    from tex2word.validate import validate_docx
 
     result = _convert(r"\citep[see][p.~5]{e1905} and \citet{k1984}.", tmp_path, "zotero")
     assert validate_docx(result.docx) == []

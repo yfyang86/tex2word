@@ -7,9 +7,9 @@ from xml.sax.saxutils import escape
 
 from lxml import etree
 
-from latex2word import convert_source, ir
-from latex2word.frontend import docx_reader as R
-from latex2word.frontend.docx_reader import read_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import docx_reader as R
+from tex2word.frontend.docx_reader import read_docx
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

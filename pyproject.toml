@@ -1,6 +1,6 @@
 [project]
 name = "tex2word"
-version = "0.8.1"
+version = "0.8.2"
 description = "Open-source, production-grade LaTeX -> Microsoft Word (.docx) converter with native OMML math and live fields"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -60,16 +60,11 @@ mathimg = ["matplotlib>=3.7"]
 csl = ["citeproc-py>=0.6"]
 
 [project.scripts]
-latex2word = "latex2word.cli:main"
+tex2word = "tex2word.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.8.17,<0.9.0"]
 build-backend = "uv_build"
-
-# The PyPI distribution is published as "tex2word", but the import package
-# remains "latex2word", so point the build backend at the actual module dir.
-[tool.uv.build-backend]
-module-name = "latex2word"
 
 [dependency-groups]
 dev = [
@@ -92,8 +87,8 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # These modules embed long XML/HTML string literals (templates / reports).
-"src/latex2word/backend/package.py" = ["E501"]
-"src/latex2word/report.py" = ["E501"]
+"src/tex2word/backend/package.py" = ["E501"]
+"src/tex2word/report.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

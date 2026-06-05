@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
 
 
 def _para_with(doc: ir.Document, needle_type) -> ir.Paragraph:
@@ -196,7 +196,7 @@ def test_font_size_renders_w_sz():
 
 
 def test_text_spans_roundtrip():
-    from latex2word.roundtrip import to_latex
+    from tex2word.roundtrip import to_latex
 
     latex = to_latex(_xml(r"\sout{a} \hl{b} {\large c}"))
     assert r"\sout{a}" in latex and r"\hl{b}" in latex and r"\large" in latex

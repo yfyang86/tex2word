@@ -38,7 +38,7 @@ def _generated_timestamp() -> str:
 def build_manifest(doc: ir.Document) -> bytes:
     """Serialise the IR + provenance into the manifest JSON bytes."""
     payload = {
-        "tool": "latex2word",
+        "tool": "tex2word",
         "manifest_version": MANIFEST_VERSION,
         "generated": _generated_timestamp(),
         "labels": {
@@ -59,7 +59,7 @@ def read_manifest(docx_bytes: bytes) -> dict | None:
 
 
 def recover_ir(docx_bytes: bytes) -> ir.Document | None:
-    """Reconstruct the IR :class:`~latex2word.ir.Document` from the manifest."""
+    """Reconstruct the IR :class:`~tex2word.ir.Document` from the manifest."""
     payload = read_manifest(docx_bytes)
     if payload is None or "ir" not in payload:
         return None
@@ -69,7 +69,7 @@ def recover_ir(docx_bytes: bytes) -> ir.Document | None:
 def to_latex(docx_bytes: bytes, reconcile: bool = True) -> str | None:
     """Convert a ``.docx`` back to LaTeX.
 
-    Prefers the embedded latex2word manifest (exact IR, original math/figure
+    Prefers the embedded tex2word manifest (exact IR, original math/figure
     source). With ``reconcile=True`` (the default) the manifest IR is merged with
     the freshly-read document IR by a **manifest-biased anchored merge**
     (:func:`reconcile_blocks`): an unedited document reconciles to *identity*

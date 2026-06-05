@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.frontend.preprocess import replace_inline_tikz
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.frontend.preprocess import replace_inline_tikz
 
 
 def test_strip_inline_tikz_path_form():

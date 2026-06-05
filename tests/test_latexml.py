@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend.latexml import latexml_available, parse_latexml_xml
-from latex2word.report import ConversionReport
+from tex2word import convert_source, ir
+from tex2word.frontend.latexml import latexml_available, parse_latexml_xml
+from tex2word.report import ConversionReport
 
 XML = b"""<?xml version="1.0"?>
 <document xmlns="http://dlmf.nist.gov/LaTeXML">
@@ -86,8 +86,8 @@ def test_latexml_math_flows_to_omml():
     # the tex attribute -> Math -> OMML through the normal writer
     from lxml import etree
 
-    from latex2word.backend.document import DocumentWriter
-    from latex2word.transforms.crossref import resolve_crossrefs
+    from tex2word.backend.document import DocumentWriter
+    from tex2word.transforms.crossref import resolve_crossrefs
 
     doc = _doc()
     report = ConversionReport()

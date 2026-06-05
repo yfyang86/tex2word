@@ -7,18 +7,26 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Naming:** the project is published on PyPI as `tex2word`, while the import
-> package and CLI command remain `latex2word` — i.e. `pip install tex2word`,
-> then `import latex2word` / run `latex2word convert`.
+## 0.8.2 — rename to `tex2word`
+
+- **Renamed the package `latex2word` → `tex2word`.** The import package
+  (`import tex2word`), the CLI command (`tex2word convert`), and the source tree
+  (`src/tex2word/`) are now all `tex2word`, matching the PyPI distribution —
+  there is a separate, unrelated `latex2word` project on PyPI to avoid. The
+  `[tool.uv.build-backend] module-name` override added in 0.8.1 is no longer
+  needed and was removed.
+- **Fixed `tex2word --help`.** An unescaped `%` in the `benchmark` subcommand's
+  help text crashed argparse (`unsupported format character`); now escaped.
 
 ## 0.8.1 — PyPI packaging & release tooling
 
 First public PyPI release. No functional changes to the converter — this release
 makes the project installable from PyPI and publishable from CI.
 
-- **Published to PyPI as `tex2word`.** The distribution name now matches the
-  repository; the import package and `latex2word` CLI are unchanged
-  (`[tool.uv.build-backend] module-name` points the build backend at the module).
+- **Distribution published as `tex2word`.** The PyPI distribution name was set to
+  `tex2word` (matching the repository); the import package and CLI command were
+  still `latex2word` at this point, with `[tool.uv.build-backend] module-name`
+  pointing the build backend at the module. The full rename lands in 0.8.2.
 - **MIT licensed.** Added a top-level [`LICENSE`](LICENSE) and PEP 639 metadata
   (`license = "MIT"` + `license-files`).
 - **Complete packaging metadata.** Author/maintainer, `readme`, keywords, trove
@@ -85,10 +93,10 @@ mypy clean.
   (`w:del`/`w:moveFrom`) are dropped. So a document a co-author reviewed in Word
   with Track Changes round-trips back to LaTeX as if every change were accepted —
   including through reconcile.
-- **Reference Word templates (V5-1).** `latex2word convert … --reference-doc
+- **Reference Word templates (V5-1).** `tex2word convert … --reference-doc
   TEMPLATE.docx` adopts a journal's or organisation's Word template: the output
   uses the template's **styles** (its `Heading 1`/`Title`/`Caption`/… win;
-  latex2word's custom styles like `SourceCode` are merged in so nothing renders
+  tex2word's custom styles like `SourceCode` are merged in so nothing renders
   unstyled), its **theme** (fonts/colours), its **page geometry** (size +
   margins), and its **headers/footers** (running titles + page numbers, **plus
   header/footer logos** — PNG/JPEG/EMF images are carried and namespaced under
@@ -99,7 +107,7 @@ mypy clean.
   swapped from **PyMuPDF (AGPL-3.0)** to **pypdfium2 (Apache-2.0/BSD, Google
   PDFium)** + Pillow — both permissive. `backend/raster.py` and the
   `render_check` PDF inspector now use PDFium; tests author fixture PDFs with
-  matplotlib. latex2word is now MIT with only Apache-2.0/BSD/MIT/PSF/HPND deps on
+  matplotlib. tex2word is now MIT with only Apache-2.0/BSD/MIT/PSF/HPND deps on
   every install path.
 
 ## 0.7.0 — round-trip reconcile by default
@@ -142,7 +150,7 @@ quantitative baseline. 470 tests, ruff + mypy clean.
   (foreign Word equations and tables already round-tripped).
 - **Performance (V4-19).** Identical images are embedded once (content-hash media
   dedup), and the image-math fallback is memoised.
-- **Quantitative benchmark (V4-4).** `latex2word benchmark <dir>` reports
+- **Quantitative benchmark (V4-4).** `tex2word benchmark <dir>` reports
   math-OMML %, validity, warnings and aborts (text + JSON), with
   `--fail-on-regression`; CI-gated over the corpus + UATs. Baseline: **100%
   native-OMML math, 100% valid, 0 aborts.**
@@ -191,7 +199,7 @@ document, and citation features. 425 tests, ruff + mypy clean.
   fixed 6 real ordering bugs in the shipped `styles.xml`.
 - **Visual rendering gate (V4-1).** A blocking CI lane renders the corpus through
   LibreOffice and smoke-checks the PDFs (page count + text) via PyMuPDF —
-  appearance-level verification, not just structure. `latex2word.render_check`.
+  appearance-level verification, not just structure. `tex2word.render_check`.
 
 ### Math
 - **`align`/`aligned` alignment (V4-9).** Multi-line aligned math lines up at the

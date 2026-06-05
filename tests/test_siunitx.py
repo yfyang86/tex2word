@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.frontend.siunitx import num_to_text, units_to_text
-from latex2word.validate import validate_docx
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.frontend.siunitx import num_to_text, units_to_text
+from tex2word.validate import validate_docx
 
 
 def _text(src: str) -> str:
@@ -78,7 +78,7 @@ def test_siunitx_is_valid_and_warning_free():
 
 
 def test_siunitx_round_trips_as_text():
-    from latex2word.roundtrip import recover_ir, to_latex
+    from tex2word.roundtrip import recover_ir, to_latex
 
     res = convert_source(
         r"\begin{document}\SI{9.81}{\meter\per\second\squared}\end{document}",

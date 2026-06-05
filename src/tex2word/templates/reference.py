@@ -2,7 +2,7 @@
 
 The flagship adoption feature (PRD v3, V5-1): convert onto the named styles,
 theme and page geometry of a user-supplied Word template so the output matches a
-journal's or organisation's required look -- while keeping latex2word's live
+journal's or organisation's required look -- while keeping tex2word's live
 fields intact.
 
 We do *not* clone the reference wholesale (that would lose our content); instead

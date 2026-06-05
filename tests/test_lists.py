@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
 
 
 def _list(src: str) -> ir.ItemList:
@@ -72,7 +72,7 @@ def test_three_level_nesting_uses_distinct_ilvls():
 
 
 def test_numbering_defines_five_levels():
-    from latex2word.backend.numbering import numbering_xml
+    from tex2word.backend.numbering import numbering_xml
 
     xml = numbering_xml().decode()
     # decimal abstractNum carries an ilvl 4

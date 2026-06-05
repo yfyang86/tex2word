@@ -7,10 +7,10 @@ import struct
 import zipfile
 import zlib
 
-from latex2word import convert_source
-from latex2word.mathml.cascade import MathCascade
-from latex2word.report import ConversionReport
-from latex2word.validate import validate_docx
+from tex2word import convert_source
+from tex2word.mathml.cascade import MathCascade
+from tex2word.report import ConversionReport
+from tex2word.validate import validate_docx
 
 
 def _png(path, w=20, h=20):

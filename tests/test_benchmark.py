@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 
-from latex2word.benchmark import benchmark_dir, format_report
+from tex2word.benchmark import benchmark_dir, format_report
 
 CORPUS = os.path.join(os.path.dirname(__file__), "corpus")
 

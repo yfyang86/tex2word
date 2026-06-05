@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.frontend.preprocess import strip_comments
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.frontend.preprocess import strip_comments
 
 
 def _blocks(src: str):
@@ -155,7 +155,7 @@ def test_figure_label_not_overwritten_by_trailing_label():
     doc, report = parse_document(src)
     fig = next(b for b in doc.blocks if isinstance(b, ir.Figure))
     assert fig.label == "fig:real"
-    from latex2word.transforms.crossref import resolve_crossrefs
+    from tex2word.transforms.crossref import resolve_crossrefs
 
     resolve_crossrefs(doc, report)
     assert "fig:real" in doc.labels

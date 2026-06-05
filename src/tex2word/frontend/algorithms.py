@@ -1,7 +1,7 @@
 """Parsing pseudocode bodies (algorithmic / algpseudocode / algorithm2e).
 
 These packages have no fixed pylatexenc arg signatures, so we walk the raw node
-list ourselves. The output is a flat list of :class:`~latex2word.ir.AlgLine`
+list ourselves. The output is a flat list of :class:`~tex2word.ir.AlgLine`
 (indent depth + inline content), which the back-end renders as numbered,
 indented lines. This is a best-effort structural rendering -- not a faithful
 typeset of every algorithmic macro.

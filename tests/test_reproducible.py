@@ -6,7 +6,7 @@ import io
 import json
 import zipfile
 
-from latex2word import convert_source
+from tex2word import convert_source
 
 SRC = (
     r"\begin{document}\section{S}Hello $x^2$. \cite{a}"

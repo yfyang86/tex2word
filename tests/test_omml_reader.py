@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from latex2word.mathml.omml import render_inline
-from latex2word.mathml.omml_reader import ast_to_latex, omath_to_latex
+from tex2word.mathml.omml import render_inline
+from tex2word.mathml.omml_reader import ast_to_latex, omath_to_latex
 
 ROUNDTRIP = [
     r"\frac{a}{b}",

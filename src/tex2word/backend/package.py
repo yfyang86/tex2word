@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 _FIXED_DATE = (1980, 1, 1, 0, 0, 0)
 
 #: archive path of the embedded round-trip IR manifest.
-MANIFEST_PART = "word/latex2word/manifest.json"
-MANIFEST_REL_TYPE = "http://latex2word.org/2026/relationships/manifest"
+MANIFEST_PART = "word/tex2word/manifest.json"
+MANIFEST_REL_TYPE = "http://tex2word.org/2026/relationships/manifest"
 
 _CONTENT_TYPES_HEAD = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -64,7 +64,7 @@ _SETTINGS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 _CORE_PROPS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <dc:creator>latex2word</dc:creator>
+  <dc:creator>tex2word</dc:creator>
 </cp:coreProperties>
 """
 
@@ -140,7 +140,7 @@ class DocxPackage:
         if self.manifest is not None:
             rels.append(
                 f'<Relationship Id="rIdManifest" Type="{MANIFEST_REL_TYPE}" '
-                f'Target="latex2word/manifest.json"/>'
+                f'Target="tex2word/manifest.json"/>'
             )
         return (
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'

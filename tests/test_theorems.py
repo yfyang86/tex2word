@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from conftest import NS, document_root
 
-from latex2word import convert_source, ir
-from latex2word.frontend import parse_document
-from latex2word.report import ConversionReport
-from latex2word.transforms.crossref import resolve_crossrefs
+from tex2word import convert_source, ir
+from tex2word.frontend import parse_document
+from tex2word.report import ConversionReport
+from tex2word.transforms.crossref import resolve_crossrefs
 
 
 def _theorems(src: str) -> list[ir.Theorem]:

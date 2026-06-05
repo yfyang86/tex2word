@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import zipfile
 
-from latex2word import convert_file, ir
+from tex2word import convert_file, ir
 
 _BIB = "@article{e1905, author={Einstein, A.}, title={On X}, year={1905}}\n"
 

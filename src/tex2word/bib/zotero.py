@@ -42,7 +42,7 @@ def _item_data(item: ir.CSLItem) -> dict:
 def _citation_item(cite: ir.Cite, key: str, item: ir.CSLItem) -> dict:
     out: dict = {
         "id": _numeric_id(key),
-        "uris": [f"http://zotero.org/users/local/latex2word/items/{key}"],
+        "uris": [f"http://zotero.org/users/local/tex2word/items/{key}"],
         "itemData": _item_data(item),
     }
     if cite.suffix:
