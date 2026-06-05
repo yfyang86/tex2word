@@ -7,14 +7,26 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.8.2 — rename to `tex2word`
+
+- **Renamed the package `latex2word` → `tex2word`.** The import package
+  (`import tex2word`), the CLI command (`tex2word convert`), and the source tree
+  (`src/tex2word/`) are now all `tex2word`, matching the PyPI distribution —
+  there is a separate, unrelated `latex2word` project on PyPI to avoid. The
+  `[tool.uv.build-backend] module-name` override added in 0.8.1 is no longer
+  needed and was removed.
+- **Fixed `tex2word --help`.** An unescaped `%` in the `benchmark` subcommand's
+  help text crashed argparse (`unsupported format character`); now escaped.
+
 ## 0.8.1 — PyPI packaging & release tooling
 
 First public PyPI release. No functional changes to the converter — this release
 makes the project installable from PyPI and publishable from CI.
 
-- **Named `tex2word` throughout.** The distribution, import package (`import
-  tex2word`), and CLI command are all `tex2word` — renamed from `latex2word` to
-  avoid a clash with an existing PyPI project.
+- **Distribution published as `tex2word`.** The PyPI distribution name was set to
+  `tex2word` (matching the repository); the import package and CLI command were
+  still `latex2word` at this point, with `[tool.uv.build-backend] module-name`
+  pointing the build backend at the module. The full rename lands in 0.8.2.
 - **MIT licensed.** Added a top-level [`LICENSE`](LICENSE) and PEP 639 metadata
   (`license = "MIT"` + `license-files`).
 - **Complete packaging metadata.** Author/maintainer, `readme`, keywords, trove
