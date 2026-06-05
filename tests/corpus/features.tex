@@ -1,0 +1,93 @@
+\documentclass[twocolumn]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{algorithm,algorithmic}
+\usepackage{booktabs,multirow}
+\usepackage{subcaption,graphicx}
+\usepackage{hyperref,cleveref}
+\usepackage{xcolor}
+
+\newtheorem{theorem}{Theorem}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\sys}{Featurd\xspace}
+
+\title{A Feature-Exercising Note on \sys}
+\author{T. Esting}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document exercises algorithms, theorems, description lists, sub-figures,
+citations, and cross-references. It uses \verb|inline code| too.
+\end{abstract}
+
+\section{Background}\label{sec:bg}
+For $x \in \R^n$ we have $\displaystyle \sum_{i=1}^{n} x_i^2 \geq 0$, see
+\eqref{eq:key}. As \citet{knuth1984} notes, typography matters
+\citep[p.~5]{einstein1905}.
+
+\begin{equation}\label{eq:key}
+E = mc^2 .
+\end{equation}
+
+\begin{theorem}[Pythagoras]\label{thm:pyth}
+For a right triangle, $a^2 + b^2 = c^2$.
+\end{theorem}
+
+\section{Method}\label{sec:method}
+We use the following terms:
+\begin{description}
+\item[Latency] time to first token.
+\item[\textbf{Throughput}] tokens per second.
+\end{description}
+
+\begin{algorithm}
+\caption{Compute squares}\label{alg:sq}
+\begin{algorithmic}[1]
+\REQUIRE array $A$
+\FOR{$i = 1$ to $n$}
+  \STATE $A[i] \gets A[i]^2$
+\ENDFOR
+\RETURN $A$
+\end{algorithmic}
+\end{algorithm}
+
+As \cref{alg:sq} and \Cref{thm:pyth} show, and per \cref{sec:bg}.
+
+\begin{figure}
+\begin{subfigure}{0.45\linewidth}\includegraphics{a.pdf}\caption{Left}\label{fig:l}\end{subfigure}
+\begin{subfigure}{0.45\linewidth}\includegraphics{b.pdf}\caption{Right}\label{fig:r}\end{subfigure}
+\caption{Two panels.}\label{fig:two}
+\end{figure}
+
+\begin{table}
+\begin{tabular}{lcc}
+\toprule
+Method & Speed & Quality \\
+\midrule
+\multirow{2}{*}{Ours} & Fast & High \\
+                      & Slow & Higher \\
+\bottomrule
+\end{tabular}
+\caption{Results.}\label{tab:res}
+\end{table}
+
+Aligned derivations line up at the relation sign:
+\begin{align*}
+(a+b)^2 &= a^2 + 2ab + b^2 \\
+        &= a^2 + b^2 + 2ab.
+\end{align*}
+And a single numbered aligned block:
+\begin{equation}
+\begin{aligned}
+f(x) &= x^2 + 1 \\
+g(x) &= 2x.
+\end{aligned}
+\end{equation}
+
+\begin{thebibliography}{9}
+\bibitem{einstein1905} A. Einstein, \emph{Zur Elektrodynamik}, 1905.
+\bibitem{knuth1984} D. E. Knuth, \emph{The TeXbook}, 1984.
+\end{thebibliography}
+
+\end{document}

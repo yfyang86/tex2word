@@ -1,0 +1,32 @@
+\documentclass{article}
+\begin{document}
+\section{Tables and lists}
+
+\begin{enumerate}
+\item First point with math $a^2 + b^2 = c^2$.
+\item Second point.
+  \begin{itemize}
+  \item nested bullet
+  \item another
+  \end{itemize}
+\end{enumerate}
+
+\begin{table}
+\begin{tabular}{lcc}
+\toprule
+Method & Speed & Quality \\
+\midrule
+\multicolumn{3}{c}{Baselines} \\
+Pandoc & Fast & Medium \\
+GrindEQ & Slow & High \\
+\bottomrule
+\end{tabular}
+\caption{Comparison.}\label{tab:cmp}
+\end{table}
+
+As Table~\ref{tab:cmp} shows, results vary.
+
+\begin{quote}
+A quoted remark about conversion fidelity.
+\end{quote}
+\end{document}

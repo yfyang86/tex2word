@@ -1,0 +1,62 @@
+[project]
+name = "latex2word"
+version = "0.8.0"
+description = "Open-source, production-grade LaTeX -> Microsoft Word (.docx) converter"
+requires-python = ">=3.12"
+authors = [
+    { name = "latex2word contributors" }
+]
+license = { text = "MIT" }
+dependencies = [
+    "lxml>=5.0",
+    "pylatexenc>=2.10",
+]
+
+[project.optional-dependencies]
+# Rasterise PDF figures to embeddable PNG (Word can't embed PDF directly).
+# pypdfium2 (PDFium) + Pillow are both permissive (Apache-2.0/BSD/HPND) -- no GPL.
+pdf = ["pypdfium2>=4", "pillow>=10"]
+# Secondary math path: LaTeX -> presentation MathML -> OMML for the hard 20%.
+mathml = ["latex2mathml>=3.77"]
+# Image fallback for math that can't become OMML (pure-Python; no TeX needed).
+mathimg = ["matplotlib>=3.7"]
+# Real CSL citation processor: format citations/bibliography against a .csl style.
+csl = ["citeproc-py>=0.6"]
+
+[project.scripts]
+latex2word = "latex2word.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "lxml-stubs>=0.5.1",
+    "pypdfium2>=4",
+    "pillow>=10",
+    "latex2mathml>=3.77",
+    "matplotlib>=3.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# These modules embed long XML/HTML string literals (templates / reports).
+"src/latex2word/backend/package.py" = ["E501"]
+"src/latex2word/report.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

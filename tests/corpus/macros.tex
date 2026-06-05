@@ -1,0 +1,15 @@
+\documentclass{article}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\| #1 \right\|}
+\newcommand{\inner}[2]{\langle #1, #2 \rangle}
+\def\eps{\varepsilon}
+\newcommand{\diff}[2]{\frac{d #1}{d #2}}
+
+\begin{document}
+\section{Custom macros}
+For all $\eps > 0$ and $x \in \R^n$, the norm $\norm{x}$ and inner product
+$\inner{x}{y}$ are defined. The derivative is
+\[
+\diff{f}{x} = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}.
+\]
+\end{document}

@@ -1,0 +1,158 @@
+# latex2word
+
+An open-source, cross-platform **LaTeX → Microsoft Word (`.docx`)** converter
+that produces *genuinely editable* Word: native paragraph styles, **native OMML
+equations** (editable in Word's equation editor, not images), and **live,
+auto-renumbering fields** for equation/figure/table numbers and
+cross-references.
+
+> **Status: V1 largely implemented.** Foundation, math core (direct
+> LaTeX→OMML), the live cross-reference/field plumbing (the differentiator),
+> image embedding, the BibTeX bibliography, and the robustness layer
+> (math cascade, coverage report, OOXML validator, round-trip manifest) are all
+> in. See [`SPRINT-V1/03-sprint-plan.md`](SPRINT-V1/03-sprint-plan.md) for the
+> full roadmap and what's still to come.
+
+## Why
+
+Pandoc/`texmath` is the open-source reference but **drops equation numbers**,
+can dump raw LaTeX for labelled equations, and emits *static* cross-references.
+No open tool produces editable styles **and** native OMML **and** live
+field-based numbering. That gap is the product.
+
+## Install & use
+
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+uv sync                      # core (PNG/JPEG figures)
+uv sync --extra pdf          # + PDF figure rasterisation (pypdfium2, Apache-2.0)
+uv sync --extra mathml       # + LaTeX->MathML->OMML for hard math (latex2mathml)
+uv sync --extra csl          # + real CSL citation styles (citeproc-py)
+uv run latex2word convert paper.tex -o paper.docx
+uv run latex2word convert paper.tex -o paper.docx --report report.json
+uv run latex2word convert paper.tex -o paper.docx --reference-doc journal.docx
+```
+
+Or from Python:
+
+```python
+from latex2word import convert_source, convert_file
+
+out_path, result = convert_file("paper.tex")
+print(result.report.summary())   # math coverage + warnings
+```
+
+## What works today
+
+- **Reference Word templates** ★: `--reference-doc TEMPLATE.docx` adopts a
+  journal/corporate template's styles, theme and page geometry (size + margins),
+  so the output matches the required look — while keeping the live fields below.
+  Our custom styles are merged in so nothing renders unstyled.
+- **Structure & styles**: `\title`/`\author`/`\date`/`abstract`, `\section`…
+  `\subparagraph` → Word Title/Heading 1–4 (visible in the Navigation pane),
+  paragraphs, `\textbf`/`\emph`/`\texttt`/`\underline`/`\textsc`, quotes, code.
+  Sections are **auto-numbered** (multilevel `1` / `1.1` / `1.1.1`) like LaTeX,
+  with `\section*` unnumbered; `\ref` to a section shows its live number. In
+  **book/report** documents `\chapter` is the top level (sections nest under it)
+  and `\appendix` switches to lettered headings (`A`, `A.1`).
+- **Math (direct LaTeX→OMML)**: inline `$…$`, display `\[…\]`,
+  `equation`/`align`/`gather`; fractions, sub/superscripts, roots, `\sum`/`\int`
+  with limits, accents, `\left…\right` delimiters, matrices/`cases`, Greek and
+  hundreds of symbols, `\mathbb`/`\mathcal`/`\mathbf`, functions (`\sin`, `\lim`).
+  `align*`/`aligned` line up at the `&` (a column-justified matrix); numbered
+  `align` keeps a live number per line.
+- **Live fields** ★: numbered equations get `SEQ Equation` fields inside
+  bookmarks; `\ref`/`\eqref`/`\pageref` become `REF`/`PAGEREF` fields; figure
+  and table captions get `SEQ Figure`/`SEQ Table`. Numbers auto-renumber in
+  Word on field refresh. `--number-by-section` switches to `N.M` per-section
+  numbering (`STYLEREF` + `SEQ \s`), book/report style.
+- **Table of contents** ★: `\tableofcontents` → a live Word `TOC` field (rebuilds
+  from heading styles on refresh); `\listoffigures`/`\listoftables` → caption-
+  sequence lists. Schema-valid and round-tripping.
+- **Lists, tables, figures**: `itemize`/`enumerate`, `tabular`/`longtable` with
+  `booktabs`, `\multicolumn`→column span, `\multirow`→vertical merge, and
+  repeating header rows; captioned `figure`/`table`, `\includegraphics`
+  (PNG/JPEG embedded directly; **PDF figures rasterised** to PNG when the
+  optional `latex2word[pdf]` extra — pypdfium2 — is installed). An
+  `\includegraphics` in running text (an icon/logo) is embedded **inline**.
+- **Custom macros**: `\newcommand`/`\renewcommand`/`\def` are expanded before
+  parsing. Common `mathtools`/`physics` math (`\abs`, `\norm`, `\dv`, `\ket`, …)
+  and `siunitx` (`\SI{9.81}{\meter\per\second\squared}` → `9.81 m/s²`, `\num`,
+  `\ang`) work as built-ins when not user-defined. **Acronyms** (`glossaries`):
+  `\newacronym` + `\gls`/`\acrshort`/`\acrlong`/`\acrfull` expand with the
+  first-use "long (short)" rule.
+- **Footnotes**: `\footnote` → native Word footnotes (`footnotes.xml`), not
+  inlined text; footnote bodies keep their formatting and math.
+- **Inline verbatim & smart refs**: `\verb|...|` → literal monospace;
+  `\cref`/`\Cref`/`\autoref` add cleveref-style type prefixes ("fig. N" /
+  "Figure N").
+- **Theorem environments**: `theorem`/`lemma`/`proof`/`definition`/… render
+  with a bold numbered lead (live `SEQ` per kind), optional `[title]`, and a
+  QED mark for proofs; `\ref` to a theorem shows its number.
+- **Algorithms**: `algorithm` + `algorithmic`/`algpseudocode`/`algorithm2e` →
+  numbered, indented pseudocode with bold keywords, inline OMML math, and a live
+  `SEQ Algorithm` caption.
+- **Graceful degradation**: unknown constructs never abort; they pass through
+  best-effort and are logged to the conversion report (math coverage telemetry
+  included). The math **decision-cascade** (direct OMML → LaTeX→MathML→OMML
+  secondary path → image fallback `--math-image-fallback` → raw) records which
+  path each equation took.
+- **Round-trip**: the IR is embedded as a JSON manifest custom part, so the
+  exact IR can be recovered from the `.docx` (`latex2word.roundtrip.recover_ir`)
+  and converted **back to LaTeX** (`latex2word to-latex out.docx`); the corpus
+  `latex→docx→latex` keeps the same block structure. Reconcile (on by default)
+  merges Word edits against the manifest, and **Word Track Changes are accepted**
+  on read (insertions kept, deletions dropped).
+- **Reports & validation**: `--report report.json|report.html` writes a coverage
+  report; `latex2word.validate.validate_docx` structurally validates output;
+  `latex2word benchmark <dir>` reports a quantitative baseline (math-OMML %,
+  validity, warnings, 0-abort) across a paper set (CI-gated on the corpus + UATs:
+  currently 100% native-OMML math, 100% valid, 0 aborts).
+- **Reproducible**: set `SOURCE_DATE_EPOCH` and the same input yields
+  byte-identical output (the `.docx` ZIP is built deterministically).
+- **Live citations** (opt-in `--citations zotero`): emit
+  `ADDIN ZOTERO_ITEM CSL_CITATION` / `CSL_BIBLIOGRAPHY` fields so citations are
+  editable by Zotero/Mendeley in Word (default is static formatted text).
+- **Real CSL styles** (opt-in `--csl style.csl`, needs `latex2word[csl]`): a
+  genuine `citeproc-py` engine formats in-text citations and the reference list
+  against any `.csl` style, with proper sorting; the built-in heuristic is the
+  fallback. `\nocite{key}`/`\nocite{*}` are honoured.
+
+- **Front-end choice**: the default **`pure`** front-end (pylatexenc-based) is
+  the validated engine — it converts the corpus and three real-paper UATs at
+  100% native-OMML math, 100% valid output, 0 aborts. `--frontend latexml` is
+  **experimental**: it shells out to a real `latexml` install for genuine TeX
+  expansion, but is not yet proven end-to-end (it silently falls back to `pure`
+  on any failure; see the advisory `real-tool` CI lane).
+
+## Architecture
+
+```
+LaTeX ─▶ front-end (preprocess, macro-expand, pylatexenc walk) ─▶ IR
+      ─▶ transforms (cross-reference resolution) ─▶ IR
+      ─▶ back-end (raw OOXML via lxml: document/styles/numbering) ─▶ .docx
+```
+
+The **IR** ([`src/latex2word/ir.py`](src/latex2word/ir.py)) is the format-neutral seam, so a LaTeXML front-end can replace the static parser post-V1 without touching the back-end.
+
+## Development
+
+```bash
+uv run pytest          # tests
+uv run ruff check src tests
+uv run mypy src
+uv run pre-commit install   # optional: run the lint/type gate on every commit
+```
+
+Releases: pushing a `vX.Y.Z` tag builds the wheel/sdist and publishes to PyPI
+(via the `Release` workflow, using PyPI Trusted Publishing). Notable changes are
+recorded in [`CHANGELOG.md`](CHANGELOG.md).
+
+## License
+
+MIT.
+
+## Author
+
+Yifan Yang <yfyang.86 hotmail>

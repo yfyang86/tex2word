@@ -1,0 +1,69 @@
+\documentclass{article}
+\title{On the Conversion of \LaTeX{} to Word}
+\author{A. Researcher}
+\date{2026}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\| #1 \right\|}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present a converter producing native OMML and live fields.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+Consider a function $f : \R^n \to \R$ with gradient $\nabla f$.\footnote{The
+gradient is the vector of partial derivatives.}
+As shown in \eqref{eq:energy}, mass and energy are equivalent.
+
+\begin{equation}\label{eq:energy}
+E = mc^2
+\end{equation}
+
+\begin{theorem}[Triangle inequality]\label{thm:tri}
+For all $x, y$, $\norm{x + y} \leq \norm{x} + \norm{y}$.
+\end{theorem}
+
+\begin{proof}
+Expand the inner product and apply Cauchy--Schwarz.
+\end{proof}
+
+The norm $\norm{x}$ satisfies Theorem \ref{thm:tri}.
+
+\subsection{A multi-line derivation}
+\begin{align}
+(a+b)^2 &= a^2 + 2ab + b^2 \\
+        &= a^2 + b^2 + 2ab
+\end{align}
+
+\section{Results}\label{sec:results}
+See Section \ref{sec:intro} for context, building on \cite{einstein1905}
+and the typesetting of \cite{knuth1984}. A summation:
+\[
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}.
+\]
+
+\begin{itemize}
+\item Editable equations.
+\item Native styles.
+\item \textbf{Live} cross-references.
+\end{itemize}
+
+\begin{table}
+\begin{tabular}{lc}
+\toprule
+Feature & Status \\
+\midrule
+\multicolumn{2}{c}{Core} \\
+Math & OMML \\
+\bottomrule
+\end{tabular}
+\caption{Feature matrix.}\label{tab:features}
+\end{table}
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}
