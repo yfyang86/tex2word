@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check src tests
+
+      - name: Type check (mypy)
+        run: uv run mypy src
+
+      - name: Tests (pytest)
+        # The UAT suites validate against real arXiv papers under tests/uat/,
+        # which are not committed to the repo (author copyright), so they are
+        # excluded in CI. Run them locally with the paper sources present.
+        run: >-
+          uv run pytest -q
+          --ignore=tests/test_uat_arxiv.py
+          --ignore=tests/test_uat3_arxiv.py
+          --deselect "tests/test_reconcile.py::test_unedited_docs_reconcile_to_identity[arXiv-2507.17026v2/main.tex]"
+          --deselect "tests/test_reconcile.py::test_unedited_docs_reconcile_to_identity[arXiv-2605.23904v2/main.tex]"
+
+  build:
+    name: build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Check package metadata
+        run: |
+          uvx twine check dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*

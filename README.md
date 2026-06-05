@@ -6,12 +6,11 @@ equations** (editable in Word's equation editor, not images), and **live,
 auto-renumbering fields** for equation/figure/table numbers and
 cross-references.
 
-> **Status: V1 largely implemented.** Foundation, math core (direct
-> LaTeX→OMML), the live cross-reference/field plumbing (the differentiator),
-> image embedding, the BibTeX bibliography, and the robustness layer
-> (math cascade, coverage report, OOXML validator, round-trip manifest) are all
-> in. See [`SPRINT-V1/03-sprint-plan.md`](SPRINT-V1/03-sprint-plan.md) for the
-> full roadmap and what's still to come.
+> **Status: production-grade.** Foundation, math core (direct LaTeX→OMML), the
+> live cross-reference/field plumbing (the differentiator), image embedding, the
+> BibTeX bibliography, and the robustness layer (math cascade, coverage report,
+> OOXML validator, round-trip manifest) are all in. See
+> [`CHANGELOG.md`](CHANGELOG.md) for the release history.
 
 ## Why
 
@@ -22,16 +21,27 @@ field-based numbering. That gap is the product.
 
 ## Install & use
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.12+.
+
+From PyPI:
 
 ```bash
-uv sync                      # core (PNG/JPEG figures)
-uv sync --extra pdf          # + PDF figure rasterisation (pypdfium2, Apache-2.0)
-uv sync --extra mathml       # + LaTeX->MathML->OMML for hard math (latex2mathml)
-uv sync --extra csl          # + real CSL citation styles (citeproc-py)
+pip install latex2word                 # core (PNG/JPEG figures)
+pip install "latex2word[pdf]"          # + PDF figure rasterisation (pypdfium2, Apache-2.0)
+pip install "latex2word[mathml]"       # + LaTeX->MathML->OMML for hard math (latex2mathml)
+pip install "latex2word[csl]"          # + real CSL citation styles (citeproc-py)
+pip install "latex2word[pdf,mathml,csl,mathimg]"   # everything
+
+latex2word convert paper.tex -o paper.docx
+latex2word convert paper.tex -o paper.docx --report report.json
+latex2word convert paper.tex -o paper.docx --reference-doc journal.docx
+```
+
+Or, for a development checkout with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync --all-extras
 uv run latex2word convert paper.tex -o paper.docx
-uv run latex2word convert paper.tex -o paper.docx --report report.json
-uv run latex2word convert paper.tex -o paper.docx --reference-doc journal.docx
 ```
 
 Or from Python:
@@ -151,8 +161,8 @@ recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 
-MIT.
+MIT — see [`LICENSE`](LICENSE).
 
 ## Author
 
-Yifan Yang <yfyang.86 hotmail>
+Yifan Yang <yfyang.86@hotmail.com>

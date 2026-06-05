@@ -1,7 +1,7 @@
 """latex2word: an open-source LaTeX -> Microsoft Word (.docx) converter.
 
-See ``SPRINT-V1/`` for the architecture and roadmap. The public entry points
-are :func:`~latex2word.pipeline.convert_source` and
+See ``README.md`` for the architecture overview. The public entry points are
+:func:`~latex2word.pipeline.convert_source` and
 :func:`~latex2word.pipeline.convert_file`.
 """
 
