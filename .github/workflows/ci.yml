@@ -39,15 +39,7 @@ jobs:
         run: uv run mypy src
 
       - name: Tests (pytest)
-        # The UAT suites validate against real arXiv papers under tests/uat/,
-        # which are not committed to the repo (author copyright), so they are
-        # excluded in CI. Run them locally with the paper sources present.
-        run: >-
-          uv run pytest -q
-          --ignore=tests/test_uat_arxiv.py
-          --ignore=tests/test_uat3_arxiv.py
-          --deselect "tests/test_reconcile.py::test_unedited_docs_reconcile_to_identity[arXiv-2507.17026v2/main.tex]"
-          --deselect "tests/test_reconcile.py::test_unedited_docs_reconcile_to_identity[arXiv-2605.23904v2/main.tex]"
+        run: uv run pytest -q
 
   build:
     name: build sdist + wheel

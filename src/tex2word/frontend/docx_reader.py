@@ -319,6 +319,17 @@ class _Reader:
         ppr = p.find(_w("pPr"))
         return ppr.find(_w("numPr")) if ppr is not None else None
 
+    def _alignment(self, p: etree._Element) -> str | None:
+        ppr = p.find(_w("pPr"))
+        jc = ppr.find(_w("jc")) if ppr is not None else None
+        if jc is None:
+            return None
+        # accept both the legacy (left/right) and current (start/end) jc values
+        return {
+            "center": "center", "right": "right", "end": "right",
+            "left": "left", "start": "left",
+        }.get(jc.get(_w("val")) or "")
+
     def _paragraph(self, p: etree._Element) -> ir.Block | None:
         style = self._style(p) or "Normal"
         # display math paragraph (unnumbered: m:oMathPara)
@@ -355,7 +366,7 @@ class _Reader:
                 return thm
         if not inlines:
             return None
-        return ir.Paragraph(inlines)
+        return ir.Paragraph(inlines, align=self._alignment(p))
 
     def _math_block(self, p: etree._Element) -> ir.MathBlock:
         para = p.find(_m("oMathPara"))

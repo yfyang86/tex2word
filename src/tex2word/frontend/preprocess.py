@@ -12,6 +12,10 @@ import re
 # comment lines do NOT start a new paragraph -- only a blank line / \par does).
 _COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*(?:\n[ \t]*)?")
 _INPUT_RE = re.compile(r"\\(?:input|include)\s*\{([^}]+)\}")
+# import package: \import{dir/}{file}, \subimport{dir/}{file} (and *from variants)
+_IMPORT_RE = re.compile(
+    r"\\(?:sub)?(?:import|includefrom|inputfrom)\s*\{([^}]+)\}\s*\{([^}]+)\}"
+)
 # booktabs \cmidrule(lr){2-3} trim spec -- drop the (lr)/(l)/(r) so the static
 # parser sees a clean \cmidrule{2-3} mandatory argument.
 _CMIDRULE_TRIM_RE = re.compile(r"(\\cmidrule)\s*\([lr]*\)")
@@ -23,32 +27,94 @@ def strip_comments(source: str) -> str:
 
 
 def flatten_inputs(source: str, base_dir: str, _depth: int = 0) -> str:
-    """Inline ``\\input``/``\\include`` files relative to ``base_dir``."""
+    """Inline ``\\input``/``\\include`` (and import-package ``\\import``) files."""
     if _depth > 20:
         return source
+
+    def _inline(path: str) -> str | None:
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                inner = strip_comments(fh.read())
+            return flatten_inputs(inner, os.path.dirname(path) or base_dir, _depth + 1)
+        return None
 
     def repl(match: re.Match[str]) -> str:
         name = match.group(1).strip()
         candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
         for cand in candidates:
-            path = os.path.join(base_dir, cand)
-            if os.path.isfile(path):
-                with open(path, encoding="utf-8") as fh:
-                    inner = strip_comments(fh.read())
-                return flatten_inputs(inner, os.path.dirname(path) or base_dir, _depth + 1)
+            inlined = _inline(os.path.join(base_dir, cand))
+            if inlined is not None:
+                return inlined
         return ""  # missing include -> drop (graceful degradation)
 
+    def import_repl(match: re.Match[str]) -> str:
+        # \import{dir/}{file}: the file lives under dir, relative to base_dir
+        directory, name = match.group(1).strip(), match.group(2).strip()
+        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
+        for cand in candidates:
+            inlined = _inline(os.path.join(base_dir, directory, cand))
+            if inlined is not None:
+                return inlined
+        return ""
+
+    source = _IMPORT_RE.sub(import_repl, source)
     return _INPUT_RE.sub(repl, source)
 
 
 #: \verb* (show-spaces form) -> \verb, which pylatexenc parses natively.
 _VERBSTAR_RE = re.compile(r"\\verb\*")
 
+# Delimiter-form inline listings -> \verb<delim>…<delim>, which pylatexenc parses
+# natively. \lstinline[opt]|code| and \mintinline[opt]{lang}|code| (any non-brace
+# delimiter). The brace forms (\lstinline{code}, \mintinline{lang}{code}) are
+# left for the parser to handle as a normal {} argument.
+_LSTINLINE_DELIM_RE = re.compile(r"\\lstinline\s*(?:\[[^\]]*\])?\s*([^\s{[*])")
+_MINTINLINE_DELIM_RE = re.compile(r"\\mintinline\s*(?:\[[^\]]*\])?\s*\{[^}]*\}\s*([^\s{[*])")
+
+
+# \lstinputlisting[opts]{file} / \verbatiminput{file}: embed an external source
+# file verbatim. Resolved after flattening so the file body is never
+# comment-stripped (a literal "%" in code must survive).
+_LSTINPUT_RE = re.compile(
+    r"\\(?:lstinputlisting|verbatiminput)\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}"
+)
+
+
+def inline_listing_files(source: str, base_dir: str) -> str:
+    def repl(match: re.Match[str]) -> str:
+        path = os.path.join(base_dir, match.group(1).strip())
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                body = fh.read().rstrip("\n")
+            return "\\begin{verbatim}\n" + body + "\n\\end{verbatim}"
+        return ""  # missing source file -> drop (graceful degradation)
+
+    return _LSTINPUT_RE.sub(repl, source)
+
+
+# amsmath \DeclareMathOperator{\name}{body} (and starred, with limits) -> a
+# \newcommand that wraps the body in \operatorname, which the math path renders.
+_DECLAREMATHOP_RE = re.compile(
+    r"\\DeclareMathOperator\s*(\*?)\s*\{\s*\\([A-Za-z]+)\s*\}\s*\{([^{}]*)\}"
+)
+
+
+def _rewrite_mathoperators(source: str) -> str:
+    def repl(m: re.Match[str]) -> str:
+        star, name, body = m.group(1), m.group(2), m.group(3)
+        return rf"\newcommand{{\{name}}}{{\operatorname{star}{{{body}}}}}"
+
+    return _DECLAREMATHOP_RE.sub(repl, source)
+
 
 def preprocess(source: str, base_dir: str = ".") -> str:
+    source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)
+    source = _MINTINLINE_DELIM_RE.sub(lambda m: r"\verb" + m.group(1), source)
+    source = _LSTINLINE_DELIM_RE.sub(lambda m: r"\verb" + m.group(1), source)
     source = _CMIDRULE_TRIM_RE.sub(r"\1", source)
-    return flatten_inputs(strip_comments(source), base_dir)
+    source = flatten_inputs(strip_comments(source), base_dir)
+    return inline_listing_files(source, base_dir)
 
 
 def _read_balanced(s: str, i: int, open_ch: str, close_ch: str) -> tuple[str, int]:

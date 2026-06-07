@@ -65,6 +65,11 @@ def field(code: str, cached: str = "") -> list[_Element]:
     return runs
 
 
+def index_entry(term: str) -> list[_Element]:
+    """A hidden ``{ XE "term" }`` index-entry field (no visible result)."""
+    return [_fldchar("begin"), _instr_run(f'XE "{term}"'), _fldchar("end")]
+
+
 def seq_field(counter: str, cached: str = "") -> list[_Element]:
     return field(f"SEQ {counter} \\* ARABIC", cached)
 

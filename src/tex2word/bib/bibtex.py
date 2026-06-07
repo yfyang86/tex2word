@@ -55,6 +55,8 @@ _FIELD_MAP = {
     "abstract": "abstract",
     "address": "publisher-place",
     "isbn": "ISBN",
+    "issn": "ISSN",
+    "chapter": "chapter-number",
 }
 
 
@@ -151,7 +153,27 @@ def _to_csl(entry_type: str, key: str, raw_fields: dict[str, str]) -> ir.CSLItem
                 out["issued"] = {"date-parts": [[int(year.group(1))]]}
         elif name in _FIELD_MAP:
             out[_FIELD_MAP[name]] = _strip_braces(value)
+    _apply_eprint(out, raw_fields)
     return ir.CSLItem(id=key, type=csl_type, csl_fields=out)
+
+
+def _apply_eprint(out: dict[str, object], raw_fields: dict[str, str]) -> None:
+    """Make a biblatex ``eprint`` resolvable: arXiv eprints become an abs URL.
+
+    CSL has no standard eprint field, so we expose it as a ``URL`` (the most
+    useful rendering) when the entry carries no ``doi``/``url`` already, and
+    keep the bare identifier in ``note`` so nothing is silently dropped.
+    """
+    eprint = _strip_braces(raw_fields.get("eprint", "")).strip()
+    if not eprint:
+        return
+    prefix = (raw_fields.get("archiveprefix") or raw_fields.get("eprinttype") or "").strip().lower()
+    is_arxiv = prefix in ("", "arxiv")
+    if "URL" not in out and "DOI" not in out and is_arxiv:
+        out["URL"] = f"https://arxiv.org/abs/{eprint}"
+    label = f"arXiv:{eprint}" if is_arxiv else eprint
+    if "note" not in out:
+        out["note"] = label
 
 
 def _int_or(value: str) -> int | str:

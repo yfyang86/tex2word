@@ -82,6 +82,9 @@ ACCENTS: dict[str, str] = {
     "bar": "̄", "overline": "̄", "vec": "⃗", "dot": "̇",
     "ddot": "̈", "acute": "́", "grave": "̀", "check": "̌",
     "breve": "̆", "mathring": "̊",
+    # wide arrow accents (over-arrows for vectors/segments)
+    "overrightarrow": "⃗", "overleftarrow": "⃖", "overleftrightarrow": "⃡",
+    "widearc": "⃐", "overparen": "⃔",
 }
 
 # Upright multi-letter function names (set with m:nor in their run properties).

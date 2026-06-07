@@ -62,6 +62,11 @@ def main(argv: list[str] | None = None) -> int:
              "(journal/corporate template)",
     )
     conv.add_argument(
+        "--lang", metavar="BCP47", default=None,
+        help="document language for Word spell-check/accessibility (e.g. en-US, "
+             "de-DE); overrides the babel/polyglossia language detected in the source",
+    )
+    conv.add_argument(
         "-q", "--quiet", action="store_true", help="suppress the stderr summary"
     )
 
@@ -187,6 +192,7 @@ def _cmd_convert(args: argparse.Namespace) -> int:
             math_image_fallback=args.math_image_fallback,
             csl=args.csl,
             reference_doc=args.reference_doc,
+            language=args.lang,
         )
     except FileNotFoundError:
         print(f"error: input file not found: {args.input}", file=sys.stderr)
