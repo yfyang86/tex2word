@@ -117,6 +117,8 @@ def test_listing_via_input_is_normalized(tmp_path):
         encoding="utf-8",
     )
     main = r"\documentclass{book}\begin{document}\input{inc.tex}\end{document}"
+    from lxml import etree
+
     docx = convert_source(main, base_dir=str(tmp_path)).docx
     root = etree.fromstring(
         zipfile.ZipFile(io.BytesIO(docx)).read("word/document.xml")
