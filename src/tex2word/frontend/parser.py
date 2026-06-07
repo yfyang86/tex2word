@@ -81,7 +81,7 @@ _EMPHASIS_DECL = {
 # emphasis (\textrm/\textnormal are *upright*, not italic). True cancellation of
 # a surrounding emphasis isn't modelled; a transparent passthrough is the closest
 # faithful behaviour and avoids the previous "\textrm -> italic" inversion.
-_FONT_RESET = {"textnormal", "textrm", "textsf", "textmd", "textup"}
+_FONT_RESET = {"textnormal", "textrm", "textsf", "textmd", "textup", "text", "mbox"}
 
 # Font-size declarations (10pt base) -> w:sz half-points.
 _FONT_SIZE_HP = {
@@ -205,6 +205,10 @@ _IGNORE_MACROS = {
     "graphicspath", "definecolor", "pagenumbering",
     "renewcommand", "newcommand", "providecommand",
     "setitemize", "setenumerate", "hyphenation", "settopmatter",
+    # grouping / layout / counter declarations -> drop (args consumed by specs)
+    "begingroup", "endgroup", "bgroup", "egroup",
+    "AddToShipoutPicture", "ClearShipoutPicture",
+    "newcounter", "addtocounter", "refstepcounter", "stepcounter",
 }
 
 
@@ -1702,6 +1706,13 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             MacroSpec("chapter", "*[{"),
             MacroSpec("part", "*[{"),
             MacroSpec("caption", "*[{"),
+            # layout / front-matter commands: consume their args so they don't
+            # leak as text (e.g. full-page cover \AddToShipoutPicture{\put...}).
+            MacroSpec("AddToShipoutPicture", "*{"),
+            MacroSpec("newcounter", "{["),
+            MacroSpec("addtocounter", "{{"),
+            MacroSpec("refstepcounter", "{"),
+            MacroSpec("stepcounter", "{"),
             MacroSpec("textsuperscript", "{"),
             MacroSpec("textsubscript", "{"),
             MacroSpec("sout", "{"),
