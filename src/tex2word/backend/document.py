@@ -441,15 +441,22 @@ class DocumentWriter:
         if not block.source:
             return None
         try:
-            from . import tikz
+            from . import raster, tikz
 
             result = tikz.render(block.source, self.preamble)
         except Exception:  # never let a render bug abort the conversion
             return None
         if result is None:
-            self.report.warn(
-                "figure", "TikZ figure not rendered (needs a TeX engine + tex2word[pdf])"
-            )
+            # Be specific about why so the user can fix their setup.
+            if tikz.extract_picture(block.source) is None:
+                reason = "no recognised TikZ/PGF picture in the figure"
+            elif not tikz.available_engines():
+                reason = "no TeX engine on PATH (install e.g. xelatex/pdflatex)"
+            elif not raster.has_pdf_support():
+                reason = "install tex2word[pdf] (pypdfium2) to rasterise the compiled figure"
+            else:
+                reason = "the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+            self.report.warn("figure", f"TikZ figure not rendered: {reason}")
             return None
         data, w, h = result
         self.report.info("figure", "rendered TikZ figure to an image")
