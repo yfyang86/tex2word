@@ -4,7 +4,8 @@ An open-source, cross-platform **LaTeX → Microsoft Word (`.docx`)** converter
 that produces *genuinely editable* Word: native paragraph styles, **native OMML
 equations** (editable in Word's equation editor, not images), and **live,
 auto-renumbering fields** for equation/figure/table numbers and
-cross-references.
+cross-references. **Chinese/Japanese/Korean** documents (XeLaTeX/`xeCJK`) are
+supported — the configured CJK fonts carry through to Word.
 
 > **Status: production-grade.** Foundation, math core (direct LaTeX→OMML), the
 > live cross-reference/field plumbing (the differentiator), image embedding, the
@@ -53,6 +54,31 @@ out_path, result = convert_file("paper.tex")
 print(result.report.summary())   # math coverage + warnings
 ```
 
+### Chinese / CJK documents (XeLaTeX)
+
+`xeCJK` documents convert out of the box — the fonts you select in the preamble
+are mapped onto Word's font slots, so Chinese/Japanese/Korean text (in prose,
+headings, tables **and** equations) renders in the intended font:
+
+```latex
+\documentclass{article}
+\usepackage{xeCJK}
+\setmainfont{Times New Roman}   % Latin  -> Word ascii/hAnsi
+\setCJKmainfont{SimSun}         % CJK    -> Word eastAsia (body text)
+\setCJKsansfont{SimHei}         % CJK    -> headings
+\begin{document}
+测试中文字体。Formula $\sum E = m c^2 \text{（公式）}$。
+\end{document}
+```
+
+```bash
+tex2word convert zhongwen.tex -o zhongwen.docx
+```
+
+The font *name* is recorded as written, so it must be installed on the machine
+that opens the `.docx` (e.g. `SimSun`/`宋体`, or any installed CJK font such as
+`Noto Serif CJK SC`). The choices round-trip back to a XeLaTeX preamble.
+
 ## What works today
 
 - **Reference Word templates** ★: `--reference-doc TEMPLATE.docx` adopts a
@@ -92,6 +118,12 @@ print(result.report.summary())   # math coverage + warnings
   `\ang`) work as built-ins when not user-defined. **Acronyms** (`glossaries`):
   `\newacronym` + `\gls`/`\acrshort`/`\acrlong`/`\acrfull` expand with the
   first-use "long (short)" rule.
+- **CJK / XeLaTeX fonts**: `\usepackage{xeCJK}` with `\setmainfont`,
+  `\setCJKmainfont`, `\setCJKsansfont` and `\setCJKmonofont` are honoured —
+  the Latin font becomes the Word `ascii`/`hAnsi` default and the CJK font the
+  `eastAsia` default (sans on headings, mono on code), so Chinese/Japanese/Korean
+  text renders in the intended font. The font name is recorded as written, so it
+  must match a font installed on the machine that opens the `.docx`.
 - **Footnotes**: `\footnote` → native Word footnotes (`footnotes.xml`), not
   inlined text; footnote bodies keep their formatting and math.
 - **Inline verbatim & smart refs**: `\verb|...|` → literal monospace;

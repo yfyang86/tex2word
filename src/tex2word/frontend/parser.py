@@ -2041,6 +2041,7 @@ def parse_document(
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
     if doc.meta.language is None:
         doc.meta.language = _detect_language(preamble)  # babel/polyglossia -> BCP-47
+    _detect_fonts(doc, preamble)  # fontspec/xeCJK \setmainfont / \setCJK*font
     _resolve_bibliography(doc, builder, base_dir, report, csl_path)
     return doc, report
 
@@ -2056,6 +2057,34 @@ _BABEL_LANG = {
     "finnish": "fi-FI", "czech": "cs-CZ", "greek": "el-GR", "turkish": "tr-TR",
     "japanese": "ja-JP", "chinese": "zh-CN",
 }
+
+
+def _detect_fonts(doc: ir.Document, preamble: str) -> None:
+    """Pick up XeLaTeX/fontspec + xeCJK font choices from the preamble.
+
+    ``\\setmainfont{Times New Roman}`` -> the Latin (ascii/hAnsi) default;
+    ``\\setCJKmainfont{SimSun}`` -> the East-Asian (eastAsia) default so Word
+    renders CJK text in that font; ``\\setCJKsansfont`` -> headings; and
+    ``\\setCJKmonofont`` -> code. The optional ``[options]`` form is tolerated.
+    The name is stored verbatim (it must match a font installed on the machine
+    that opens the .docx)."""
+
+    def _font(cmd: str) -> str | None:
+        m = re.search(r"\\" + cmd + r"\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", preamble)
+        return m.group(1).strip() if m and m.group(1).strip() else None
+
+    main = _font("setmainfont")
+    cjk_main = _font("setCJKmainfont")
+    cjk_sans = _font("setCJKsansfont")
+    cjk_mono = _font("setCJKmonofont")
+    if main:
+        doc.meta.main_font = main
+    if cjk_main:
+        doc.meta.cjk_main_font = cjk_main
+    if cjk_sans:
+        doc.meta.cjk_sans_font = cjk_sans
+    if cjk_mono:
+        doc.meta.cjk_mono_font = cjk_mono
 
 
 def _detect_language(preamble: str) -> str | None:

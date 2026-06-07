@@ -396,6 +396,11 @@ class DocumentMeta(Node):
     affiliations: list[list[Inline]] = field(default_factory=list)
     language: str | None = None  # BCP-47 document language (from babel/polyglossia)
     running_head: str | None = None  # \markboth/\markright/\title[short] running head
+    # XeLaTeX/fontspec + xeCJK font selection (from the preamble).
+    main_font: str | None = None  # \setmainfont -> Latin ascii/hAnsi default
+    cjk_main_font: str | None = None  # \setCJKmainfont -> East-Asian default (eastAsia)
+    cjk_sans_font: str | None = None  # \setCJKsansfont -> East-Asian font for headings
+    cjk_mono_font: str | None = None  # \setCJKmonofont -> East-Asian font for code
 
 
 @dataclass

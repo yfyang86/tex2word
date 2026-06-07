@@ -89,6 +89,17 @@ def convert_source(
         from .templates import apply_language
 
         styles_xml = apply_language(styles_xml, doc.meta.language)
+    if doc.meta.main_font or doc.meta.cjk_main_font or doc.meta.cjk_sans_font \
+            or doc.meta.cjk_mono_font:
+        from .templates import apply_fonts
+
+        styles_xml = apply_fonts(
+            styles_xml,
+            main=doc.meta.main_font,
+            cjk_main=doc.meta.cjk_main_font,
+            cjk_sans=doc.meta.cjk_sans_font,
+            cjk_mono=doc.meta.cjk_mono_font,
+        )
     package = DocxPackage(
         document_xml=document_xml,
         styles_xml=styles_xml,
