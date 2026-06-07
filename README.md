@@ -92,6 +92,12 @@ print(result.report.summary())   # math coverage + warnings
   `\ang`) work as built-ins when not user-defined. **Acronyms** (`glossaries`):
   `\newacronym` + `\gls`/`\acrshort`/`\acrlong`/`\acrfull` expand with the
   first-use "long (short)" rule.
+- **CJK / XeLaTeX fonts**: `\usepackage{xeCJK}` with `\setmainfont`,
+  `\setCJKmainfont`, `\setCJKsansfont` and `\setCJKmonofont` are honoured —
+  the Latin font becomes the Word `ascii`/`hAnsi` default and the CJK font the
+  `eastAsia` default (sans on headings, mono on code), so Chinese/Japanese/Korean
+  text renders in the intended font. The font name is recorded as written, so it
+  must match a font installed on the machine that opens the `.docx`.
 - **Footnotes**: `\footnote` → native Word footnotes (`footnotes.xml`), not
   inlined text; footnote bodies keep their formatting and math.
 - **Inline verbatim & smart refs**: `\verb|...|` → literal monospace;

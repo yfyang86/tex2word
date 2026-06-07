@@ -7,6 +7,15 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- **CJK support (XeLaTeX/xeCJK).** `\setmainfont`, `\setCJKmainfont`,
+  `\setCJKsansfont` and `\setCJKmonofont` are detected from the preamble and
+  applied to the Word styles: the Latin font becomes the `ascii`/`hAnsi` default
+  and the CJK font the `eastAsia` default (in `docDefaults`), with the CJK sans
+  font on heading/title styles and the CJK mono font on Source Code — so CJK text
+  renders in the intended font. The choices round-trip back to a XeLaTeX preamble.
+
 ## 0.9.0 — broader LaTeX coverage
 
 Folds in a large batch of front-end coverage and fidelity work, with the test
