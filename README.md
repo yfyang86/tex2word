@@ -7,11 +7,11 @@ auto-renumbering fields** for equation/figure/table numbers and
 cross-references. **Chinese/Japanese/Korean** documents (XeLaTeX/`xeCJK`) are
 supported — the configured CJK fonts carry through to Word.
 
-> **Status: production-grade.** Foundation, math core (direct LaTeX→OMML), the
-> live cross-reference/field plumbing (the differentiator), image embedding, the
-> BibTeX bibliography, and the robustness layer (math cascade, coverage report,
-> OOXML validator, round-trip manifest) are all in. See
-> [`CHANGELOG.md`](CHANGELOG.md) for the release history.
+> **Status: 1.0 — stable.** Math core (direct LaTeX→OMML), the live
+> cross-reference/field plumbing (the differentiator), image embedding, TikZ
+> figure rendering, CJK/XeLaTeX support, the BibTeX bibliography, and the
+> robustness layer (math cascade, coverage report, OOXML validator, round-trip
+> manifest) are all in. See [`CHANGELOG.md`](CHANGELOG.md) for the release history.
 
 ## Why
 
@@ -112,6 +112,10 @@ that opens the `.docx` (e.g. `SimSun`/`宋体`, or any installed CJK font such a
   (PNG/JPEG embedded directly; **PDF figures rasterised** to PNG when the
   optional `tex2word[pdf]` extra — pypdfium2 — is installed). An
   `\includegraphics` in running text (an icon/logo) is embedded **inline**.
+- **TikZ / PGF figures** ★: a `tikzpicture`/`pgfpicture`/… is **compiled with a
+  TeX engine** (xelatex/lualatex/pdflatex) into a cropped `standalone` PDF and
+  rasterised to an embedded PNG (needs the `tex2word[pdf]` extra). With no TeX
+  toolchain it degrades to a caption-only figure (the report says why).
 - **Custom macros**: `\newcommand`/`\renewcommand`/`\def` are expanded before
   parsing. Common `mathtools`/`physics` math (`\abs`, `\norm`, `\dv`, `\ket`, …)
   and `siunitx` (`\SI{9.81}{\meter\per\second\squared}` → `9.81 m/s²`, `\num`,
