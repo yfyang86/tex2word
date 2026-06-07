@@ -133,14 +133,19 @@ def _rewrite_mathoperators(source: str) -> str:
 
 
 def preprocess(source: str, base_dir: str = ".") -> str:
-    source = normalize_listing_envs(source)
+    # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
+    # \verb/\lstinline, math operators, …) sees the included content too.
+    # Otherwise a code listing pulled in via \input keeps its raw lstlisting form
+    # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
+    # copy-pasting the same text avoided.
+    source = flatten_inputs(strip_comments(source), base_dir)
+    source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)
     source = _MINTINLINE_DELIM_RE.sub(lambda m: r"\verb" + m.group(1), source)
     source = _LSTINLINE_DELIM_RE.sub(lambda m: r"\verb" + m.group(1), source)
     source = _CMIDRULE_TRIM_RE.sub(r"\1", source)
-    source = flatten_inputs(strip_comments(source), base_dir)
-    return inline_listing_files(source, base_dir)
+    return normalize_listing_envs(source)
 
 
 def _read_balanced(s: str, i: int, open_ch: str, close_ch: str) -> tuple[str, int]:

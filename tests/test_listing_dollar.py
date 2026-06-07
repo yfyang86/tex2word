@@ -102,3 +102,35 @@ def test_two_listings_with_prose_between_and_after():
     # both prose paragraphs are Normal, not code
     assert ("Normal", "结尾散文。") in [(s, t) for s, t in paras]
     assert any(s == "Normal" and "中间散文" in t for s, t in paras)
+
+
+def test_listing_via_input_is_normalized(tmp_path):
+    # A code listing pulled in via \input must be normalised too -- otherwise an
+    # odd number of $ in the code (R's df$col) breaks parsing of everything after.
+    from tex2word import convert_source
+
+    (tmp_path / "inc.tex").write_text(
+        r"\begin{lstlisting}[language=R]"
+        + "\ntemp <- WKM(x=lung$time2, d=lung$death2)\ninde <- (temp$jump > 0)\n"
+        + r"\end{lstlisting}"
+        + "\nprose after the input \\textsf{R} 函数。\n",
+        encoding="utf-8",
+    )
+    main = r"\documentclass{book}\begin{document}\input{inc.tex}\end{document}"
+    docx = convert_source(main, base_dir=str(tmp_path)).docx
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(docx)).read("word/document.xml")
+    )
+    paras = []
+    for p in root.findall(f"{{{W}}}body/{{{W}}}p"):
+        pst = p.find(f"{{{W}}}pPr/{{{W}}}pStyle")
+        st = pst.get(f"{{{W}}}val") if pst is not None else "Normal"
+        txt = "".join(t.text or "" for t in p.iter(f"{{{W}}}t"))
+        if txt.strip():
+            paras.append((st, txt))
+    after = next((s, t) for s, t in paras if "prose after" in t)
+    assert after[0] == "Normal"
+    assert "\\textsf" not in after[1] and "\\end{lstlisting}" not in after[1]
+    # the options line is not leaked as code
+    assert not any("language=R" in t for s, t in paras if s == "SourceCode")
+
