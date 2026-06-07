@@ -720,8 +720,22 @@ class _Builder:
     def blocks(self, nodes: list) -> list[ir.Block]:
         out: list[ir.Block] = []
         inline_buf: list[ir.Inline] = []
+        # block-level declaration scopes (\color{c} / {\bfseries} used *unbraced*
+        # at block level): (index into inline_buf, kind, value). Applied at flush
+        # so the declaration wraps the run of inlines that followed it, like the
+        # braced form does via _scoped_inlines.
+        scope_marks: list[tuple[int, str, object]] = []
 
         def flush() -> None:
+            for idx, kind, val in reversed(scope_marks):
+                seg = inline_buf[idx:]
+                if not seg:
+                    continue
+                if kind == "color" and val:
+                    inline_buf[idx:] = [ir.Colored(seg, fg=val)]  # type: ignore[arg-type]
+                elif kind == "emph":
+                    inline_buf[idx:] = [ir.Emphasis(seg, val)]  # type: ignore[arg-type]
+            scope_marks.clear()
             if any(not (isinstance(x, ir.Text) and not x.value.strip()) for x in inline_buf):
                 cleaned = _clean_inlines(inline_buf.copy(), trim=True)
                 if cleaned:
@@ -850,6 +864,16 @@ class _Builder:
                     if src:
                         blocks.append(ir.Paragraph([ir.Emphasis(src, "italic")], align="right"))
                 out.append(ir.Quote(blocks))
+                continue
+            # block-level declaration scopes: \color{c} / \normalcolor and the
+            # font switches {\bfseries}/{\bf}/... used unbraced -- record where
+            # they start so flush() wraps the inlines that follow.
+            if isinstance(node, LatexMacroNode) and node.macroname in ("color", "normalcolor"):
+                fg = self._color_of(node) if node.macroname == "color" else None
+                scope_marks.append((len(inline_buf), "color", fg))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname in _EMPHASIS_DECL:
+                scope_marks.append((len(inline_buf), "emph", _EMPHASIS_DECL[node.macroname]))
                 continue
             # otherwise inline content
             self._inline_node(node, inline_buf)
