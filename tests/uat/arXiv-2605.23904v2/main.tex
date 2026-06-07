@@ -1,0 +1,60 @@
+% Trimmed, self-contained excerpt of arXiv:2605.23904v2 (UAT-3).
+% Exercises the constructs that regressed: the \dvalp/\dvaln delta-cell macros
+% (which expand to \hphantom{...}), title-page box/font plumbing, and an
+% appendix prompt printed as a {\footnotesize \begin{verbatim}...} listing.
+\documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{amsmath}
+
+\definecolor{deltapos}{HTML}{1A7F37}
+\definecolor{deltaneg}{HTML}{B42318}
+\definecolor{msftdark}{HTML}{243A5E}
+
+\newcommand{\ourmethod}{SkillOpt\xspace}
+\newcommand{\dpos}[1]{\textsubscript{\textcolor{deltapos}{\,+#1}}}
+\newcommand{\dneg}[1]{\textsubscript{\textcolor{deltaneg}{\,$-$#1}}}
+\newcommand{\dvalp}[2]{\hphantom{\textsubscript{+#2}}#1\textsubscript{\textcolor{deltapos}{+#2}}}
+\newcommand{\dvaln}[2]{\hphantom{\textsubscript{$-$#2}}#1\textsubscript{\textcolor{deltaneg}{$-$#2}}}
+
+\begin{document}
+
+% --- a faux title-page line exercising the box/font no-ops ---
+{\fontsize{21}{25}\selectfont\color{msftdark}\textbf{Training Compact Skills}}
+\raisebox{-0.5\height}{\rule{0pt}{6pt}}
+
+\section{Results}
+The deployed artifact is a compact \mbox{\texttt{best\_skill.md}} file.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Setting} & \textbf{A} & \textbf{B} & \textbf{C} \\
+\midrule
+1 example   & \dvalp{81.0}{4.1} & 47.5 & 59.1 \\
+100\% train & \dvalp{86.1}{2.0} & \dvaln{78.0}{1.5} & 70.5 \\
+\bottomrule
+\end{tabular}
+\caption{Delta cells use \texttt{\textbackslash dvalp}.}
+\label{tab:results}
+\end{table}
+
+\appendix
+\section{Optimizer prompts}
+\subsection{Failure analysis: \texttt{analyst\_error.md}}
+
+{\footnotesize
+\begin{verbatim}
+You are an expert failure-analysis agent for AI agent tasks.
+
+You will be given MULTIPLE failed agent trajectories from a single minibatch.
+Your job is to identify the most important COMMON failure patterns and propose
+a concise set of skill edits.
+
+Respond ONLY with a valid JSON object (no markdown fences, no extra text).
+\end{verbatim}
+}
+
+\end{document}

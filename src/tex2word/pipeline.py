@@ -35,6 +35,7 @@ def convert_source(
     math_image_fallback: bool = False,
     csl: str | None = None,
     reference_doc: str | None = None,
+    language: str | None = None,
 ) -> ConversionResult:
     """Convert a LaTeX string to a ``.docx`` (bytes) + IR + report.
 
@@ -65,6 +66,9 @@ def convert_source(
 
     reference = _load_reference(reference_doc, report)
     hf_refs, hf_parts, hf_rels, hf_extra = _header_footer_wiring(reference, report)
+    if not hf_refs and doc.meta.running_head:
+        # no template headers -> synthesise a running-head header + page footer
+        _add_running_head(doc.meta.running_head, hf_refs, hf_parts, hf_rels)
 
     writer = DocumentWriter(
         report,
@@ -78,13 +82,21 @@ def convert_source(
         header_footer_refs=hf_refs,
     )
     document_xml = writer.build(doc)
+    if language is not None:
+        doc.meta.language = language  # CLI/API override of the detected language
+    styles_xml = reference.styles_xml if reference else load_styles_xml()
+    if doc.meta.language:
+        from .templates import apply_language
+
+        styles_xml = apply_language(styles_xml, doc.meta.language)
     package = DocxPackage(
         document_xml=document_xml,
-        styles_xml=reference.styles_xml if reference else load_styles_xml(),
+        styles_xml=styles_xml,
         numbering_xml=numbering_xml(),
         document_rels=writer.document_rels + hf_rels,
         media=writer.media,
         footnotes=writer.footnotes_xml(),
+        endnotes=writer.endnotes_xml(),
         comments=writer.comments_xml(),
         manifest=build_manifest(doc) if embed_manifest else None,
         theme=reference.theme_xml if reference else None,
@@ -125,6 +137,29 @@ def _header_footer_wiring(reference, report: ConversionReport):
     return refs, parts, rels, extra
 
 
+def _add_running_head(
+    running_head: str,
+    refs: list[tuple[str, str, str]],
+    parts: dict[str, bytes],
+    rels: list[str],
+) -> None:
+    """Synthesise a default running-head header + page-number footer in place."""
+    from .backend import runninghead
+
+    parts["word/header_rh.xml"] = runninghead.header_xml(running_head)
+    parts["word/footer_rh.xml"] = runninghead.footer_xml()
+    refs.append(("headerReference", "default", "rIdRunHead"))
+    refs.append(("footerReference", "default", "rIdRunFoot"))
+    rels.append(
+        f'<Relationship Id="rIdRunHead" Type="{_HF_REL_TYPE["header"]}" '
+        'Target="header_rh.xml"/>'
+    )
+    rels.append(
+        f'<Relationship Id="rIdRunFoot" Type="{_HF_REL_TYPE["footer"]}" '
+        'Target="footer_rh.xml"/>'
+    )
+
+
 def _load_reference(reference_doc: str | None, report: ConversionReport):
     """Load a ``--reference-doc`` template, or warn + fall back to the bundled styles."""
     if not reference_doc:
@@ -153,6 +188,7 @@ def convert_file(
     math_image_fallback: bool = False,
     csl: str | None = None,
     reference_doc: str | None = None,
+    language: str | None = None,
 ) -> tuple[str, ConversionResult]:
     """Convert a ``.tex`` file to ``.docx`` on disk. Returns the output path."""
     with open(input_path, encoding="utf-8") as fh:
@@ -162,7 +198,7 @@ def convert_file(
         source, base_dir, embed_manifest=embed_manifest,
         number_by_section=number_by_section, citation_mode=citation_mode,
         columns=columns, frontend=frontend, math_image_fallback=math_image_fallback,
-        csl=csl, reference_doc=reference_doc,
+        csl=csl, reference_doc=reference_doc, language=language,
     )
 
     if output_path is None:

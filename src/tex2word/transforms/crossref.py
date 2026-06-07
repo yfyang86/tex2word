@@ -31,6 +31,28 @@ def sanitize_bookmark(key: str) -> str:
     return cleaned[:40]
 
 
+def _inline_text(inlines: list) -> str:
+    """Flatten an inline list to plain text (for \\nameref display text)."""
+    out: list[str] = []
+    for n in inlines:
+        if isinstance(n, ir.Text):
+            out.append(n.value)
+        elif hasattr(n, "inlines"):
+            out.append(_inline_text(n.inlines))
+    return "".join(out).strip()
+
+
+def _label_name(block: ir.Block) -> str | None:
+    """The target's title/caption text, used by \\nameref."""
+    if isinstance(block, ir.Heading):
+        return _inline_text(block.inlines)
+    if isinstance(block, ir.Theorem):
+        return _inline_text(block.title) if block.title else block.kind
+    if isinstance(block, ir.Figure | ir.Table) and block.caption:
+        return _inline_text(block.caption)
+    return None
+
+
 def _label_kind(block: ir.Block) -> str:
     if isinstance(block, ir.MathBlock):
         return "equation"
@@ -70,6 +92,7 @@ def _collect(blocks: list[ir.Block], labels: dict[str, ir.LabelInfo]) -> None:
                 kind=kind,  # type: ignore[arg-type]
                 counter_name=counter_name,
                 bookmark=sanitize_bookmark(label),
+                name=_label_name(block),
             )
         # sub-figure labels resolve to the parent figure's number.
         if isinstance(block, ir.Figure) and block.subfigures:
@@ -93,16 +116,29 @@ def _collect(blocks: list[ir.Block], labels: dict[str, ir.LabelInfo]) -> None:
 
 
 def _rewrite_refs_inlines(inlines: list[ir.Inline], labels, report) -> None:
-    for node in inlines:
+    for i, node in enumerate(inlines):
         if isinstance(node, ir.Ref):
             info = labels.get(node.key)
             if info is None:
                 report.warn("\\ref", f"unresolved reference to '{node.key}'")
                 continue
+            if node.ref_kind == "name":
+                # \nameref -> the target's title as an internal hyperlink
+                text = info.name or node.key
+                inlines[i] = ir.Link([ir.Text(text)], "", anchor=info.bookmark)
+                continue
             node.bookmark = info.bookmark
             if node.ref_kind == "generic":
                 node.ref_kind = info.kind  # type: ignore[assignment]
-        elif isinstance(node, ir.Emphasis | ir.Link | ir.Footnote | ir.Colored | ir.FontSize):
+        elif isinstance(node, ir.Link):
+            if node.anchor is not None:  # \hyperref[label] -> sanitized bookmark
+                info = labels.get(node.anchor)
+                if info is None:
+                    report.warn("\\hyperref", f"unresolved \\hyperref to '{node.anchor}'")
+                else:
+                    node.anchor = info.bookmark
+            _rewrite_refs_inlines(node.inlines, labels, report)
+        elif isinstance(node, ir.Emphasis | ir.Footnote | ir.Colored | ir.FontSize):
             _rewrite_refs_inlines(node.inlines, labels, report)
 
 

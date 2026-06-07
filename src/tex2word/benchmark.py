@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import glob
 import os
+import time
 from dataclasses import asdict, dataclass
 
 from .pipeline import convert_file
@@ -29,6 +30,7 @@ class DocMetrics:
     errors: int = 0
     valid: bool = False
     aborted: bool = False
+    seconds: float = 0.0
 
     @property
     def math_omml_pct(self) -> float:
@@ -44,10 +46,12 @@ def benchmark_dir(directory: str) -> dict:
 
 def _one(path: str, base: str) -> DocMetrics:
     name = os.path.relpath(path, base)
+    t0 = time.perf_counter()
     try:
         _, result = convert_file(path, os.devnull, embed_manifest=False)
     except Exception:
-        return DocMetrics(name=name, aborted=True)
+        return DocMetrics(name=name, aborted=True, seconds=round(time.perf_counter() - t0, 3))
+    elapsed = round(time.perf_counter() - t0, 3)
     cov = result.report.coverage()
     return DocMetrics(
         name=name,
@@ -59,6 +63,7 @@ def _one(path: str, base: str) -> DocMetrics:
         warnings=len(result.report.warnings),
         errors=len(result.report.errors),
         valid=validate_docx(result.docx) == [],
+        seconds=elapsed,
     )
 
 
@@ -77,25 +82,26 @@ def _aggregate(docs: list[DocMetrics]) -> dict:
         "math_omml_pct": round(100.0 * math_omml / math_total, 1) if math_total else 100.0,
         "warnings": sum(d.warnings for d in docs),
         "errors": sum(d.errors for d in docs),
+        "seconds": round(sum(d.seconds for d in docs), 3),
     }
 
 
 def format_report(result: dict) -> str:
     """A compact text table of the benchmark result."""
-    lines = [f"{'document':<34} {'math%':>6} {'omml':>5} {'raw':>4} {'warn':>5} valid"]
-    lines.append("-" * 64)
+    lines = [f"{'document':<34} {'math%':>6} {'omml':>5} {'raw':>4} {'warn':>5} {'sec':>6} valid"]
+    lines.append("-" * 72)
     for d in result["documents"]:
         pct = 100.0 * d["math_omml"] / d["math_total"] if d["math_total"] else 100.0
         flag = "ABORT" if d["aborted"] else ("ok" if d["valid"] else "INVALID")
         lines.append(
             f"{d['name']:<34} {pct:6.1f} {d['math_omml']:5} {d['math_raw']:4} "
-            f"{d['warnings']:5} {flag}"
+            f"{d['warnings']:5} {d.get('seconds', 0.0):6.2f} {flag}"
         )
     a = result["aggregate"]
-    lines.append("-" * 64)
+    lines.append("-" * 72)
     lines.append(
         f"{'TOTAL (' + str(a['documents']) + ' docs)':<34} {a['math_omml_pct']:6.1f} "
-        f"{a['math_omml']:5} {a['math_raw']:4} {a['warnings']:5} "
+        f"{a['math_omml']:5} {a['math_raw']:4} {a['warnings']:5} {a.get('seconds', 0.0):6.2f} "
         f"{a['valid']}/{a['documents']} valid, {a['aborted']} aborted"
     )
     return "\n".join(lines)

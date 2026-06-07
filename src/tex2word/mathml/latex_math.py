@@ -402,6 +402,13 @@ class _Parser:
             return self._parse_fenced()
         if name == "right":
             raise MathUnsupported("delimiter", "stray \\right")
+        if name == "substack":  # \substack{a \\ b \\ c} -> a single-column stack
+            return self._parse_substack()
+        if name == "bmod":  # infix modulo: a \bmod n -> "a mod n"
+            return Lit(" mod ", upright=True)
+        if name == "pmod":  # \pmod{n} -> " (mod n)"
+            mod_row = Row([Lit("mod ", upright=True), self.parse_group()])
+            return Row([Lit(" ", upright=True), Fenced("(", ")", mod_row)])
         if name in S.FUNCTIONS:
             return Lit(name, upright=True)
         if name in S.MATHBB:  # bare \N style not expected, but safe
@@ -490,6 +497,32 @@ class _Parser:
             atom = self.parse_atom()
             if atom is not None:
                 items.append(self._maybe_scripts(atom))
+
+    def _parse_substack(self) -> MNode:
+        """\\substack{a \\\\ b \\\\ c} -> a single-column matrix (stacked limits)."""
+        if self._peek()[0] == "{":
+            self._next()
+        rows: list[list[Row]] = [[]]
+        current: list[MNode] = []
+        while True:
+            ttype, _ = self._peek()
+            if ttype in ("}", "eof"):
+                break
+            if ttype == "newline":
+                self._next()
+                rows[-1].append(Row(current.copy()))
+                current.clear()
+                rows.append([])
+                continue
+            atom = self.parse_atom()
+            if atom is not None:
+                current.append(self._maybe_scripts(atom))
+        rows[-1].append(Row(current.copy()))
+        if self._peek()[0] == "}":
+            self._next()
+        if rows and all(len(c.items) == 0 for c in rows[-1]):
+            rows.pop()
+        return Matrix(rows)
 
     def _parse_environment(self) -> MNode:
         name_row = self.parse_group()
