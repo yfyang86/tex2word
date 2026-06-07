@@ -92,6 +92,31 @@ def inline_listing_files(source: str, base_dir: str) -> str:
     return _LSTINPUT_RE.sub(repl, source)
 
 
+# Code-listing environments pylatexenc has no verbatim spec for. Left alone, it
+# parses their bodies as LaTeX -- so a ``$`` in the code (e.g. R's ``df$col``)
+# opens math mode and, with an odd count, swallows the rest of the document
+# (the listing never closes; everything after renders as code). Normalising them
+# to ``verbatim`` (which pylatexenc captures literally) fixes that and drops the
+# ``[options]`` / minted ``{lang}`` that would otherwise leak in as a code line.
+# Backreference \1 ties \end to the same environment name.
+_LISTING_ENV_RE = re.compile(
+    r"\\begin\{(lstlisting|minted|Verbatim\*?|verbatim\*)\}"
+    r"[ \t]*(?:\[[^\]]*\])?"   # optional [options]
+    r"[ \t]*(?:\{[^}]*\})?"    # optional {lang} (minted)
+    r"(?P<body>.*?)"
+    r"\\end\{\1\}",
+    re.DOTALL,
+)
+
+
+def normalize_listing_envs(source: str) -> str:
+    """Rewrite ``lstlisting``/``minted``/``Verbatim`` blocks to ``verbatim``."""
+    return _LISTING_ENV_RE.sub(
+        lambda m: "\\begin{verbatim}" + m.group("body") + "\\end{verbatim}",
+        source,
+    )
+
+
 # amsmath \DeclareMathOperator{\name}{body} (and starred, with limits) -> a
 # \newcommand that wraps the body in \operatorname, which the math path renders.
 _DECLAREMATHOP_RE = re.compile(
@@ -108,6 +133,7 @@ def _rewrite_mathoperators(source: str) -> str:
 
 
 def preprocess(source: str, base_dir: str = ".") -> str:
+    source = normalize_listing_envs(source)
     source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)
     source = _MINTINLINE_DELIM_RE.sub(lambda m: r"\verb" + m.group(1), source)
