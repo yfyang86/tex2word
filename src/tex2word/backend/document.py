@@ -24,6 +24,7 @@ from .numbering import (
     DECIMAL_NUM_ID,
     HEADING_APPENDIX_NUM_ID,
     HEADING_NUM_ID,
+    PART_NUM_ID,
 )
 from .ooxml import el, preserve_space, serialize, sub, text_el
 
@@ -87,6 +88,9 @@ class DocumentWriter:
         #: rendered <w:footnote> elements (excluding the separator pair)
         self._footnotes: list[_Element] = []
         self._footnote_counter = 0
+        #: rendered <w:endnote> elements (\endnote -> endnotes.xml)
+        self._endnotes: list[_Element] = []
+        self._endnote_counter = 0
         #: rendered <w:comment> elements (review annotations -> comments.xml)
         self._comments: list[_Element] = []
         self._comment_counter = 0
@@ -145,6 +149,8 @@ class DocumentWriter:
             self._heading(block, body)
         elif isinstance(block, ir.Paragraph):
             p = self._styled_paragraph(default_style)
+            if block.align:
+                self._set_align(p, block.align)
             self._inlines(block.inlines, p)
             body.append(p)
         elif isinstance(block, ir.MathBlock):
@@ -168,6 +174,11 @@ class DocumentWriter:
             self._bibliography(block, body)
         elif isinstance(block, ir.TableOfContents):
             self._toc(block, body)
+        elif isinstance(block, ir.Index):
+            p = self._styled_paragraph("Normal")
+            for run in fields.field('INDEX \\c "2" \\z "1033"'):
+                p.append(run)
+            body.append(p)
         elif isinstance(block, ir.RawPassthrough):
             p = self._styled_paragraph("SourceCode")
             p.append(self._run(block.latex))
@@ -176,7 +187,13 @@ class DocumentWriter:
     def _heading(self, block: ir.Heading, body: _Element) -> None:
         style = _HEADING_STYLE.get(block.level, "Heading5")
         p = self._styled_paragraph(style)
-        if block.numbered and 1 <= block.level <= 4:
+        if block.part and block.numbered:
+            ppr = p.find(_qn("w:pPr"))
+            assert ppr is not None
+            numpr = sub(ppr, "w:numPr")
+            sub(numpr, "w:ilvl", **{"w:val": "0"})
+            sub(numpr, "w:numId", **{"w:val": str(PART_NUM_ID)})
+        elif block.numbered and 1 <= block.level <= 4:
             ppr = p.find(_qn("w:pPr"))
             assert ppr is not None
             numpr = sub(ppr, "w:numPr")
@@ -255,6 +272,9 @@ class DocumentWriter:
             self._list_item(item, body, level, num_id)
 
     def _list_item(self, item: ir.ListItem, body: _Element, level: int, num_id: int) -> None:
+        if item.term:  # a custom \item[label] -> show the label, suppress the bullet
+            self._description_item(item, body, level)
+            return
         marked = False
         for inner in item.blocks:
             if isinstance(inner, ir.ItemList):
@@ -343,7 +363,8 @@ class DocumentWriter:
                 col += cell.colspan
         body.append(tbl)
         if block.caption is not None:
-            body.append(self._caption("Table", block.caption, block.label))
+            body.append(self._caption("Table", block.caption, block.label,
+                                      numbered=block.caption_numbered))
 
     def _table_cell(self, tr: _Element, cell: ir.TableCell, width: int | None = None) -> None:
         tc = sub(tr, "w:tc")
@@ -403,7 +424,8 @@ class DocumentWriter:
         if block.caption is not None:
             bookmark = _figure_bookmark(block)
             content.append(
-                self._caption("Figure", block.caption, block.label, bookmark=bookmark)
+                self._caption("Figure", block.caption, block.label, bookmark=bookmark,
+                              numbered=block.caption_numbered)
             )
         body.append(sdt)
 
@@ -631,8 +653,13 @@ class DocumentWriter:
         caption: list[ir.Inline],
         label: str | None,
         bookmark: str | None = None,
+        numbered: bool = True,
     ) -> _Element:
         p = self._styled_paragraph("Caption")
+        if not numbered:
+            # \caption*: no counter/SEQ, no "Figure N:" prefix -- just the text.
+            self._inlines(caption, p)
+            return p
         p.append(self._run(f"{counter} "))
         name = bookmark or (_bookmark_for(label) if label else None)
         start = None
@@ -834,8 +861,13 @@ class DocumentWriter:
             self._link(node, p)
         elif isinstance(node, ir.Footnote):
             self._footnote(node, p)
+        elif isinstance(node, ir.Endnote):
+            self._endnote(node, p)
         elif isinstance(node, ir.Comment):
             self._comment(node, p)
+        elif isinstance(node, ir.IndexEntry):
+            for run in fields.index_entry(node.term):
+                p.append(run)
 
     def _comment(self, node: ir.Comment, p: _Element) -> None:
         self._comment_counter += 1
@@ -918,8 +950,9 @@ class DocumentWriter:
         p.append(self._run(f"[{text}]" if node.mode == "paren" else text))
 
     def _link(self, node: ir.Link, p: _Element) -> None:
+        instr = f'HYPERLINK \\l "{node.anchor}"' if node.anchor else f'HYPERLINK "{node.url}"'
         p.append(fields._fldchar("begin"))
-        p.append(fields._instr_run(f'HYPERLINK "{node.url}"'))
+        p.append(fields._instr_run(instr))
         p.append(fields._fldchar("separate"))
         for child in node.inlines:
             self._inline_styled(child, p, "hyperlink")
@@ -963,6 +996,38 @@ class DocumentWriter:
         sub(r, mark_tag)
         p.append(r)
         return el("w:footnote", p, **{"w:type": kind, "w:id": str(note_id)})
+
+    def _endnote(self, node: ir.Endnote, p: _Element) -> None:
+        self._endnote_counter += 1
+        note_id = self._endnote_counter
+        r = el("w:r")
+        sub(sub(r, "w:rPr"), "w:rStyle", **{"w:val": "FootnoteReference"})
+        sub(r, "w:endnoteReference", **{"w:id": str(note_id)})
+        p.append(r)
+        ep = self._styled_paragraph("FootnoteText")
+        mark = el("w:r")
+        sub(sub(mark, "w:rPr"), "w:rStyle", **{"w:val": "FootnoteReference"})
+        sub(mark, "w:endnoteRef")
+        ep.append(mark)
+        ep.append(self._run(" "))
+        self._inlines(node.inlines, ep)
+        self._endnotes.append(el("w:endnote", ep, **{"w:id": str(note_id)}))
+
+    def endnotes_xml(self) -> bytes | None:
+        """Return ``word/endnotes.xml`` bytes, or None if there are no endnotes."""
+        if not self._endnotes:
+            return None
+        root = el("w:endnotes")
+        for kind, nid, tag in (
+            ("separator", -1, "w:separator"),
+            ("continuationSeparator", 0, "w:continuationSeparator"),
+        ):
+            r = el("w:r")
+            sub(r, tag)
+            root.append(el("w:endnote", el("w:p", r), **{"w:type": kind, "w:id": str(nid)}))
+        for endnote in self._endnotes:
+            root.append(endnote)
+        return serialize(root)
 
     # -- run / paragraph primitives -------------------------------------- #
 

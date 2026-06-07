@@ -7,6 +7,21 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.0 — broader LaTeX coverage
+
+Folds in a large batch of front-end coverage and fidelity work, with the test
+suite roughly doubling (now 715 tests passing). Highlights from the new tests:
+hyperref/`\nameref`, `\index`, glossary entries & `\printglossary`, `csquotes`
+(inline + block) and `\enquote`, `endnotes`, `\marginpar`, `epigraph`,
+`wrapfigure`, `\substack`, `\nicefrac`, `siunitx` ranges, `\DeclareMathOperator`,
+`\lstinline`/`\lstinputlisting`, ORCID author metadata, running heads, language
+detection, and more. Packaging is unchanged (MIT, published as `tex2word`).
+
+- **UAT fixtures committed.** The real-paper acceptance suites
+  (`tests/uat/arXiv-…`) now ship with the repo, so CI runs the full suite
+  (the previous UAT exclusions in `ci.yml` are removed).
+- Added `tests/conftest.py`, a `.pre-commit-config.yaml`, and `.python-version`.
+
 ## 0.8.2 — rename to `tex2word`
 
 - **Renamed the package `latex2word` → `tex2word`.** The import package

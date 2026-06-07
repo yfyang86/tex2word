@@ -48,7 +48,9 @@ EmphasisKind = Literal[
     "subscript", "strike", "highlight",
 ]
 CiteMode = Literal["paren", "text", "foot", "author", "year", "num"]
-RefKind = Literal["generic", "equation", "figure", "table", "section", "theorem", "page"]
+RefKind = Literal[
+    "generic", "equation", "figure", "table", "section", "theorem", "page", "name"
+]
 
 
 @dataclass
@@ -102,6 +104,8 @@ class Cite(Node):
 class Link(Node):
     inlines: list[Inline]
     url: str
+    anchor: str | None = None  # \hyperref[label]: internal bookmark target (raw label
+    #: until resolved by the cross-reference transform, then the sanitized bookmark)
 
 
 @dataclass
@@ -112,6 +116,18 @@ class LineBreak(Node):
 @dataclass
 class Footnote(Node):
     inlines: list[Inline]
+
+
+@dataclass
+class Endnote(Node):
+    inlines: list[Inline]
+
+
+@dataclass
+class IndexEntry(Node):
+    """An ``\\index{term}`` marker -> a hidden Word ``XE`` index-entry field."""
+
+    term: str
 
 
 @dataclass
@@ -171,8 +187,8 @@ class Image(Node):
 
 
 Inline = (
-    Text | Emphasis | Math | Ref | Cite | Link | LineBreak | Footnote | Colored
-    | FontSize | Image | RawInline | Comment
+    Text | Emphasis | Math | Ref | Cite | Link | LineBreak | Footnote | Endnote
+    | Colored | FontSize | Image | RawInline | Comment | IndexEntry
 )
 
 
@@ -188,11 +204,13 @@ class Heading(Node):
     label: str | None = None
     numbered: bool = True  # False for starred (\section*) and run-in headings
     appendix: bool = False  # after \appendix -> letter (A, B, ...) numbering
+    part: bool = False  # \part -> "Part I" upper-roman, counter independent of sections
 
 
 @dataclass
 class Paragraph(Node):
     inlines: list[Inline]
+    align: str | None = None  # "center"/"left"/"right" from center/flushleft/flushright
 
 
 @dataclass
@@ -247,6 +265,7 @@ class Table(Node):
     caption: list[Inline] | None = None
     label: str | None = None
     colwidths: list[float | None] = field(default_factory=list)  # per-column EMU (p{})
+    caption_numbered: bool = True  # False for \caption* (unnumbered caption)
 
 
 @dataclass
@@ -263,6 +282,7 @@ class Figure(Node):
     label: str | None = None
     source: str = ""
     subfigures: list[SubFigure] = field(default_factory=list)
+    caption_numbered: bool = True  # False for \caption* (unnumbered caption)
 
 
 @dataclass
@@ -320,6 +340,11 @@ class TableOfContents(Node):
 
 
 @dataclass
+class Index(Node):
+    """``\\printindex`` -> a Word ``INDEX`` field (built from the ``XE`` entries)."""
+
+
+@dataclass
 class CSLItem(Node):
     id: str
     type: str
@@ -351,6 +376,7 @@ Block = (
     | Algorithm
     | Bibliography
     | TableOfContents
+    | Index
     | RawPassthrough
 )
 
@@ -368,6 +394,8 @@ class DocumentMeta(Node):
     abstract: list[Block] | None = None
     keywords: list[Inline] | None = None
     affiliations: list[list[Inline]] = field(default_factory=list)
+    language: str | None = None  # BCP-47 document language (from babel/polyglossia)
+    running_head: str | None = None  # \markboth/\markright/\title[short] running head
 
 
 @dataclass
@@ -376,6 +404,7 @@ class LabelInfo(Node):
     counter_name: str
     bookmark: str
     number: str | None = None
+    name: str | None = None  # target's title/caption text (for \nameref)
 
 
 @dataclass

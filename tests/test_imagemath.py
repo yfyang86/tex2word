@@ -57,7 +57,7 @@ def test_matplotlib_bad_input_returns_none():
 def test_cascade_image_stage_when_omml_paths_fail():
     report = ConversionReport()
     cascade = MathCascade(report, image_renderer=MatplotlibMathRenderer(), enable_pmml=False)
-    result = cascade.inline(r"\substack{a \\ b}")  # direct parser rejects this
+    result = cascade.inline(r"\not= y")  # direct parser rejects this
     assert result.path == "image"
     assert result.image is not None and result.image[1] == "png"
     assert report.math_image == 1
@@ -71,7 +71,7 @@ def test_docx_embeds_image_math():
     report = ConversionReport()
     writer = DocumentWriter(report, image_math_renderer=MatplotlibMathRenderer())
     writer.math.enable_pmml = False  # isolate the image fallback
-    doc = ir.Document(blocks=[ir.MathBlock(latex=r"\substack{a \\ b}", env="displaymath")])
+    doc = ir.Document(blocks=[ir.MathBlock(latex=r"\not= y", env="displaymath")])
     root = etree.fromstring(writer.build(doc))
     assert root.xpath("//w:drawing", namespaces=NS)  # the math was embedded as a drawing
     assert any(k.startswith("word/media/") for k in writer.media)  # a media part registered

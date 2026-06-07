@@ -44,3 +44,39 @@ def test_addbibresource_in_body_is_recognised(tmp_path):
     )
     bib = next(b for b in res.document.blocks if isinstance(b, ir.Bibliography))
     assert any(it.id == "e1905" for it in bib.entries)
+
+
+def _text(docx: bytes) -> str:
+    import re
+    xml = zipfile.ZipFile(io.BytesIO(docx)).read("word/document.xml").decode()
+    return "".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", xml))
+
+
+def test_biblatex_authoryear_style_renders_author_year(tmp_path):
+    _, res = _convert(
+        tmp_path,
+        body=r"\citet{e1905} and \citep{e1905}.\printbibliography",
+        preamble=r"\usepackage[style=authoryear]{biblatex}\addbibresource{refs.bib}",
+    )
+    txt = _text(res.docx)
+    assert "Einstein (1905)" in txt    # \citet -> author (year)
+    assert "(Einstein, 1905)" in txt   # \citep -> (author, year)
+    assert "[1]" not in txt            # not numeric
+
+
+def test_biblatex_default_is_numeric(tmp_path):
+    _, res = _convert(
+        tmp_path,
+        body=r"\citep{e1905}.\printbibliography",
+        preamble=r"\usepackage{biblatex}\addbibresource{refs.bib}",
+    )
+    assert "[1]" in _text(res.docx)
+
+
+def test_natbib_numbers_option_forces_numeric(tmp_path):
+    _, res = _convert(
+        tmp_path,
+        body=r"\citep{e1905}.\bibliography{refs}",
+        preamble=r"\usepackage[numbers]{natbib}",
+    )
+    assert "[1]" in _text(res.docx)

@@ -107,10 +107,19 @@ _NUMBERING_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
       <w:pPr><w:ind w:left="0" w:hanging="0"/></w:pPr>
     </w:lvl>
   </w:abstractNum>
+  <w:abstractNum w:abstractNumId="4">
+    <w:multiLevelType w:val="singleLevel"/>
+    <w:lvl w:ilvl="0">
+      <w:start w:val="1"/><w:numFmt w:val="upperRoman"/><w:lvlText w:val="Part %1"/>
+      <w:lvlJc w:val="left"/><w:suff w:val="space"/>
+      <w:pPr><w:ind w:left="0" w:hanging="0"/></w:pPr>
+    </w:lvl>
+  </w:abstractNum>
   <w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>
   <w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>
   <w:num w:numId="3"><w:abstractNumId w:val="2"/></w:num>
   <w:num w:numId="4"><w:abstractNumId w:val="3"/></w:num>
+  <w:num w:numId="5"><w:abstractNumId w:val="4"/></w:num>
 </w:numbering>
 """
 
@@ -121,6 +130,8 @@ DECIMAL_NUM_ID = 2
 HEADING_NUM_ID = 3
 #: numId for appendix headings (top level lettered A, B, ...; then A.1, A.1.1).
 HEADING_APPENDIX_NUM_ID = 4
+#: numId for \part headings ("Part I", upper-roman, counter independent of sections).
+PART_NUM_ID = 5
 
 
 def numbering_xml() -> bytes:

@@ -57,19 +57,19 @@ def test_binom_no_bar():
 
 
 @needs_pmml
-def test_latex_via_mathml_handles_substack():
-    # \substack is rejected by the direct parser; the pMML path converts it
+def test_latex_via_mathml_handles_direct_unsupported():
+    # \not= is rejected by the direct parser; the pMML path converts it
     with pytest.raises(MathUnsupported):
-        parse(r"\substack{a \\ b}")
-    o = latex_via_mathml(r"\substack{a \\ b}")
+        parse(r"\not= y")
+    o = latex_via_mathml(r"\not= y")
     assert o is not None
-    assert _count(o, "m") == 1  # rendered as a stacked matrix
+    assert _count(o, "r") >= 1  # produced some content runs
 
 
 @needs_pmml
 def test_cascade_uses_pmml_for_direct_failures():
     report = ConversionReport()
-    result = MathCascade(report).inline(r"\substack{a \\ b}")
+    result = MathCascade(report).inline(r"\not= y")
     assert result.path == "omml"
     assert report.math_omml == 1
     assert any("MathML" in e.message for e in report.entries)
@@ -86,7 +86,7 @@ def test_cascade_still_prefers_direct_path():
 
 def test_pmml_disabled_falls_through_to_raw():
     report = ConversionReport()
-    result = MathCascade(report, enable_pmml=False).inline(r"\substack{a \\ b}")
+    result = MathCascade(report, enable_pmml=False).inline(r"\not= y")
     assert result.path == "raw"
 
 

@@ -35,6 +35,15 @@ _CITE_CMD = {
     "author": "citeauthor", "year": "citeyear", "num": "citenum",
 }
 _SPECIALS = re.compile(r"([&%$#_{}])")
+# BCP-47 -> babel option (for the round-trip preamble); common languages.
+_BABEL_NAME = {
+    "en-US": "english", "en-GB": "british", "de-DE": "ngerman", "de-AT": "naustrian",
+    "fr-FR": "french", "fr-CA": "canadien", "es-ES": "spanish", "it-IT": "italian",
+    "pt-PT": "portuguese", "pt-BR": "brazilian", "nl-NL": "dutch", "ru-RU": "russian",
+    "pl-PL": "polish", "sv-SE": "swedish", "da-DK": "danish", "nb-NO": "norsk",
+    "fi-FI": "finnish", "cs-CZ": "czech", "el-GR": "greek", "tr-TR": "turkish",
+    "ja-JP": "japanese", "zh-CN": "chinese",
+}
 
 
 def _partial_rule_latex(row: ir.TableRow) -> str:
@@ -90,6 +99,9 @@ class LatexWriter:
             _scan(doc.meta.abstract, feat)
         cls = "report" if doc.book else "article"
         lines = [f"\\documentclass{{{cls}}}", "\\usepackage[utf8]{inputenc}"]
+        babel = _BABEL_NAME.get(doc.meta.language or "")
+        if babel:
+            lines.append(f"\\usepackage[{babel}]{{babel}}")
         if feat.math:
             lines += ["\\usepackage{amsmath}", "\\usepackage{amssymb}"]
         if feat.graphics:
@@ -108,6 +120,8 @@ class LatexWriter:
             lines.append("\\usepackage{cleveref}")
         if feat.cites:
             lines.append("\\usepackage{natbib}")
+        if feat.index:
+            lines += ["\\usepackage{makeidx}", "\\makeindex"]
         for env, display in sorted(feat.theorem_kinds.items()):
             if env != "proof":
                 lines.append(f"\\newtheorem{{{env}}}{{{display}}}")
@@ -116,7 +130,10 @@ class LatexWriter:
     def _frontmatter(self, meta: ir.DocumentMeta) -> str:
         out: list[str] = []
         if meta.title:
-            out.append(f"\\title{{{self._inlines(meta.title)}}}")
+            head = f"[{latex_escape(meta.running_head)}]" if meta.running_head else ""
+            out.append(f"\\title{head}{{{self._inlines(meta.title)}}}")
+        elif meta.running_head:
+            out.append(f"\\markright{{{latex_escape(meta.running_head)}}}")
         for author in meta.authors:
             out.append(f"\\author{{{self._inlines(author)}}}")
         for affil in meta.affiliations:
@@ -141,7 +158,7 @@ class LatexWriter:
     def _block(self, block: ir.Block) -> str:  # noqa: C901
         if isinstance(block, ir.Heading):
             cmd_map = _HEADING_CMD_BOOK if self.book else _HEADING_CMD
-            cmd = cmd_map.get(block.level, "section")
+            cmd = "part" if block.part else cmd_map.get(block.level, "section")
             star = "" if block.numbered else "*"
             label = f"\\label{{{block.label}}}" if block.label else ""
             prefix = ""
@@ -150,7 +167,13 @@ class LatexWriter:
                 self._appendix_emitted = True
             return f"{prefix}\\{cmd}{star}{{{self._inlines(block.inlines)}}}{label}"
         if isinstance(block, ir.Paragraph):
-            return self._inlines(block.inlines)
+            body = self._inlines(block.inlines)
+            env = {"center": "center", "left": "flushleft", "right": "flushright"}.get(
+                block.align or ""
+            )
+            if env:
+                return f"\\begin{{{env}}}\n{body}\n\\end{{{env}}}"
+            return body
         if isinstance(block, ir.MathBlock):
             return self._math_block(block)
         if isinstance(block, ir.ItemList):
@@ -175,6 +198,8 @@ class LatexWriter:
                 "figures": "\\listoffigures",
                 "tables": "\\listoftables",
             }[block.kind]
+        if isinstance(block, ir.Index):
+            return "\\printindex"
         if isinstance(block, ir.RawPassthrough):
             return block.latex
         return ""
@@ -226,7 +251,8 @@ class LatexWriter:
         table = "\n".join(lines)
         if block.caption is None and block.label is None:
             return table
-        cap = f"\\caption{{{self._inlines(block.caption or [])}}}"
+        star = "" if block.caption_numbered else "*"
+        cap = f"\\caption{star}{{{self._inlines(block.caption or [])}}}"
         label = f"\\label{{{block.label}}}" if block.label else ""
         return f"\\begin{{table}}\n\\centering\n{table}\n{cap}{label}\n\\end{{table}}"
 
@@ -255,7 +281,8 @@ class LatexWriter:
                 lines.append(f"\\label{{{sub.label}}}")
             lines.append("\\end{subfigure}")
         if block.caption:
-            lines.append(f"\\caption{{{self._inlines(block.caption)}}}")
+            star = "" if block.caption_numbered else "*"
+            lines.append(f"\\caption{star}{{{self._inlines(block.caption)}}}")
         if block.label:
             lines.append(f"\\label{{{block.label}}}")
         lines.append("\\end{figure}")
@@ -309,11 +336,17 @@ class LatexWriter:
             return self._cite(node)
         if isinstance(node, ir.Link):
             text = self._inlines(node.inlines)
+            if node.anchor:
+                return f"\\hyperref[{node.anchor}]{{{text}}}"
             return f"\\href{{{node.url}}}{{{text}}}"
         if isinstance(node, ir.LineBreak):
             return "\\\\"
         if isinstance(node, ir.Footnote):
             return f"\\footnote{{{self._inlines(node.inlines)}}}"
+        if isinstance(node, ir.Endnote):
+            return f"\\endnote{{{self._inlines(node.inlines)}}}"
+        if isinstance(node, ir.IndexEntry):
+            return f"\\index{{{node.term}}}"
         if isinstance(node, ir.Colored):
             inner = self._inlines(node.inlines)
             if node.bg is not None:
@@ -370,7 +403,7 @@ class _Features:
     def __init__(self) -> None:
         self.math = self.graphics = self.subfig = self.booktabs = False
         self.multirow = self.algorithm = self.links = self.refs = False
-        self.cleveref = self.cites = False
+        self.cleveref = self.cites = self.index = False
         self.theorem_kinds: dict[str, str] = {}
 
 
@@ -398,6 +431,8 @@ def _scan(blocks: list[ir.Block], feat: _Features) -> None:  # noqa: C901
         elif isinstance(block, ir.ItemList):
             for item in block.items:
                 _scan(item.blocks, feat)
+        elif isinstance(block, ir.Index):
+            feat.index = True
         elif isinstance(block, ir.Paragraph | ir.Heading):
             _scan_inlines(block.inlines, feat)
 
@@ -416,7 +451,9 @@ def _scan_inlines(inlines: list, feat: _Features) -> None:
             feat.cites = True
         elif isinstance(node, ir.Image):
             feat.graphics = True
-        elif isinstance(node, ir.Emphasis | ir.Footnote | ir.Colored | ir.FontSize):
+        elif isinstance(node, ir.IndexEntry):
+            feat.index = True
+        elif isinstance(node, ir.Emphasis | ir.Footnote | ir.Endnote | ir.Colored | ir.FontSize):
             _scan_inlines(node.inlines, feat)
 
 

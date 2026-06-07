@@ -39,6 +39,10 @@ _FOOTNOTES_OVERRIDE = (
     '  <Override PartName="/word/footnotes.xml" '
     'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>\n'
 )
+_ENDNOTES_OVERRIDE = (
+    '  <Override PartName="/word/endnotes.xml" '
+    'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>\n'
+)
 _THEME_OVERRIDE = (
     '  <Override PartName="/word/theme/theme1.xml" '
     'ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>\n'
@@ -88,6 +92,8 @@ class DocxPackage:
     manifest: bytes | None = None
     #: word/footnotes.xml part (bytes), or None when the document has no notes.
     footnotes: bytes | None = None
+    #: word/endnotes.xml part (bytes), or None when the document has no endnotes.
+    endnotes: bytes | None = None
     #: word/comments.xml part (bytes), or None when there are no review comments.
     comments: bytes | None = None
     #: word/theme/theme1.xml (bytes) from a --reference-doc, or None.
@@ -111,6 +117,8 @@ class DocxPackage:
             )
         if self.footnotes is not None:
             body += _FOOTNOTES_OVERRIDE
+        if self.endnotes is not None:
+            body += _ENDNOTES_OVERRIDE
         if self.comments is not None:
             body += _COMMENTS_OVERRIDE
         if self.manifest is not None:
@@ -130,6 +138,12 @@ class DocxPackage:
                 '<Relationship Id="rIdFootnotes" '
                 'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" '
                 'Target="footnotes.xml"/>'
+            )
+        if self.endnotes is not None:
+            rels.append(
+                '<Relationship Id="rIdEndnotes" '
+                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes" '
+                'Target="endnotes.xml"/>'
             )
         if self.comments is not None:
             rels.append(
@@ -175,6 +189,8 @@ class DocxPackage:
             parts["word/theme/theme1.xml"] = self.theme
         if self.footnotes is not None:
             parts["word/footnotes.xml"] = self.footnotes
+        if self.endnotes is not None:
+            parts["word/endnotes.xml"] = self.endnotes
         if self.comments is not None:
             parts["word/comments.xml"] = self.comments
         if self.manifest is not None:
