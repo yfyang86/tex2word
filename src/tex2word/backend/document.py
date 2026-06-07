@@ -63,9 +63,12 @@ class DocumentWriter:
         page_pgsz: dict[str, str] | None = None,
         page_pgmar: dict[str, str] | None = None,
         header_footer_refs: list[tuple[str, str, str]] | None = None,
+        preamble: str = "",
     ) -> None:
         self.report = report
         self.base_dir = base_dir
+        #: document preamble (for compiling TikZ pictures to images)
+        self.preamble = preamble
         self.number_by_section = number_by_section
         self.citation_mode = citation_mode
         self.columns = max(columns, 1)
@@ -417,10 +420,12 @@ class DocumentWriter:
         if block.subfigures:
             self._subfigures(block, content)
         elif block.image is None:
-            p = self._styled_paragraph("Normal")
-            self._set_align(p, "center")
-            p.append(self._run("[figure omitted: no convertible graphics]", italic=True))
-            content.append(p)
+            # No convertible graphic (e.g. a TikZ picture): compile it to an image
+            # if a TeX engine is available, else fall back to a caption-only figure
+            # (no developer-facing placeholder text in the document).
+            rendered = self._render_tikz(block)
+            if rendered is not None:
+                content.append(rendered)
         else:
             content.append(self._image_paragraph(block.image))
         if block.caption is not None:
@@ -430,6 +435,37 @@ class DocumentWriter:
                               numbered=block.caption_numbered)
             )
         body.append(sdt)
+
+    def _render_tikz(self, block: ir.Figure) -> _Element | None:
+        """Compile a figure's TikZ/PGF source to an embedded PNG, or None."""
+        if not block.source:
+            return None
+        try:
+            from . import raster, tikz
+
+            result = tikz.render(block.source, self.preamble)
+        except Exception:  # never let a render bug abort the conversion
+            return None
+        if result is None:
+            # Be specific about why so the user can fix their setup.
+            if tikz.extract_picture(block.source) is None:
+                reason = "no recognised TikZ/PGF picture in the figure"
+            elif not tikz.available_engines():
+                reason = "no TeX engine on PATH (install e.g. xelatex/pdflatex)"
+            elif not raster.has_pdf_support():
+                reason = "install tex2word[pdf] (pypdfium2) to rasterise the compiled figure"
+            else:
+                reason = "the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+            self.report.warn("figure", f"TikZ figure not rendered: {reason}")
+            return None
+        data, w, h = result
+        self.report.info("figure", "rendered TikZ figure to an image")
+        p = self._styled_paragraph("Normal")
+        self._set_align(p, "center")
+        r = el("w:r")
+        r.append(self._register_and_draw(data, images.ImageInfo("png", w, h), "tikz.png"))
+        p.append(r)
+        return p
 
     def _subfigures(self, block: ir.Figure, body: _Element) -> None:
         # Sub-figures sit side by side in a borderless 1-row table; each cell

@@ -88,3 +88,34 @@ jobs:
 
       - name: Render CJK .docx through LibreOffice and check the Chinese text
         run: uv run pytest tests/test_cjk_render.py tests/test_cjk_context.py -q -rs
+
+  tikz-render:
+    name: TikZ render (TeX engine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install a TeX engine + TikZ/standalone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-fonts-recommended \
+            texlive-pictures texlive-latex-extra
+          pdflatex --version | head -1
+          kpsewhich standalone.cls tikz.sty || true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies (pdf extra for PDFium rasterisation)
+        run: uv sync --all-extras --dev
+
+      - name: Compile a TikZ figure and check an image is embedded
+        env:
+          TEX2WORD_TIKZ_DEBUG: "1"
+        run: uv run pytest tests/test_tikz_render.py -q -rs -s

@@ -7,6 +7,38 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0 — first stable release
+
+tex2word reaches **1.0**: a production-grade, cross-platform LaTeX → editable
+Word (`.docx`) converter with native OMML math, live auto-renumbering fields,
+CJK/XeLaTeX support, TikZ figure rendering, and a robustness pass driven by real
+books. Published on PyPI as `tex2word` (MIT).
+
+### TikZ / PGF figures rendered to images
+- A figure whose content is a `tikzpicture`/`pgfpicture`/… is compiled with an
+  available TeX engine (tries `xelatex` → `lualatex` → `pdflatex` until one
+  produces a PDF, so partial installs still work), cropped via `standalone`, and
+  rasterised to PNG with the `pdf` extra. The document preamble is filtered to
+  the parts a picture needs. Without a usable toolchain the figure degrades to
+  **caption-only** (no developer-facing "figure omitted" placeholder), and the
+  report says exactly why (no engine / missing `tex2word[pdf]` / compile error).
+
+### Real-document robustness (found converting a `ctexbook` + `xeCJK` book)
+- **Code listings no longer swallow the document.** A `$` in `lstlisting`/
+  `minted` code (R's `df$col`) used to open math mode and run to end of file.
+  These are normalised to `verbatim`, dropping `[options]`/minted `{lang}` —
+  and this now applies to listings pulled in via `\input`/`\include` too (the
+  flattening was reordered to run first).
+- **Old-style font declarations** — `{\bfseries …}`/`{\bf …}`/`{\it}`/`{\tt}`
+  (incl. unbraced block-level use) now apply instead of leaking `\bf` literally;
+  and inside math `{\rm Lik}` is honoured like `\mathrm{…}` (it used to dump the
+  whole `align*` block to raw `\[ … \]`).
+- **Block-level (unbraced) `\color`/font declarations** are scoped to the run of
+  inlines that follow, like the braced form.
+- **Layout/front-matter commands dropped** — `\begingroup`/`\endgroup`,
+  `\AddToShipoutPicture{\put…}`, `\newcounter{}[]` no longer leak (cover pages).
+- **`\text`/`\mbox` outside math** render their argument instead of leaking.
+
 ## 0.9.1 — CJK support (XeLaTeX/xeCJK)
 
 - **CJK support (XeLaTeX/xeCJK).** `\setmainfont`, `\setCJKmainfont`,
