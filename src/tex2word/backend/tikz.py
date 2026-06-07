@@ -89,45 +89,57 @@ def build_standalone(picture: str, preamble: str = "", *, unicode_engine: bool =
     )
 
 
+def available_engines() -> list[str]:
+    """TeX engines on PATH, in preference order (Unicode engines first)."""
+    return [e for e in _ENGINES if shutil.which(e)]
+
+
 def render(
     source: str, preamble: str = "", *, dpi: int = 220, timeout: int = 60
 ) -> tuple[bytes, int, int] | None:
     """Compile the picture in ``source`` to a cropped PNG; ``None`` on any failure.
 
-    Returns ``(png_bytes, width_px, height_px)``.
+    Tries each available engine in turn (a partial TeX install may have, say, a
+    ``lualatex`` binary without its support files) until one produces a PDF that
+    rasterises. Returns ``(png_bytes, width_px, height_px)``.
     """
     picture = extract_picture(source)
     if picture is None:
         return None
-    engine = find_engine()
-    if engine is None:
+    engines = available_engines()
+    if not engines:
         return None
     from .raster import has_pdf_support, rasterize_pdf
 
     if not has_pdf_support():
         return None
-    tex = build_standalone(
-        picture, preamble, unicode_engine=engine in _UNICODE_ENGINES
-    )
     with tempfile.TemporaryDirectory() as tmp:
-        with open(os.path.join(tmp, "pic.tex"), "w", encoding="utf-8") as fh:
-            fh.write(tex)
-        try:
-            proc = subprocess.run(
-                [engine, "-interaction=nonstopmode", "-halt-on-error", "pic.tex"],
-                cwd=tmp,
-                capture_output=True,
-                timeout=timeout,
-                check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            _debug(f"{engine} invocation failed: {exc}")
-            return None
         pdf = os.path.join(tmp, "pic.pdf")
-        if not os.path.exists(pdf):
-            _debug_compile_failure(tmp, proc)
-            return None
-        return rasterize_pdf(pdf, dpi=dpi)
+        for engine in engines:
+            tex = build_standalone(picture, preamble, unicode_engine=engine in _UNICODE_ENGINES)
+            with open(os.path.join(tmp, "pic.tex"), "w", encoding="utf-8") as fh:
+                fh.write(tex)
+            if os.path.exists(pdf):
+                os.remove(pdf)
+            try:
+                proc = subprocess.run(
+                    [engine, "-interaction=nonstopmode", "-halt-on-error", "pic.tex"],
+                    cwd=tmp,
+                    capture_output=True,
+                    timeout=timeout,
+                    check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                _debug(f"{engine} invocation failed: {exc}")
+                continue
+            if os.path.exists(pdf):
+                result = rasterize_pdf(pdf, dpi=dpi)
+                if result is not None:
+                    return result
+                _debug(f"{engine}: produced a PDF but rasterisation failed")
+            else:
+                _debug_compile_failure(tmp, proc, engine)
+        return None
 
 
 def _debug(msg: str) -> None:
@@ -137,7 +149,7 @@ def _debug(msg: str) -> None:
         print(f"[tikz] {msg}", file=sys.stderr)
 
 
-def _debug_compile_failure(tmp: str, proc: subprocess.CompletedProcess) -> None:
+def _debug_compile_failure(tmp: str, proc: subprocess.CompletedProcess, engine: str) -> None:
     if not os.environ.get("TEX2WORD_TIKZ_DEBUG"):
         return
     import sys
@@ -149,4 +161,4 @@ def _debug_compile_failure(tmp: str, proc: subprocess.CompletedProcess) -> None:
         with open(log_path, encoding="utf-8", errors="replace") as fh:
             log = fh.read()
     tail = (log or out)[-3000:]
-    print("[tikz] compile produced no PDF; log tail:\n" + tail, file=sys.stderr)
+    print(f"[tikz] {engine}: compile produced no PDF; log tail:\n{tail}", file=sys.stderr)
