@@ -113,16 +113,40 @@ def render(
         with open(os.path.join(tmp, "pic.tex"), "w", encoding="utf-8") as fh:
             fh.write(tex)
         try:
-            subprocess.run(
+            proc = subprocess.run(
                 [engine, "-interaction=nonstopmode", "-halt-on-error", "pic.tex"],
                 cwd=tmp,
                 capture_output=True,
                 timeout=timeout,
                 check=False,
             )
-        except (OSError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            _debug(f"{engine} invocation failed: {exc}")
             return None
         pdf = os.path.join(tmp, "pic.pdf")
         if not os.path.exists(pdf):
+            _debug_compile_failure(tmp, proc)
             return None
         return rasterize_pdf(pdf, dpi=dpi)
+
+
+def _debug(msg: str) -> None:
+    if os.environ.get("TEX2WORD_TIKZ_DEBUG"):
+        import sys
+
+        print(f"[tikz] {msg}", file=sys.stderr)
+
+
+def _debug_compile_failure(tmp: str, proc: subprocess.CompletedProcess) -> None:
+    if not os.environ.get("TEX2WORD_TIKZ_DEBUG"):
+        return
+    import sys
+
+    out = (proc.stdout or b"").decode("utf-8", "replace")
+    log_path = os.path.join(tmp, "pic.log")
+    log = ""
+    if os.path.exists(log_path):
+        with open(log_path, encoding="utf-8", errors="replace") as fh:
+            log = fh.read()
+    tail = (log or out)[-3000:]
+    print("[tikz] compile produced no PDF; log tail:\n" + tail, file=sys.stderr)
