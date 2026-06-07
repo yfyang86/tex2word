@@ -62,3 +62,29 @@ jobs:
         with:
           name: dist
           path: dist/*
+
+  cjk-render:
+    name: CJK render (LibreOffice)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install LibreOffice + a CJK font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-wqy-zenhei
+          fc-cache -f
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies (pdf extra for PDFium text extraction)
+        run: uv sync --all-extras --dev
+
+      - name: Render CJK .docx through LibreOffice and check the Chinese text
+        run: uv run pytest tests/test_cjk_render.py tests/test_cjk_context.py -q -rs

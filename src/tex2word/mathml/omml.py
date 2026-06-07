@@ -12,7 +12,7 @@ import re
 
 from lxml import etree
 
-from ..backend.ooxml import el, preserve_space, sub
+from ..backend.ooxml import el, preserve_space, qn, sub
 from . import latex_math as L
 from .latex_math import MathUnsupported
 
@@ -20,6 +20,38 @@ _Element = etree._Element
 
 # strip equation-numbering / label noise before parsing a math line
 _LABEL_RE = re.compile(r"\\(?:label|tag|nonumber|notag)\b\s*(?:\{[^{}]*\})?")
+
+# CJK ranges: Unified Ideographs (+ext A), compat ideographs, kana, Hangul, and
+# the CJK symbols/punctuation block (（）。… used inside \text{...}).
+_CJK_RE = re.compile(
+    r"[　-〿぀-ヿ㐀-䶿一-鿿가-힯豈-﫿＀-￯]"
+)
+
+
+def tag_cjk_runs(root: _Element, east_asia_font: str) -> None:
+    """Set an East-Asian font on math text runs (``m:r``) whose ``m:t`` holds CJK.
+
+    OMML math runs otherwise inherit the math font (Cambria Math), so CJK inside
+    ``\\text{...}`` renders with a fallback. Adding ``w:rFonts w:eastAsia`` makes
+    Word use the document's CJK font for those glyphs. The ``w:rPr`` is inserted
+    before ``m:t`` (after the optional ``m:rPr``), per the CT_R element order."""
+    m_t, m_r = qn("m:t"), qn("m:r")
+    w_rpr, w_rfonts = qn("w:rPr"), qn("w:rFonts")
+    for t in list(root.iter(m_t)):
+        if not (t.text and _CJK_RE.search(t.text)):
+            continue
+        r = t.getparent()
+        if r is None or r.tag != m_r:
+            continue
+        wrpr = r.find(w_rpr)
+        if wrpr is None:
+            wrpr = el("w:rPr")
+            r.insert(list(r).index(t), wrpr)  # before m:t, after any m:rPr
+        rfonts = wrpr.find(w_rfonts)
+        if rfonts is None:
+            rfonts = el("w:rFonts")
+            wrpr.insert(0, rfonts)  # rFonts is first in CT_RPr
+        rfonts.set(qn("w:eastAsia"), east_asia_font)
 
 
 # --------------------------------------------------------------------------- #

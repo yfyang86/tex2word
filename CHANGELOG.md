@@ -7,6 +7,20 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.1 — CJK support (XeLaTeX/xeCJK)
+
+- **CJK support (XeLaTeX/xeCJK).** `\setmainfont`, `\setCJKmainfont`,
+  `\setCJKsansfont` and `\setCJKmonofont` are detected from the preamble and
+  applied to the Word styles: the Latin font becomes the `ascii`/`hAnsi` default
+  and the CJK font the `eastAsia` default (in `docDefaults`), with the CJK sans
+  font on heading/title styles and the CJK mono font on Source Code — so CJK text
+  renders in the intended font. CJK inside math (`\text{…}`/`\mbox{…}`) is also
+  tagged with the East-Asian font on its OMML runs, so formula CJK renders in the
+  CJK font instead of a fallback. The choices round-trip back to a XeLaTeX
+  preamble. Tested for Chinese in tables, formulas, headings, lists and footnotes
+  (`test_cjk_context.py`), plus a LibreOffice render smoke gated on a CI lane that
+  installs LibreOffice + `fonts-wqy-zenhei` (`test_cjk_render.py`).
+
 ## 0.9.0 — broader LaTeX coverage
 
 Folds in a large batch of front-end coverage and fidelity work, with the test

@@ -102,6 +102,19 @@ class LatexWriter:
         babel = _BABEL_NAME.get(doc.meta.language or "")
         if babel:
             lines.append(f"\\usepackage[{babel}]{{babel}}")
+        m = doc.meta
+        if m.cjk_main_font or m.cjk_sans_font or m.cjk_mono_font:
+            lines.append("\\usepackage{xeCJK}")  # also loads fontspec
+        elif m.main_font:
+            lines.append("\\usepackage{fontspec}")
+        if m.main_font:
+            lines.append(f"\\setmainfont{{{m.main_font}}}")
+        if m.cjk_main_font:
+            lines.append(f"\\setCJKmainfont{{{m.cjk_main_font}}}")
+        if m.cjk_sans_font:
+            lines.append(f"\\setCJKsansfont{{{m.cjk_sans_font}}}")
+        if m.cjk_mono_font:
+            lines.append(f"\\setCJKmonofont{{{m.cjk_mono_font}}}")
         if feat.math:
             lines += ["\\usepackage{amsmath}", "\\usepackage{amssymb}"]
         if feat.graphics:
