@@ -103,6 +103,8 @@ class DocumentWriter:
         from ..bib import zotero
 
         zotero.reset_ids()
+        # CJK glyphs inside math get the document's East-Asian font (xeCJK).
+        self.math.cjk_font = doc.meta.cjk_main_font or doc.meta.cjk_sans_font
         for block in doc.blocks:
             if isinstance(block, ir.Bibliography):
                 self._cite_items = {e.id: e for e in block.entries}

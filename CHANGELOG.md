@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applied to the Word styles: the Latin font becomes the `ascii`/`hAnsi` default
   and the CJK font the `eastAsia` default (in `docDefaults`), with the CJK sans
   font on heading/title styles and the CJK mono font on Source Code — so CJK text
-  renders in the intended font. The choices round-trip back to a XeLaTeX preamble.
-  Tested for Chinese in tables, formulas, headings, lists and footnotes
+  renders in the intended font. CJK inside math (`\text{…}`/`\mbox{…}`) is also
+  tagged with the East-Asian font on its OMML runs, so formula CJK renders in the
+  CJK font instead of a fallback. The choices round-trip back to a XeLaTeX
+  preamble. Tested for Chinese in tables, formulas, headings, lists and footnotes
   (`test_cjk_context.py`), plus a LibreOffice render smoke gated on a CI lane that
   installs LibreOffice + `fonts-wqy-zenhei` (`test_cjk_render.py`).
 

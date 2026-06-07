@@ -88,6 +88,30 @@ def test_chinese_mbox_in_math():
     assert any("其中" in m for m in math)
 
 
+def test_chinese_math_run_gets_eastasia_font():
+    """CJK inside math carries the eastAsia font so Word doesn't fall back.
+
+    OMML emits one run per CJK character, so check every run whose ``m:t`` holds
+    a CJK glyph has ``w:rFonts w:eastAsia`` set to the document font."""
+    _, root = _doc(r"$x = \text{总和}$")
+    cjk_runs = 0
+    for r in root.iter(f"{{{M}}}r"):
+        text = "".join(t.text or "" for t in r.iter(f"{{{M}}}t"))
+        if any(ch in text for ch in "总和"):
+            rfonts = r.find(f"{{{W}}}rPr/{{{W}}}rFonts")
+            assert rfonts is not None, "math run with CJK has no w:rFonts"
+            assert rfonts.get(f"{{{W}}}eastAsia") == "WenQuanYi Zen Hei"
+            cjk_runs += 1
+    assert cjk_runs >= 1, "no CJK math run found"
+
+
+def test_latin_math_run_has_no_eastasia_font():
+    """Non-CJK math runs are left untouched (no spurious w:rPr/rFonts)."""
+    _, root = _doc(r"$E = mc^2$")
+    for r in root.iter(f"{{{M}}}r"):
+        assert r.find(f"{{{W}}}rPr/{{{W}}}rFonts") is None
+
+
 # -- other contexts ---------------------------------------------------------- #
 
 def test_chinese_section_heading():

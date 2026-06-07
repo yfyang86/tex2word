@@ -65,6 +65,9 @@ class MathCascade:
         self.enable_pmml = _pmml_available() if enable_pmml is None else enable_pmml
         #: (latex, display) -> rendered image, memoising repeated equations
         self._image_cache: dict[tuple[str, bool], tuple[bytes, str] | None] = {}
+        #: East-Asian font for CJK glyphs inside math (set per-document by the
+        #: writer from the xeCJK preamble); None leaves math runs untagged.
+        self.cjk_font: str | None = None
 
     def inline(self, latex: str) -> MathResult:
         return self._run(latex, display=False)
@@ -74,6 +77,14 @@ class MathCascade:
 
     # ------------------------------------------------------------------ #
 
+    def _omml_result(self, omath: list[_Element]) -> MathResult:
+        """Tag CJK math runs with the document font, count, and wrap as a result."""
+        if self.cjk_font:
+            for element in omath:
+                omml.tag_cjk_runs(element, self.cjk_font)
+        self.report.math_omml += len(omath)
+        return MathResult("omml", omath=omath)
+
     def _run(self, latex: str, display: bool, collapse_align: bool = True) -> MathResult:
         # 1. direct OMML
         try:
@@ -81,8 +92,7 @@ class MathCascade:
                 omml.render_block_lines(latex, collapse_align) if display
                 else [omml.render_inline(latex)]
             )
-            self.report.math_omml += len(omath)
-            return MathResult("omml", omath=omath)
+            return self._omml_result(omath)
         except MathUnsupported as exc:
             construct = exc.construct
         except Exception as exc:  # never let a parser bug abort the conversion
@@ -93,9 +103,8 @@ class MathCascade:
         if self.enable_pmml:
             pmml = self._try_pmml(latex, display)
             if pmml is not None:
-                self.report.math_omml += len(pmml)
                 self.report.info("math", f"converted '{construct}' via LaTeX->MathML->OMML")
-                return MathResult("omml", omath=pmml)
+                return self._omml_result(pmml)
 
         # 3. image fallback (pluggable). Memoise by (latex, display): the same
         # equation often recurs, and image rendering is the slowest path.
