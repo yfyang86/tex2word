@@ -55,9 +55,9 @@ _TRANSPARENT_BOX = {"mbox", "fbox", "framebox", "makebox", "raisebox"}
 _AUTHOR_BLOCK = {"IEEEauthorblockN", "IEEEauthorblockA"}
 
 _EMPHASIS = {
-    "textbf": "bold", "bfseries": "bold", "textit": "italic", "emph": "italic",
-    "textsl": "italic", "itshape": "italic", "underline": "underline",
-    "texttt": "typewriter", "ttfamily": "typewriter", "textsc": "smallcaps",
+    "textbf": "bold", "textit": "italic", "emph": "italic",
+    "textsl": "italic", "underline": "underline",
+    "texttt": "typewriter", "textsc": "smallcaps",
     "textsuperscript": "superscript", "textsubscript": "subscript",
     # ulem strike/underline, soul highlight
     "sout": "strike", "st": "strike", "xout": "strike",
@@ -65,11 +65,23 @@ _EMPHASIS = {
     "hl": "highlight",
 }
 
+# Declaration-form font switches (no argument): ``{\bfseries ...}`` / ``{\bf ...}``
+# apply to the rest of the enclosing group, like ``\color``. The short forms are
+# the old plain-TeX equivalents that still appear in real documents; left
+# unhandled they leaked literally (``\bf1.``) or silently dropped their effect.
+_EMPHASIS_DECL = {
+    "bfseries": "bold", "bf": "bold",
+    "itshape": "italic", "it": "italic", "em": "italic",
+    "slshape": "italic", "sl": "italic",
+    "ttfamily": "typewriter", "tt": "typewriter",
+    "scshape": "smallcaps", "sc": "smallcaps",
+}
+
 # Upright/roman/sans/medium font resets: render the content with no added
 # emphasis (\textrm/\textnormal are *upright*, not italic). True cancellation of
 # a surrounding emphasis isn't modelled; a transparent passthrough is the closest
 # faithful behaviour and avoids the previous "\textrm -> italic" inversion.
-_FONT_RESET = {"textnormal", "textrm", "textsf", "textmd", "textup"}
+_FONT_RESET = {"textnormal", "textrm", "textsf", "textmd", "textup", "text", "mbox"}
 
 # Font-size declarations (10pt base) -> w:sz half-points.
 _FONT_SIZE_HP = {
@@ -184,6 +196,7 @@ _IGNORE_MACROS = {
     "sloppy", "fussy", "raggedright", "raggedleft", "flushbottom",
     "samepage", "frenchspacing", "boldmath", "unboldmath",
     "selectfont", "rmfamily", "sffamily", "normalfont", "floatbarrier",
+    "rm", "sf", "md", "up", "mdseries", "upshape",  # upright/reset declarations
     "FloatBarrier", "height", "width", "depth", "totalheight",
     "fontfamily", "fontsize", "nohyphens",
     # preamble / packaging macros -- silently dropped
@@ -192,6 +205,10 @@ _IGNORE_MACROS = {
     "graphicspath", "definecolor", "pagenumbering",
     "renewcommand", "newcommand", "providecommand",
     "setitemize", "setenumerate", "hyphenation", "settopmatter",
+    # grouping / layout / counter declarations -> drop (args consumed by specs)
+    "begingroup", "endgroup", "bgroup", "egroup",
+    "AddToShipoutPicture", "ClearShipoutPicture",
+    "newcounter", "addtocounter", "refstepcounter", "stepcounter",
 }
 
 
@@ -350,6 +367,10 @@ class _Builder:
                     out.extend(rest)
                 else:
                     out.append(ir.FontSize(rest, half_points=hp))
+                return out
+            if isinstance(node, LatexMacroNode) and node.macroname in _EMPHASIS_DECL:
+                rest = self._scoped_inlines(nodes[i + 1:])  # {\bfseries ...} scope
+                out.append(ir.Emphasis(rest, _EMPHASIS_DECL[node.macroname]))  # type: ignore[arg-type]
                 return out
             self._inline_node(node, out)
         return out
@@ -1685,6 +1706,13 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             MacroSpec("chapter", "*[{"),
             MacroSpec("part", "*[{"),
             MacroSpec("caption", "*[{"),
+            # layout / front-matter commands: consume their args so they don't
+            # leak as text (e.g. full-page cover \AddToShipoutPicture{\put...}).
+            MacroSpec("AddToShipoutPicture", "*{"),
+            MacroSpec("newcounter", "{["),
+            MacroSpec("addtocounter", "{{"),
+            MacroSpec("refstepcounter", "{"),
+            MacroSpec("stepcounter", "{"),
             MacroSpec("textsuperscript", "{"),
             MacroSpec("textsubscript", "{"),
             MacroSpec("sout", "{"),
