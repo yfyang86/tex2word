@@ -149,6 +149,21 @@ _CMD_LITERAL = {
     "%": "%", "#": "#", "&": "&", "$": "$", "_": "_",
 }
 
+# Old plain-TeX/LaTeX2.09 math font *declarations*: ``{\rm Lik}`` behaves like
+# ``\mathrm{Lik}`` -- it styles the rest of the current group. Without these the
+# converter raised MathUnsupported on ``\rm`` and dumped the whole block as raw.
+# Value is (upright, bold, script).
+_MATH_STYLE_DECL: dict[str, tuple[bool, bool, str | None]] = {
+    "rm": (True, False, None),
+    "bf": (False, True, None),
+    "sf": (True, False, None),
+    "tt": (True, False, None),
+    "sc": (True, False, None),
+    "it": (False, False, None),
+    "mit": (False, False, None),
+    "cal": (False, False, "script"),
+}
+
 # mathtools/physics paired-delimiter macros: \abs{x} -> |x| etc. (the starred
 # auto-size form is accepted and the star ignored). Only used when the user
 # hasn't \newcommand-ed them (the macro expander runs first if they have).
@@ -425,6 +440,10 @@ class _Parser:
             return Lit("")  # styling hints we currently ignore
         if name in ("nonumber", "notag"):
             return Lit("")
+        if name in _MATH_STYLE_DECL:
+            # declaration form {\rm ...}: style the rest of the current group.
+            upright, bold, script = _MATH_STYLE_DECL[name]
+            return _styled(self.parse_row(), upright=upright, bold=bold, script=script)
         raise MathUnsupported(f"\\{name}")
 
     def parse_group_as_group(self) -> Group:
