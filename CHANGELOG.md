@@ -7,6 +7,26 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased — real-document robustness
+
+Fixes found while converting a complex `ctexbook` + `xeCJK` book.
+
+- **Code listings no longer swallow the document.** A `$` in `lstlisting`/`minted`
+  code (R's `df$col`) used to open math mode and run to end of file. These are
+  normalised to `verbatim`, dropping `[options]`/minted `{lang}`.
+- **Declaration-form font switches** — `{\bfseries …}`/`{\bf …}`/`{\it …}`/
+  `{\tt …}` (and unbraced block-level use) now apply, instead of dropping the
+  effect or leaking `\bf` literally.
+- **Layout/front-matter commands dropped** — `\begingroup`/`\endgroup`,
+  `\AddToShipoutPicture{\put…}`, `\newcounter{}[]` no longer leak (cover pages).
+- **`\text`/`\mbox` outside math** render their argument instead of leaking.
+- **Block-level (unbraced) `\color`/font declarations** are scoped to the run of
+  inlines that follow, like the braced form.
+- **TikZ figures render to an image** when a TeX engine (xelatex/lualatex/
+  pdflatex) is on PATH — the picture is compiled standalone and rasterised via
+  the `pdf` extra. Without an engine the figure degrades to caption-only (no
+  developer-facing "figure omitted" placeholder).
+
 ## 0.9.1 — CJK support (XeLaTeX/xeCJK)
 
 - **CJK support (XeLaTeX/xeCJK).** `\setmainfont`, `\setCJKmainfont`,

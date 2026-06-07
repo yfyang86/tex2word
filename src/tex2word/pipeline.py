@@ -56,6 +56,16 @@ def convert_source(
         doc, report = parse_document(source, base_dir, csl_path=csl)
     resolve_crossrefs(doc, report)
 
+    # The document preamble (TikZ libraries, colours, macros) is needed to
+    # compile any TikZ figures to images; derive it from the flattened source.
+    try:
+        from .frontend.parser import _split_document
+        from .frontend.preprocess import preprocess as _preprocess
+
+        _, preamble = _split_document(_preprocess(source, base_dir))
+    except Exception:
+        preamble = ""
+
     image_renderer = None
     if math_image_fallback:
         from .mathml.imagemath import default_renderer
@@ -80,6 +90,7 @@ def convert_source(
         page_pgsz=reference.page_pgsz if reference else None,
         page_pgmar=reference.page_pgmar if reference else None,
         header_footer_refs=hf_refs,
+        preamble=preamble,
     )
     document_xml = writer.build(doc)
     if language is not None:
