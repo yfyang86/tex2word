@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **`align`/`align*`/`gather`/… wrapped in display or `\left\{…\right.` now render
+  fully.** When one of these alignment environments appeared *inside* `\[…\]`,
+  `$$…$$`, or a `\left\{…\right.` system, the math parser didn't recognise it and
+  the fallback path silently dropped almost all the content (a braced system
+  could render as just `{`). They're now parsed as column-aligned matrices.
 - **Array/table rules in math no longer abort the block.** `\hline` (and
   `\cline`/`\toprule`/`\midrule`/`\bottomrule`/`\hdashline`) inside a math
   `array`/matrix have no OMML equivalent and were raising MathUnsupported,

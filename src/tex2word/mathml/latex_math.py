@@ -194,6 +194,17 @@ _MATRIX_DELIMS = {
     "aligned": ("", ""),
     "array": ("", ""),
     "smallmatrix": ("", ""),
+    # amsmath alignment/gather environments: when they appear *wrapped* (inside
+    # $$/\[ or \left\{…\right.) the parser meets them here; render as a
+    # column-aligned matrix with no surrounding delimiters.
+    "align": ("", ""),
+    "alignat": ("", ""),
+    "flalign": ("", ""),
+    "gather": ("", ""),
+    "gathered": ("", ""),
+    "split": ("", ""),
+    "multlined": ("", ""),
+    "eqnarray": ("", ""),
 }
 
 
@@ -555,8 +566,8 @@ class _Parser:
         env = env.rstrip("*")
         if env not in _MATRIX_DELIMS:
             raise MathUnsupported(f"environment {env}")
-        if env == "array":
-            # consume the column spec argument and ignore it for V1
+        if env in ("array", "alignat"):
+            # consume the column spec / column-count argument and ignore it
             if self._peek()[0] == "{":
                 self.parse_group()
         rows: list[list[Row]] = [[]]
