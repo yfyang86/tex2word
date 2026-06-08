@@ -7,6 +7,14 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- **Array/table rules in math no longer abort the block.** `\hline` (and
+  `\cline`/`\toprule`/`\midrule`/`\bottomrule`/`\hdashline`) inside a math
+  `array`/matrix have no OMML equivalent and were raising MathUnsupported,
+  dumping the whole block to raw `\[ … \]`. They're now dropped, so block
+  matrices with rules (and the `|` column separators around them) convert.
+
 ## 1.0.1 — alignment-environment math fixes
 
 - **Alignment environments in display math now convert.** A bare
