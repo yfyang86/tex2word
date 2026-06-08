@@ -93,7 +93,13 @@ _FONT_SIZE_HP = {
 _MATH_ENVS = {
     "equation", "align", "gather", "multline", "eqnarray", "displaymath",
     "math", "alignat", "flalign",
+    # amsmath inner-alignment envs that real (often OCR'd / copy-pasted) papers
+    # use *bare* at block level, outside $$/\[ -- treat them as display math
+    # rather than parsing the body as text (which leaks \frac, \int, … as raw).
+    "aligned", "gathered", "split", "multlined",
 }
+# Of the above, these never carry equation numbers.
+_UNNUMBERED_MATH_ENVS = {"displaymath", "math", "aligned", "gathered", "split", "multlined"}
 
 # Environments we cannot translate to Word primitives -> graphics placeholder.
 _OPAQUE_ENVS = {
@@ -969,7 +975,7 @@ class _Builder:
         base = name.rstrip("*")
         starred = name.endswith("*")
         if base in _MATH_ENVS:
-            numbered = (base not in ("displaymath", "math")) and not starred
+            numbered = (base not in _UNNUMBERED_MATH_ENVS) and not starred
             out.append(self._math_block(_verbatim_inner(node), base, numbered))
             return
         if base in ("itemize", "enumerate", "description"):
