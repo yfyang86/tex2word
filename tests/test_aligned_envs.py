@@ -81,3 +81,42 @@ def test_cline_argument_consumed():
     res, omml, txt = _conv(r"\[\begin{array}{cc}a & b \\ \cline{1-2} c & d\end{array}\]")
     assert omml == 1 and res.report.math_raw == 0
     assert "\\cline" not in txt and "1-2" not in txt
+
+
+def _math_text(body: str) -> tuple[int, str]:
+    """(math_raw, concatenated text of all m:t runs) for a \\[ body \\] fragment."""
+    res = convert_source(
+        r"\documentclass{article}\usepackage{amsmath,amssymb}\begin{document}\["
+        + body
+        + r"\]\end{document}"
+    )
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml")
+    )
+    mtext = "".join(t.text or "" for t in root.iter(f"{{{M}}}t"))
+    return res.report.math_raw, mtext
+
+
+def test_align_wrapped_in_display_keeps_all_content():
+    # regression: an align/align* *inside* \[…\] (or $$…$$) reaches the math parser
+    # as a whole env; it must render, not silently drop its content via a fallback.
+    raw, mt = _math_text(r"\begin{align*}x &= a + b \\ y &= c\end{align*}")
+    assert raw == 0
+    for ch in "xaby c":
+        if ch.strip():
+            assert ch in mt
+
+
+def test_left_brace_wrapping_align_system_renders():
+    # \left\{ \begin{align*} … \end{align*} \right.  (a braced system of equations)
+    raw, mt = _math_text(r"\left\{\begin{align*}u &= f(v) \\ w &= g(u)\end{align*}\right.")
+    assert raw == 0
+    for tok in ("u", "f", "v", "w", "g"):
+        assert tok in mt
+    assert "\\begin" not in mt and "\\left" not in mt
+
+
+def test_alignat_argument_consumed():
+    raw, mt = _math_text(r"\begin{alignat}{2}a &= b & \quad c &= d\end{alignat}")
+    assert raw == 0
+    assert "a" in mt and "d" in mt and "2" not in mt  # the column-count {2} was consumed
