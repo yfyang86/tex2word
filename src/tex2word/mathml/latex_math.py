@@ -440,6 +440,12 @@ class _Parser:
             return Lit("")  # styling hints we currently ignore
         if name in ("nonumber", "notag"):
             return Lit("")
+        if name in ("hline", "toprule", "midrule", "bottomrule", "hdashline"):
+            return Lit("")  # array/table rules: no OMML equivalent, drop them
+        if name in ("cline", "cmidrule", "noalign"):
+            if self._peek()[0] == "{":
+                self.parse_group()  # consume the {a-b} / {…} argument
+            return Lit("")
         if name in _MATH_STYLE_DECL:
             # declaration form {\rm ...}: style the rest of the current group.
             upright, bold, script = _MATH_STYLE_DECL[name]

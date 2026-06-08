@@ -65,3 +65,19 @@ def test_plain_align_block_still_collapses():
     res, omml, txt = _conv(r"\begin{align*}a &= b \\ c &= d\end{align*}")
     assert omml >= 1 and res.report.math_raw == 0
     assert "&" not in txt and "\\\\" not in txt
+
+
+def test_hline_and_rules_in_math_array_are_dropped_not_raw():
+    # array rules (\hline, \cline, \toprule, …) have no OMML equivalent; they must
+    # be dropped so the matrix converts instead of dumping the whole block to raw.
+    res, omml, txt = _conv(
+        r"\[\begin{array}{cc|c}A & B & C \\ \hline D & E & F\end{array}\]"
+    )
+    assert omml == 1 and res.report.math_raw == 0
+    assert "\\hline" not in txt and "\\begin{array}" not in txt
+
+
+def test_cline_argument_consumed():
+    res, omml, txt = _conv(r"\[\begin{array}{cc}a & b \\ \cline{1-2} c & d\end{array}\]")
+    assert omml == 1 and res.report.math_raw == 0
+    assert "\\cline" not in txt and "1-2" not in txt
