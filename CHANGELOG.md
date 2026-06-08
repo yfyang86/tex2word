@@ -7,6 +7,19 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.1 — alignment-environment math fixes
+
+- **Alignment environments in display math now convert.** A bare
+  `\begin{aligned}`/`gathered`/`split`/`multlined` block (no `$$`/`\[`, as real
+  copy-pasted/OCR'd papers often have) was parsed as text, leaking `\frac`/`\int`
+  as raw inline; these are now treated as display math. And `aligned`/`array`
+  wrapped in `$$…$$` or `\[…\]` no longer falls back to raw — the block splitter
+  is `\begin…\end`-aware, so a `\\`/`&` inside an environment isn't mistaken for a
+  line/column separator and the whole environment is parsed directly.
+- **Release safeguard.** The `release.yml` build now fails fast if the pushed git
+  tag (`vX.Y.Z`) doesn't match `pyproject`'s version, preventing a stale-tag
+  publish of the wrong/duplicate version.
+
 ## 1.0.0 — first stable release
 
 tex2word reaches **1.0**: a production-grade, cross-platform LaTeX → editable

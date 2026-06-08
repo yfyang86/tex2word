@@ -1,6 +1,6 @@
 [project]
 name = "tex2word"
-version = "1.0.0"
+version = "1.0.1"
 description = "Open-source, production-grade LaTeX -> Microsoft Word (.docx) converter with native OMML math and live fields"
 readme = "README.md"
 requires-python = ">=3.12"
