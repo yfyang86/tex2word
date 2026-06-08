@@ -226,9 +226,20 @@ def render_inline(latex: str) -> _Element:
 def _split_top_level(latex: str, sep: str) -> list[str]:
     parts: list[str] = []
     depth = 0
+    env = 0  # \begin..\end nesting: a separator inside an environment isn't top-level
     i, n = 0, len(latex)
     buf: list[str] = []
     while i < n:
+        if latex.startswith("\\begin", i) and not latex[i + 6 : i + 7].isalpha():
+            env += 1
+            buf.append(latex[i : i + 6])
+            i += 6
+            continue
+        if latex.startswith("\\end", i) and not latex[i + 4 : i + 5].isalpha():
+            env = max(0, env - 1)
+            buf.append(latex[i : i + 4])
+            i += 4
+            continue
         c = latex[i]
         if c == "{":
             depth += 1
@@ -236,7 +247,7 @@ def _split_top_level(latex: str, sep: str) -> list[str]:
         elif c == "}":
             depth -= 1
             buf.append(c)
-        elif depth == 0 and latex.startswith(sep, i):
+        elif depth == 0 and env == 0 and latex.startswith(sep, i):
             parts.append("".join(buf))
             buf = []
             i += len(sep)
@@ -265,15 +276,28 @@ def _strip_align_markers(line: str) -> str:
 
 
 def _has_top_amp(line: str) -> bool:
-    """True if ``line`` has a brace-top-level ``&`` alignment marker."""
+    """True if ``line`` has a top-level ``&`` alignment marker (outside ``{}`` and
+    outside any ``\\begin``…``\\end`` environment, e.g. a nested ``array``)."""
     depth = 0
-    for c in line:
+    env = 0
+    i, n = 0, len(line)
+    while i < n:
+        if line.startswith("\\begin", i) and not line[i + 6 : i + 7].isalpha():
+            env += 1
+            i += 6
+            continue
+        if line.startswith("\\end", i) and not line[i + 4 : i + 5].isalpha():
+            env = max(0, env - 1)
+            i += 4
+            continue
+        c = line[i]
         if c == "{":
             depth += 1
         elif c == "}":
             depth -= 1
-        elif c == "&" and depth == 0:
+        elif c == "&" and depth == 0 and env == 0:
             return True
+        i += 1
     return False
 
 
