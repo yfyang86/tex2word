@@ -123,11 +123,13 @@ def render(
                 os.remove(pdf)
             try:
                 proc = subprocess.run(
-                    [engine, "-interaction=nonstopmode", "-halt-on-error", "pic.tex"],
+                    [engine, "-no-shell-escape", "-interaction=nonstopmode",
+                     "-halt-on-error", "pic.tex"],
                     cwd=tmp,
                     capture_output=True,
                     timeout=timeout,
                     check=False,
+                    env={**os.environ, "openout_any": "p", "shell_escape": "f"},
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
                 _debug(f"{engine} invocation failed: {exc}")

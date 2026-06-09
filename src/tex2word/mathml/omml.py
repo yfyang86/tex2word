@@ -195,6 +195,8 @@ def _emit_single(node: L.MNode) -> _Element:  # noqa: C901 - structural dispatch
 
     if isinstance(node, L.Matrix):
         m = el("m:m")
+        if node.aligned and node.rows:
+            _add_alignment_mcs(m, max(len(r) for r in node.rows))
         for row in node.rows:
             mr = sub(m, "m:mr")
             for cell in row:
@@ -260,18 +262,36 @@ def _split_top_level(latex: str, sep: str) -> list[str]:
 
 
 def _strip_align_markers(line: str) -> str:
-    """Remove top-level ``&`` alignment markers from an align/aligned line."""
+    """Remove top-level ``&`` alignment markers from an align/aligned line.
+
+    A ``&`` inside a ``\\begin``…``\\end`` environment (e.g. a wrapped ``aligned``
+    or a nested ``array``) belongs to that environment's own column parsing and
+    must be left intact, so we skip markers while inside one."""
     out: list[str] = []
     depth = 0
-    for c in line:
+    env = 0
+    i, n = 0, len(line)
+    while i < n:
+        if line.startswith("\\begin", i) and not line[i + 6 : i + 7].isalpha():
+            env += 1
+            out.append(line[i : i + 6])
+            i += 6
+            continue
+        if line.startswith("\\end", i) and not line[i + 4 : i + 5].isalpha():
+            env = max(0, env - 1)
+            out.append(line[i : i + 4])
+            i += 4
+            continue
+        c = line[i]
         if c == "{":
             depth += 1
         elif c == "}":
             depth -= 1
-        if c == "&" and depth == 0:
+        if c == "&" and depth == 0 and env == 0:
             out.append(" ")
         else:
             out.append(c)
+        i += 1
     return "".join(out)
 
 
@@ -301,6 +321,17 @@ def _has_top_amp(line: str) -> bool:
     return False
 
 
+def _add_alignment_mcs(m: _Element, ncols: int) -> None:
+    """Add ``m:mPr/m:mcs`` column properties giving the classic ``array{rl}`` look
+    (right | left | right | …), so relation signs line up at the ``&``."""
+    mpr = sub(m, "m:mPr")
+    mcs = sub(mpr, "m:mcs")
+    for i in range(ncols):
+        mcpr = sub(sub(mcs, "m:mc"), "m:mcPr")
+        sub(mcpr, "m:count", **{"m:val": "1"})
+        sub(mcpr, "m:mcJc", **{"m:val": "right" if i % 2 == 0 else "left"})
+
+
 def _aligned_matrix(lines: list[str]) -> _Element:
     """Render ``&``-aligned lines as one ``m:oMath`` holding a column-justified
     matrix (the classic ``array{rl}`` look: right | left | right | …), so the
@@ -308,12 +339,7 @@ def _aligned_matrix(lines: list[str]) -> _Element:
     rows = [[c.strip() for c in _split_top_level(line, "&")] for line in lines]
     ncols = max(len(r) for r in rows)
     m = el("m:m")
-    mpr = sub(m, "m:mPr")
-    mcs = sub(mpr, "m:mcs")
-    for i in range(ncols):
-        mcpr = sub(sub(mcs, "m:mc"), "m:mcPr")
-        sub(mcpr, "m:count", **{"m:val": "1"})
-        sub(mcpr, "m:mcJc", **{"m:val": "right" if i % 2 == 0 else "left"})
+    _add_alignment_mcs(m, ncols)
     for cells in rows:
         mr = sub(m, "m:mr")
         for i in range(ncols):

@@ -120,3 +120,25 @@ def test_alignat_argument_consumed():
     raw, mt = _math_text(r"\begin{alignat}{2}a &= b & \quad c &= d\end{alignat}")
     assert raw == 0
     assert "a" in mt and "d" in mt and "2" not in mt  # the column-count {2} was consumed
+
+
+def test_wrapped_align_is_column_justified():
+    # an align/aligned reaching the math parser as a whole env must render as a
+    # column-justified matrix (relation signs line up), same as the multi-line
+    # display path -- not a plain, centre-justified matrix.
+    res, omml, _ = _conv(r"\[\begin{aligned}x &= a \\ y &= b\end{aligned}\]")
+    assert omml == 1 and res.report.math_raw == 0
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml")
+    )
+    jc = [e.get(f"{{{M}}}val") for e in root.iter(f"{{{M}}}mcJc")]
+    assert jc == ["right", "left"]  # first column right-, second left-justified
+
+
+def test_cmidrule_trim_modifier_consumed():
+    # booktabs \cmidrule(lr){2-3}: the (lr) trim spec and {2-3} must both vanish.
+    res, omml, txt = _conv(
+        r"\[\begin{array}{ccc}a & b & c \\ \cmidrule(lr){2-3} d & e & f\end{array}\]"
+    )
+    assert omml == 1 and res.report.math_raw == 0
+    assert "cmidrule" not in txt and "lr" not in txt and "2-3" not in txt

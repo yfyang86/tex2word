@@ -13,7 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fully.** When one of these alignment environments appeared *inside* `\[…\]`,
   `$$…$$`, or a `\left\{…\right.` system, the math parser didn't recognise it and
   the fallback path silently dropped almost all the content (a braced system
-  could render as just `{`). They're now parsed as column-aligned matrices.
+  could render as just `{`). They're now parsed as column-aligned matrices, and
+  they keep the classic `array{rl}` justification (relation signs line up at the
+  `&`) — matching the multi-line display path, which previously diverged.
+- **TikZ rendering hardened against shell-escape injection.** The standalone
+  compile now runs the TeX engine with `-no-shell-escape` (and `shell_escape=f`/
+  `openout_any=p` in the environment), so a malicious `\write18`/`\immediate`
+  in a figure's source can't execute shell commands during conversion.
+- **booktabs `\cmidrule(lr){2-3}` in math arrays.** The optional `(l/r/lr)` trim
+  modifier is now consumed alongside the `{a-b}` span, instead of leaking `(lr)`
+  into the rendered matrix.
+- **Code-listing options with braced brackets.** An `[options]` value such as
+  `[caption={[Fig.1] x}]` (a `]` nested inside a braced value) no longer
+  truncates the option scan at the inner `]` and leak `}]` plus the code as a
+  runaway listing.
 - **Array/table rules in math no longer abort the block.** `\hline` (and
   `\cline`/`\toprule`/`\midrule`/`\bottomrule`/`\hdashline`) inside a math
   `array`/matrix have no OMML equivalent and were raising MathUnsupported,

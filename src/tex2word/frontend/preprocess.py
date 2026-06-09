@@ -101,7 +101,9 @@ def inline_listing_files(source: str, base_dir: str) -> str:
 # Backreference \1 ties \end to the same environment name.
 _LISTING_ENV_RE = re.compile(
     r"\\begin\{(lstlisting|minted|Verbatim\*?|verbatim\*)\}"
-    r"[ \t]*(?:\[[^\]]*\])?"   # optional [options]
+    # optional [options]; allow one level of nested {…}/[…] so keys whose value
+    # is braced (e.g. [caption={[x]}]) don't truncate at the inner ``]``.
+    r"[ \t]*(?:\[(?:[^\[\]{}]|\{[^{}]*\}|\[[^\]]*\])*\])?"
     r"[ \t]*(?:\{[^}]*\})?"    # optional {lang} (minted)
     r"(?P<body>.*?)"
     r"\\end\{\1\}",
