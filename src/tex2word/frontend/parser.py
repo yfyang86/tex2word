@@ -28,7 +28,7 @@ from .. import ir
 from ..report import ConversionReport
 from . import siunitx
 from .colors import ColorTable
-from .macros import expand_macros
+from .macros import expand_macros, local_package_sources
 from .preprocess import preprocess, replace_inline_tikz
 
 # --------------------------------------------------------------------------- #
@@ -343,6 +343,8 @@ class _Builder:
         # theorem-like environment name -> display title (built-ins + \newtheorem)
         self.theorem_envs: dict[str, str] = dict(_THEOREM_ENVS)
         self.unnumbered_theorems: set[str] = set()  # \newtheorem*-defined names
+        # env name -> counter display title (shared counters resolve here)
+        self.theorem_counters: dict[str, str] = {}
 
     # -- inline ----------------------------------------------------------- #
 
@@ -777,7 +779,9 @@ class _Builder:
                 if self._labelable is not None and label and self._labelable.label is None:
                     self._labelable.label = label
                 continue
-            if isinstance(node, LatexMacroNode) and node.macroname == "appendix":
+            if isinstance(node, LatexMacroNode) and node.macroname in ("appendix", "beginappendix"):
+                # \appendix (and class wrappers like fairmeta's \beginappendix)
+                # switch later sections to lettered numbering.
                 self.in_appendix = True
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname.rstrip("*") in _SECTION_LEVELS:
@@ -1059,7 +1063,9 @@ class _Builder:
         # proof is unnumbered; so are starred uses (\begin{theorem*}) and any
         # environment defined with \newtheorem* (no counter).
         unnumbered = is_proof or starred or base in self.unnumbered_theorems
-        counter = None if unnumbered else display
+        # a shared-counter env (\newtheorem{LEM}[THM]{Lemma}) numbers against the
+        # counter it shares (THM's "Theorem"), so they form one running sequence.
+        counter = None if unnumbered else self.theorem_counters.get(base, display)
         theorem = ir.Theorem(kind=display, blocks=[], title=title, counter=counter)
         # become the label target *before* parsing the body, so a \label at the
         # start of the environment attaches here, not to the preceding block.
@@ -1360,9 +1366,13 @@ class _Builder:
                     align=cspec[0] if cspec else "center",
                     shade=shade or inner_shade,
                 )
-            if m.macroname == "multirow" and len(groups) >= 3:
+            if m.macroname == "multirow" and len(groups) >= 2:
+                # \multirow{n}{width}{content}; the width is irrelevant to us and
+                # is often written unbraced as ``*`` (\multirow{6}*{Beauty}), which
+                # leaves only two brace groups -- so take span from the first group
+                # and the content from the last rather than insisting on three.
                 span = _int_or_default(_chars_of(groups[0].nodelist), 1)
-                inner_shade, inner = self._strip_cellcolor(groups[2].nodelist)
+                inner_shade, inner = self._strip_cellcolor(groups[-1].nodelist)
                 return ir.TableCell(
                     self.blocks(inner), rowspan=span, align=align, shade=shade or inner_shade
                 )
@@ -1697,27 +1707,69 @@ def _apply_text_accent(name: str, base: str) -> str:
 
 # \newtheorem{env}{Display}, \newtheorem{env}[shared]{Display}{,
 # \newtheorem{env}{Display}[parent], and the unnumbered \newtheorem*{env}{Display}.
+# The display group may itself wrap the title in a font command -- real preambles
+# write \newtheorem{THM}{\textbf{Theorem}} -- so allow one level of nested braces
+# and clean the result below.
 _NEWTHEOREM_RE = re.compile(
-    r"\\newtheorem(\*?)\s*\{([^}]*)\}\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}"
+    r"\\newtheorem(\*?)\s*\{([^}]*)\}\s*(?:\[([^\]]*)\])?\s*"
+    r"\{((?:[^{}]|\{[^{}]*\})*)\}"
+)
+# Font/format declarations to peel off a \newtheorem display title.
+_TITLE_DECL_RE = re.compile(
+    r"\\(?:textbf|textit|textrm|textsf|textsc|textnormal|texttt|emph|mathrm|"
+    r"bfseries|itshape|scshape|sffamily|mdseries|normalfont|upshape|rmfamily)\b"
 )
 
 
-def _collect_newtheorems(source: str) -> tuple[dict[str, str], set[str]]:
+def _clean_theorem_title(raw: str) -> str:
+    """Strip wrapping font commands/braces from a ``\\newtheorem`` display title."""
+    title = _TITLE_DECL_RE.sub("", raw)
+    title = title.replace("{", "").replace("}", "")
+    return _normalize_ws(title).strip()
+
+
+def _collect_newtheorems(
+    source: str,
+) -> tuple[dict[str, str], set[str], dict[str, str]]:
     """Map user ``\\newtheorem`` environment names to their display title.
 
-    Returns ``(envs, unnumbered)`` where ``unnumbered`` holds the names defined
-    with the starred ``\\newtheorem*`` (no counter).
+    Returns ``(envs, unnumbered, shared)`` where ``unnumbered`` holds the names
+    defined with the starred ``\\newtheorem*`` (no counter) and ``shared`` maps an
+    environment to the environment whose counter it shares
+    (``\\newtheorem{LEM}[THM]{Lemma}`` -> ``{"LEM": "THM"}``).
     """
     envs: dict[str, str] = {}
     unnumbered: set[str] = set()
+    shared: dict[str, str] = {}
     for m in _NEWTHEOREM_RE.finditer(source):
         name = m.group(2).strip()
-        display = _normalize_ws(m.group(3)).strip()
+        display = _clean_theorem_title(m.group(4))
         if name and display:
             envs[name] = display
+            if m.group(3):  # \newtheorem{env}[shared]{Display}: share a counter
+                shared[name] = m.group(3).strip()
             if m.group(1):  # \newtheorem* -> unnumbered
                 unnumbered.add(name)
-    return envs, unnumbered
+    return envs, unnumbered, shared
+
+
+def _resolve_theorem_counters(
+    envs: dict[str, str], shared: dict[str, str]
+) -> dict[str, str]:
+    """Counter *display name* each theorem env numbers against.
+
+    An env that shares another's counter (``LEM[THM]``) numbers against that
+    env's display title, so they share one running sequence; otherwise it
+    numbers against its own title.
+    """
+    counters: dict[str, str] = {}
+    for name, display in envs.items():
+        root, seen = name, {name}
+        while root in shared and shared[root] not in seen:
+            root = shared[root]
+            seen.add(root)
+        counters[name] = envs.get(root, display)
+    return counters
 
 
 def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
@@ -2079,7 +2131,11 @@ def parse_document(
     report = ConversionReport()
     expanded = replace_inline_tikz(expand_macros(preprocess(source, base_dir), base_dir))
     body, preamble = _split_document(expanded)
-    custom_theorems, unnumbered_theorems = _collect_newtheorems(expanded)
+    # \newtheorem declarations may live in a \usepackage'd local .sty (e.g. a
+    # paper's MyPreamble.sty), which macro expansion harvests but doesn't inline;
+    # scan those sources too so the theorem environments are recognised.
+    theorem_src = expanded + "\n" + local_package_sources(source, base_dir)
+    custom_theorems, unnumbered_theorems, shared_counters = _collect_newtheorems(theorem_src)
     ctx = _build_context(tuple(custom_theorems))
     walker = LatexWalker(body, latex_context=ctx, tolerant_parsing=True)
     nodes, _, _ = walker.get_latex_nodes()
@@ -2087,6 +2143,7 @@ def parse_document(
     builder = _Builder(report)
     builder.theorem_envs.update(custom_theorems)
     builder.unnumbered_theorems = unnumbered_theorems
+    builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
     builder.book_mode = _is_book_class(expanded)
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)

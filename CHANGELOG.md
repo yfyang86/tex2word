@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **Custom `\newtheorem` environments defined in a local package now work.**
+  Declarations split into a `\usepackage`d local `.sty` (a paper's
+  `MyPreamble.sty`) were never collected, so `\begin{THM}…` was treated as an
+  unknown/transparent environment with no "Theorem N" heading and broke every
+  `\ref` to it. Those `.sty` sources are now scanned; wrapped display titles
+  (`\newtheorem{THM}{\textbf{Theorem}}`) are cleaned to "Theorem"; and a shared
+  counter (`\newtheorem{LEM}[THM]{Lemma}`) now numbers against the shared
+  environment, so THM/LEM/PRP/… form one running sequence as in LaTeX.
+- **`\multirow{n}*{content}` (unbraced `*` width).** The common form where the
+  width is written as a bare `*` instead of `{*}` left only two brace groups and
+  fell through to an "unsupported inline macro" warning that dropped the cell.
+  It now sets the row span (`w:vMerge`) and keeps the content.
+- **`\beginappendix`** (and other class wrappers around `\appendix`) switch later
+  sections to lettered appendix numbering instead of warning as unsupported.
 - **Unbraced single-token `\newcommand` bodies now expand.** The idiom
   `\newcommand\CAL\mathcal` (unbraced name *and* unbraced control-sequence body,
   e.g. `\BE\textbf`, `\BB\mathbb`, `\RM\mathrm`) was silently dropped, so the
