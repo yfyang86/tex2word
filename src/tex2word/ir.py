@@ -49,7 +49,8 @@ EmphasisKind = Literal[
 ]
 CiteMode = Literal["paren", "text", "foot", "author", "year", "num"]
 RefKind = Literal[
-    "generic", "equation", "figure", "table", "section", "theorem", "page", "name"
+    "generic", "equation", "figure", "table", "section", "theorem", "page", "name",
+    "listitem",
 ]
 
 
@@ -227,6 +228,7 @@ class MathBlock(Node):
 class ListItem(Node):
     blocks: list[Block]
     term: list[Inline] | None = None  # the \item[term] of a description list
+    label: str | None = None  # \item\label{...} -> referenceable list number
 
 
 @dataclass

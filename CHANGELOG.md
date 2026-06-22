@@ -7,13 +7,61 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.0.2 — real-paper robustness (macros, theorems, tables, cross-refs)
 
+A robustness pass driven by real arXiv papers whose custom preambles and tables
+sent content to the lossy fallback path. Highlights: local-package macro/theorem
+collection, alignment-environment and operator math fixes, `\multirow`, and
+cross-references to list items. Also hardens TikZ compilation against
+shell-escape injection.
+
+- **Cross-references to `enumerate` items now resolve.** An `\item\label{rq:x}`
+  attaches to the list item, and `\ref{rq:x}` emits a live `REF \r` field that
+  returns the item's auto-numbered list number (so `RQ\ref{rq:x}` renders
+  "RQ2"). Previously the label was dropped and the reference rendered as `??`.
+- **Custom `\newtheorem` environments defined in a local package now work.**
+  Declarations split into a `\usepackage`d local `.sty` (a paper's
+  `MyPreamble.sty`) were never collected, so `\begin{THM}…` was treated as an
+  unknown/transparent environment with no "Theorem N" heading and broke every
+  `\ref` to it. Those `.sty` sources are now scanned; wrapped display titles
+  (`\newtheorem{THM}{\textbf{Theorem}}`) are cleaned to "Theorem"; and a shared
+  counter (`\newtheorem{LEM}[THM]{Lemma}`) now numbers against the shared
+  environment, so THM/LEM/PRP/… form one running sequence as in LaTeX.
+- **`\multirow{n}*{content}` (unbraced `*` width).** The common form where the
+  width is written as a bare `*` instead of `{*}` left only two brace groups and
+  fell through to an "unsupported inline macro" warning that dropped the cell.
+  It now sets the row span (`w:vMerge`) and keeps the content.
+- **`\beginappendix`** (and other class wrappers around `\appendix`) switch later
+  sections to lettered appendix numbering instead of warning as unsupported.
+- **Unbraced single-token `\newcommand` bodies now expand.** The idiom
+  `\newcommand\CAL\mathcal` (unbraced name *and* unbraced control-sequence body,
+  e.g. `\BE\textbf`, `\BB\mathbb`, `\RM\mathrm`) was silently dropped, so the
+  alias leaked into the output and any math using it fell back to raw LaTeX.
+- **`\DeclareMathOperator` with a braced body / in a local package.** A body
+  containing a group such as `\DeclareMathOperator*{\Exp}{\mathbb{E}}` was not
+  rewritten (the scan stopped at the inner brace), and operators declared inside
+  a `\usepackage`d local `.sty` weren't harvested at all — both left the operator
+  undefined and sent the formula to raw. They now convert to native OMML.
+- **`\qedhere` in display math is dropped.** amsthm's end-of-proof QED-placement
+  command has no OMML equivalent; it was aborting the whole block to raw.
 - **`align`/`align*`/`gather`/… wrapped in display or `\left\{…\right.` now render
   fully.** When one of these alignment environments appeared *inside* `\[…\]`,
   `$$…$$`, or a `\left\{…\right.` system, the math parser didn't recognise it and
   the fallback path silently dropped almost all the content (a braced system
-  could render as just `{`). They're now parsed as column-aligned matrices.
+  could render as just `{`). They're now parsed as column-aligned matrices, and
+  they keep the classic `array{rl}` justification (relation signs line up at the
+  `&`) — matching the multi-line display path, which previously diverged.
+- **TikZ rendering hardened against shell-escape injection.** The standalone
+  compile now runs the TeX engine with `-no-shell-escape` (and `shell_escape=f`/
+  `openout_any=p` in the environment), so a malicious `\write18`/`\immediate`
+  in a figure's source can't execute shell commands during conversion.
+- **booktabs `\cmidrule(lr){2-3}` in math arrays.** The optional `(l/r/lr)` trim
+  modifier is now consumed alongside the `{a-b}` span, instead of leaking `(lr)`
+  into the rendered matrix.
+- **Code-listing options with braced brackets.** An `[options]` value such as
+  `[caption={[Fig.1] x}]` (a `]` nested inside a braced value) no longer
+  truncates the option scan at the inner `]` and leak `}]` plus the code as a
+  runaway listing.
 - **Array/table rules in math no longer abort the block.** `\hline` (and
   `\cline`/`\toprule`/`\midrule`/`\bottomrule`/`\hdashline`) inside a math
   `array`/matrix have no OMML equivalent and were raising MathUnsupported,

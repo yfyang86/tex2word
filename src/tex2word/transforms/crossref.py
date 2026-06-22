@@ -112,6 +112,14 @@ def _collect(blocks: list[ir.Block], labels: dict[str, ir.LabelInfo]) -> None:
             _collect(block.blocks, labels)
         elif isinstance(block, ir.ItemList):
             for item in block.items:
+                if item.label:
+                    # \item\label{} -> the item's (Word auto-numbered) list number;
+                    # the back-end references it with a REF \r field.
+                    labels[item.label] = ir.LabelInfo(
+                        kind="listitem",
+                        counter_name="Item",
+                        bookmark=sanitize_bookmark(item.label),
+                    )
                 _collect(item.blocks, labels)
 
 
