@@ -971,7 +971,8 @@ class _Builder:
         return block
 
     _labelable: (
-        ir.Heading | ir.MathBlock | ir.Figure | ir.Table | ir.Theorem | ir.Algorithm | None
+        ir.Heading | ir.MathBlock | ir.Figure | ir.Table | ir.Theorem
+        | ir.Algorithm | ir.ListItem | None
     ) = None
 
     def _environment(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:  # noqa: C901
@@ -1131,7 +1132,13 @@ class _Builder:
 
         def flush_item() -> None:
             nonlocal term
-            items.append(ir.ListItem(self.blocks(current.copy()), term=term))
+            # become the label target before parsing the body, so an \item\label{}
+            # attaches to this item (referenceable list number), not the preceding
+            # block -- mirroring how _theorem captures its label.
+            item = ir.ListItem([], term=term)
+            self._labelable = item
+            item.blocks = self.blocks(current.copy())
+            items.append(item)
             current.clear()
             term = None
 

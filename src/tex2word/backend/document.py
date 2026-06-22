@@ -295,6 +295,9 @@ class DocumentWriter:
                 numpr = sub(ppr, "w:numPr")
                 sub(numpr, "w:ilvl", **{"w:val": str(level)})
                 sub(numpr, "w:numId", **{"w:val": str(num_id)})
+                # bookmark the numbered paragraph so \ref to \item\label{} resolves
+                # to its list number (a REF \r field).
+                self._bookmark_list_item(item, p)
                 marked = True
             else:
                 sub(ppr, "w:ind", **{"w:left": str((level + 1) * 360)})
@@ -307,7 +310,16 @@ class DocumentWriter:
             numpr = sub(ppr, "w:numPr")
             sub(numpr, "w:ilvl", **{"w:val": str(level)})
             sub(numpr, "w:numId", **{"w:val": str(num_id)})
+            self._bookmark_list_item(item, p)
             body.append(p)
+
+    def _bookmark_list_item(self, item: ir.ListItem, p: _Element) -> None:
+        """Wrap a numbered list-item paragraph in its label bookmark, if any."""
+        if not item.label:
+            return
+        start = fields.bookmark_start(_bookmark_for(item.label))
+        p.append(start)
+        p.append(fields.bookmark_end_for(start))
 
     def _description_item(self, item: ir.ListItem, body: _Element, level: int) -> None:
         p = self._styled_paragraph("Normal")
@@ -961,7 +973,9 @@ class DocumentWriter:
                 p.append(run)
             p.append(self._run(")"))
             return
-        elif node.ref_kind == "section":
+        elif node.ref_kind in ("section", "listitem"):
+            # \r inserts the paragraph's (list) number -- section numbers and the
+            # auto-numbered list item that an \item\label{} sits on.
             runs = fields.ref_field(node.bookmark, "0", paragraph_number=True)
         else:
             runs = fields.ref_field(node.bookmark, "0")

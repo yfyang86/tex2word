@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **Cross-references to `enumerate` items now resolve.** An `\item\label{rq:x}`
+  attaches to the list item, and `\ref{rq:x}` emits a live `REF \r` field that
+  returns the item's auto-numbered list number (so `RQ\ref{rq:x}` renders
+  "RQ2"). Previously the label was dropped and the reference rendered as `??`.
 - **Custom `\newtheorem` environments defined in a local package now work.**
   Declarations split into a `\usepackage`d local `.sty` (a paper's
   `MyPreamble.sty`) were never collected, so `\begin{THM}…` was treated as an
