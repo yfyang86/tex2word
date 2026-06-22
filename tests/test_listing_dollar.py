@@ -60,6 +60,24 @@ def test_listing_options_not_rendered_as_code_line():
     assert not any("language=R" in t for t in code)  # the [options] are dropped
 
 
+def test_listing_options_with_braced_brackets_not_leaked():
+    # [caption={[Fig.1]}] has a ``]`` nested inside a braced value; the [options]
+    # matcher must consume the whole thing rather than truncating at the inner ``]``
+    # and leaking ``}]`` (plus the code) as a runaway listing.
+    src = (
+        r"\begin{document}\begin{lstlisting}[language=R, caption={[Fig.1] demo}]"
+        + "\nz <- 1\n"
+        + r"\end{lstlisting}"
+        + "\nprose after.\n"
+        + r"\end{document}"
+    )
+    paras = _paras(src)
+    assert paras[-1] == ("Normal", "prose after.")
+    code = [t for st, t in paras if st == "SourceCode"]
+    assert any("z <- 1" in t for t in code)
+    assert not any("caption" in t or "Fig.1" in t for t in code)  # options dropped
+
+
 def test_listing_code_with_dollars_preserved_literally():
     src = (
         r"\begin{document}\begin{lstlisting}[language=R]"

@@ -92,3 +92,13 @@ def test_newcommand_optional_arg():
 
 def test_declare_robust_command():
     assert "Tutti is fast" in expand_macros(r"\DeclareRobustCommand{\sys}{Tutti}\sys is fast")
+
+
+def test_newcommand_unbraced_single_token_body():
+    # \newcommand\BE\textbf (unbraced name *and* unbraced single-token body) is a
+    # common preamble idiom (\CAL\mathcal, \BB\mathbb, …); the definition is the
+    # next control sequence. Previously these were dropped and \BE leaked through.
+    assert r"\textbf{x}" in expand_macros(r"\newcommand\BE\textbf \BE{x}")
+    assert r"\mathcal E" in expand_macros(r"\newcommand\CAL\mathcal $\CAL E$")
+    # the braced form still works and isn't disturbed
+    assert r"\mathbb R" in expand_macros(r"\newcommand{\BB}{\mathbb} $\BB R$")

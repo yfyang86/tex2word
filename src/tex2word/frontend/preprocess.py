@@ -101,7 +101,9 @@ def inline_listing_files(source: str, base_dir: str) -> str:
 # Backreference \1 ties \end to the same environment name.
 _LISTING_ENV_RE = re.compile(
     r"\\begin\{(lstlisting|minted|Verbatim\*?|verbatim\*)\}"
-    r"[ \t]*(?:\[[^\]]*\])?"   # optional [options]
+    # optional [options]; allow one level of nested {…}/[…] so keys whose value
+    # is braced (e.g. [caption={[x]}]) don't truncate at the inner ``]``.
+    r"[ \t]*(?:\[(?:[^\[\]{}]|\{[^{}]*\}|\[[^\]]*\])*\])?"
     r"[ \t]*(?:\{[^}]*\})?"    # optional {lang} (minted)
     r"(?P<body>.*?)"
     r"\\end\{\1\}",
@@ -119,8 +121,11 @@ def normalize_listing_envs(source: str) -> str:
 
 # amsmath \DeclareMathOperator{\name}{body} (and starred, with limits) -> a
 # \newcommand that wraps the body in \operatorname, which the math path renders.
+# The body may itself contain a braced group (e.g. \DeclareMathOperator*{\Exp}{\mathbb{E}}),
+# so allow one level of nesting rather than only brace-free bodies.
 _DECLAREMATHOP_RE = re.compile(
-    r"\\DeclareMathOperator\s*(\*?)\s*\{\s*\\([A-Za-z]+)\s*\}\s*\{([^{}]*)\}"
+    r"\\DeclareMathOperator\s*(\*?)\s*\{\s*\\([A-Za-z]+)\s*\}\s*"
+    r"\{((?:[^{}]|\{[^{}]*\})*)\}"
 )
 
 

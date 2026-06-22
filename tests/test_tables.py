@@ -29,6 +29,27 @@ def test_multirow_sets_rowspan():
     assert first_data_row.cells[0].rowspan == 2
 
 
+def test_multirow_unbraced_star_width():
+    # \multirow{6}*{X} writes the width as a bare ``*`` (only two brace groups);
+    # the span/content must still be recognised, not dropped to an unsupported
+    # inline macro. (Real arXiv table idiom.)
+    src = (
+        r"\begin{document}\begin{tabular}{cl}"
+        r"\multirow{3}*{Beauty} & Recall \\ & NDCG \\ & MRR \\"
+        r"\end{tabular}\end{document}"
+    )
+    table = _table(src)
+    assert table.rows[0].cells[0].rowspan == 3
+    body = "".join(
+        getattr(x, "value", "")
+        for blk in table.rows[0].cells[0].blocks
+        for x in getattr(blk, "inlines", [])
+    )
+    assert "Beauty" in body
+    res = convert_source(src)
+    assert not any("multirow" in (w.message or "") for w in res.report.warnings)
+
+
 def test_header_row_detected_with_midrule():
     table = _table(BOOKTABS)
     assert table.rows[0].is_header is True

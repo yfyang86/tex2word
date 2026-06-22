@@ -125,6 +125,9 @@ class GroupChr:
 @dataclass
 class Matrix:
     rows: list[list[Row]]
+    #: alignment env (align/aligned/cases/…): render column-justified (right|left|…)
+    #: so relation signs line up at the ``&``, like the classic ``array{rl}`` look.
+    aligned: bool = False
 
 
 MNode = (
@@ -194,7 +197,25 @@ _MATRIX_DELIMS = {
     "aligned": ("", ""),
     "array": ("", ""),
     "smallmatrix": ("", ""),
+    # amsmath alignment/gather environments: when they appear *wrapped* (inside
+    # $$/\[ or \left\{…\right.) the parser meets them here; render as a
+    # column-aligned matrix with no surrounding delimiters.
+    "align": ("", ""),
+    "alignat": ("", ""),
+    "flalign": ("", ""),
+    "gather": ("", ""),
+    "gathered": ("", ""),
+    "split": ("", ""),
+    "multlined": ("", ""),
+    "eqnarray": ("", ""),
 }
+
+# Environments whose ``&`` is an *alignment* marker (line up relation signs),
+# as opposed to plain matrices where ``&`` separates equal-status columns. These
+# render with alternating right/left column justification.
+_ALIGNED_ENVS = frozenset(
+    {"aligned", "align", "alignat", "flalign", "split", "eqnarray"}
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -438,7 +459,17 @@ class _Parser:
             raise MathUnsupported("environment", "stray \\end")
         if name in ("displaystyle", "textstyle", "scriptstyle", "limits", "nolimits"):
             return Lit("")  # styling hints we currently ignore
-        if name in ("nonumber", "notag"):
+        if name in ("nonumber", "notag", "qedhere"):
+            return Lit("")  # numbering/QED-placement hints: drop in the body
+        if name in ("hline", "toprule", "midrule", "bottomrule", "hdashline"):
+            return Lit("")  # array/table rules: no OMML equivalent, drop them
+        if name in ("cline", "cmidrule", "noalign"):
+            # \cmidrule(lr){2-3}: consume an optional (l/r/lr) trim modifier first.
+            if self._peek() == ("char", "("):
+                while self._peek()[0] != "eof" and self._next() != ("char", ")"):
+                    pass
+            if self._peek()[0] == "{":
+                self.parse_group()  # consume the {a-b} / {…} argument
             return Lit("")
         if name in _MATH_STYLE_DECL:
             # declaration form {\rm ...}: style the rest of the current group.
@@ -549,8 +580,8 @@ class _Parser:
         env = env.rstrip("*")
         if env not in _MATRIX_DELIMS:
             raise MathUnsupported(f"environment {env}")
-        if env == "array":
-            # consume the column spec argument and ignore it for V1
+        if env in ("array", "alignat"):
+            # consume the column spec / column-count argument and ignore it
             if self._peek()[0] == "{":
                 self.parse_group()
         rows: list[list[Row]] = [[]]
@@ -585,7 +616,7 @@ class _Parser:
         # drop a trailing empty row (from a final \\)
         if rows and all(len(c.items) == 0 for c in rows[-1]):
             rows.pop()
-        matrix = Matrix(rows)
+        matrix = Matrix(rows, aligned=env in _ALIGNED_ENVS)
         open_d, close_d = _MATRIX_DELIMS[env]
         if open_d or close_d:
             return Fenced(open_d, close_d, Row([matrix]))

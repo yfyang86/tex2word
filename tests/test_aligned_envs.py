@@ -65,3 +65,88 @@ def test_plain_align_block_still_collapses():
     res, omml, txt = _conv(r"\begin{align*}a &= b \\ c &= d\end{align*}")
     assert omml >= 1 and res.report.math_raw == 0
     assert "&" not in txt and "\\\\" not in txt
+
+
+def test_hline_and_rules_in_math_array_are_dropped_not_raw():
+    # array rules (\hline, \cline, \toprule, …) have no OMML equivalent; they must
+    # be dropped so the matrix converts instead of dumping the whole block to raw.
+    res, omml, txt = _conv(
+        r"\[\begin{array}{cc|c}A & B & C \\ \hline D & E & F\end{array}\]"
+    )
+    assert omml == 1 and res.report.math_raw == 0
+    assert "\\hline" not in txt and "\\begin{array}" not in txt
+
+
+def test_cline_argument_consumed():
+    res, omml, txt = _conv(r"\[\begin{array}{cc}a & b \\ \cline{1-2} c & d\end{array}\]")
+    assert omml == 1 and res.report.math_raw == 0
+    assert "\\cline" not in txt and "1-2" not in txt
+
+
+def _math_text(body: str) -> tuple[int, str]:
+    """(math_raw, concatenated text of all m:t runs) for a \\[ body \\] fragment."""
+    res = convert_source(
+        r"\documentclass{article}\usepackage{amsmath,amssymb}\begin{document}\["
+        + body
+        + r"\]\end{document}"
+    )
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml")
+    )
+    mtext = "".join(t.text or "" for t in root.iter(f"{{{M}}}t"))
+    return res.report.math_raw, mtext
+
+
+def test_align_wrapped_in_display_keeps_all_content():
+    # regression: an align/align* *inside* \[…\] (or $$…$$) reaches the math parser
+    # as a whole env; it must render, not silently drop its content via a fallback.
+    raw, mt = _math_text(r"\begin{align*}x &= a + b \\ y &= c\end{align*}")
+    assert raw == 0
+    for ch in "xaby c":
+        if ch.strip():
+            assert ch in mt
+
+
+def test_left_brace_wrapping_align_system_renders():
+    # \left\{ \begin{align*} … \end{align*} \right.  (a braced system of equations)
+    raw, mt = _math_text(r"\left\{\begin{align*}u &= f(v) \\ w &= g(u)\end{align*}\right.")
+    assert raw == 0
+    for tok in ("u", "f", "v", "w", "g"):
+        assert tok in mt
+    assert "\\begin" not in mt and "\\left" not in mt
+
+
+def test_alignat_argument_consumed():
+    raw, mt = _math_text(r"\begin{alignat}{2}a &= b & \quad c &= d\end{alignat}")
+    assert raw == 0
+    assert "a" in mt and "d" in mt and "2" not in mt  # the column-count {2} was consumed
+
+
+def test_wrapped_align_is_column_justified():
+    # an align/aligned reaching the math parser as a whole env must render as a
+    # column-justified matrix (relation signs line up), same as the multi-line
+    # display path -- not a plain, centre-justified matrix.
+    res, omml, _ = _conv(r"\[\begin{aligned}x &= a \\ y &= b\end{aligned}\]")
+    assert omml == 1 and res.report.math_raw == 0
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml")
+    )
+    jc = [e.get(f"{{{M}}}val") for e in root.iter(f"{{{M}}}mcJc")]
+    assert jc == ["right", "left"]  # first column right-, second left-justified
+
+
+def test_cmidrule_trim_modifier_consumed():
+    # booktabs \cmidrule(lr){2-3}: the (lr) trim spec and {2-3} must both vanish.
+    res, omml, txt = _conv(
+        r"\[\begin{array}{ccc}a & b & c \\ \cmidrule(lr){2-3} d & e & f\end{array}\]"
+    )
+    assert omml == 1 and res.report.math_raw == 0
+    assert "cmidrule" not in txt and "lr" not in txt and "2-3" not in txt
+
+
+def test_qedhere_in_math_is_dropped():
+    # amsthm's \qedhere (end-of-proof QED placement) has no OMML equivalent; it
+    # must be dropped from a display block rather than sending it to raw.
+    raw, mt = _math_text(r"\begin{aligned}a &= b \\ &= c.\qedhere\end{aligned}")
+    assert raw == 0
+    assert "qedhere" not in mt
