@@ -459,8 +459,8 @@ class _Parser:
             raise MathUnsupported("environment", "stray \\end")
         if name in ("displaystyle", "textstyle", "scriptstyle", "limits", "nolimits"):
             return Lit("")  # styling hints we currently ignore
-        if name in ("nonumber", "notag"):
-            return Lit("")
+        if name in ("nonumber", "notag", "qedhere"):
+            return Lit("")  # numbering/QED-placement hints: drop in the body
         if name in ("hline", "toprule", "midrule", "bottomrule", "hdashline"):
             return Lit("")  # array/table rules: no OMML equivalent, drop them
         if name in ("cline", "cmidrule", "noalign"):

@@ -39,3 +39,32 @@ def test_operator_with_braced_body():
     res = convert_source(src)
     assert validate_docx(res.docx) == []
     assert res.report.coverage()["math_raw"] == 0
+
+
+def test_operator_body_contains_braced_group():
+    # \DeclareMathOperator*{\Exp}{\mathbb{E}}: the operator *body* itself has a
+    # braced group; the rewrite must not stop at the inner brace and leave \Exp
+    # undefined (real arXiv preamble idiom).
+    src = (
+        r"\documentclass{article}\usepackage{amssymb}"
+        r"\DeclareMathOperator*{\Exp}{\mathbb{E}}\newcommand\AL[1]{\begin{align}#1\end{align}}"
+        r"\begin{document}\AL{Q &= \Exp_{x}[f(x)]}\end{document}"
+    )
+    res = convert_source(src)
+    assert res.report.coverage()["math_raw"] == 0
+    assert not any("Exp" in (w.message or "") for w in res.report.warnings)
+
+
+def test_operator_defined_in_local_package(tmp_path):
+    # \DeclareMathOperator living in a \usepackage'd local .sty must be harvested
+    # too (the operator name was previously unknown and sent the block to raw).
+    (tmp_path / "mymac.sty").write_text(
+        r"\DeclareMathOperator*{\ExpOp}{\mathbb{E}}" + "\n", encoding="utf-8"
+    )
+    main = (
+        r"\documentclass{article}\usepackage{amssymb}\usepackage{mymac}"
+        r"\begin{document}\( \ExpOp_{x}[f] \)\end{document}"
+    )
+    res = convert_source(main, base_dir=str(tmp_path))
+    assert res.report.coverage()["math_raw"] == 0
+    assert not any("ExpOp" in (w.message or "") for w in res.report.warnings)

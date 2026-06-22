@@ -92,6 +92,15 @@ def collect_macros(source: str) -> tuple[dict[str, Macro], str]:
             )
             i = end
             continue
+        if m and m.group("nargs") is None:
+            # Unbraced single-token body: ``\newcommand\BE\textbf`` (a common
+            # preamble idiom -- \CAL\mathcal, \BB\mathbb, …). The definition is
+            # the next single control sequence or character.
+            body, end = _read_arg(source, m.end())
+            if body:
+                macros[m.group("name")] = Macro(m.group("name"), 0, None, body)
+                i = end
+                continue
         d = _DEF_RE.match(source, i)
         if d:
             brace_start = d.end() - 1
@@ -386,9 +395,12 @@ def _unroll_for_loops(source: str, macros: dict[str, Macro]) -> str:
 
 def _collect_package_macros(sty_source: str) -> dict[str, Macro]:
     """Harvest macro definitions from a style-file source (best effort)."""
-    from .preprocess import strip_comments
+    from .preprocess import _rewrite_mathoperators, strip_comments
 
-    macros, _ = collect_macros(strip_comments(sty_source))
+    # \DeclareMathOperator in a package becomes a \newcommand wrapping
+    # \operatorname, so the operator names defined there are harvested too.
+    sty_source = _rewrite_mathoperators(strip_comments(sty_source))
+    macros, _ = collect_macros(sty_source)
     # Unroll generator loops, run the (terminating) generator macros, and
     # resolve \csname so the synthesised \newcommand definitions are collectable.
     try:

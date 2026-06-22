@@ -142,3 +142,11 @@ def test_cmidrule_trim_modifier_consumed():
     )
     assert omml == 1 and res.report.math_raw == 0
     assert "cmidrule" not in txt and "lr" not in txt and "2-3" not in txt
+
+
+def test_qedhere_in_math_is_dropped():
+    # amsthm's \qedhere (end-of-proof QED placement) has no OMML equivalent; it
+    # must be dropped from a display block rather than sending it to raw.
+    raw, mt = _math_text(r"\begin{aligned}a &= b \\ &= c.\qedhere\end{aligned}")
+    assert raw == 0
+    assert "qedhere" not in mt

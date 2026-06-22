@@ -121,8 +121,11 @@ def normalize_listing_envs(source: str) -> str:
 
 # amsmath \DeclareMathOperator{\name}{body} (and starred, with limits) -> a
 # \newcommand that wraps the body in \operatorname, which the math path renders.
+# The body may itself contain a braced group (e.g. \DeclareMathOperator*{\Exp}{\mathbb{E}}),
+# so allow one level of nesting rather than only brace-free bodies.
 _DECLAREMATHOP_RE = re.compile(
-    r"\\DeclareMathOperator\s*(\*?)\s*\{\s*\\([A-Za-z]+)\s*\}\s*\{([^{}]*)\}"
+    r"\\DeclareMathOperator\s*(\*?)\s*\{\s*\\([A-Za-z]+)\s*\}\s*"
+    r"\{((?:[^{}]|\{[^{}]*\})*)\}"
 )
 
 

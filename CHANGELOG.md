@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **Unbraced single-token `\newcommand` bodies now expand.** The idiom
+  `\newcommand\CAL\mathcal` (unbraced name *and* unbraced control-sequence body,
+  e.g. `\BE\textbf`, `\BB\mathbb`, `\RM\mathrm`) was silently dropped, so the
+  alias leaked into the output and any math using it fell back to raw LaTeX.
+- **`\DeclareMathOperator` with a braced body / in a local package.** A body
+  containing a group such as `\DeclareMathOperator*{\Exp}{\mathbb{E}}` was not
+  rewritten (the scan stopped at the inner brace), and operators declared inside
+  a `\usepackage`d local `.sty` weren't harvested at all — both left the operator
+  undefined and sent the formula to raw. They now convert to native OMML.
+- **`\qedhere` in display math is dropped.** amsthm's end-of-proof QED-placement
+  command has no OMML equivalent; it was aborting the whole block to raw.
 - **`align`/`align*`/`gather`/… wrapped in display or `\left\{…\right.` now render
   fully.** When one of these alignment environments appeared *inside* `\[…\]`,
   `$$…$$`, or a `\left\{…\right.` system, the math parser didn't recognise it and
