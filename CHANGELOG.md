@@ -7,7 +7,13 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.0.2 — real-paper robustness (macros, theorems, tables, cross-refs)
+
+A robustness pass driven by real arXiv papers whose custom preambles and tables
+sent content to the lossy fallback path. Highlights: local-package macro/theorem
+collection, alignment-environment and operator math fixes, `\multirow`, and
+cross-references to list items. Also hardens TikZ compilation against
+shell-escape injection.
 
 - **Cross-references to `enumerate` items now resolve.** An `\item\label{rq:x}`
   attaches to the list item, and `\ref{rq:x}` emits a live `REF \r` field that
