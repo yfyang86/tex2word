@@ -144,6 +144,20 @@ def test_cmidrule_trim_modifier_consumed():
     assert "cmidrule" not in txt and "lr" not in txt and "2-3" not in txt
 
 
+def test_aligned_matrix_pads_ragged_rows():
+    # an aligned env with a short row (fewer & cells) must still emit one m:e per
+    # declared column on every m:mr, so Word doesn't see a ragged m:m.
+    res, omml, _ = _conv(r"\[\begin{aligned}a &= b \\ c\end{aligned}\]")
+    assert omml == 1 and res.report.math_raw == 0
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml")
+    )
+    m = next(root.iter(f"{{{M}}}m"))
+    rows = m.findall(f"{{{M}}}mr")
+    counts = [len(r.findall(f"{{{M}}}e")) for r in rows]
+    assert counts and len(set(counts)) == 1  # every row has the same cell count
+
+
 def test_qedhere_in_math_is_dropped():
     # amsthm's \qedhere (end-of-proof QED placement) has no OMML equivalent; it
     # must be dropped from a display block rather than sending it to raw.

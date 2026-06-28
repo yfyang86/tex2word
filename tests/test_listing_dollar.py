@@ -78,6 +78,23 @@ def test_listing_options_with_braced_brackets_not_leaked():
     assert not any("caption" in t or "Fig.1" in t for t in code)  # options dropped
 
 
+def test_listing_options_with_doubly_braced_value_not_leaked():
+    # [caption={\textbf{Code}}] nests braces two deep; the option scan must
+    # consume the whole thing rather than leak it into the verbatim body.
+    src = (
+        r"\begin{document}\begin{lstlisting}[language=R, caption={\textbf{Code}}]"
+        + "\nq <- 1\n"
+        + r"\end{lstlisting}"
+        + "\ntail prose.\n"
+        + r"\end{document}"
+    )
+    paras = _paras(src)
+    assert paras[-1] == ("Normal", "tail prose.")
+    code = [t for st, t in paras if st == "SourceCode"]
+    assert any("q <- 1" in t for t in code)
+    assert not any("textbf" in t or "caption" in t for t in code)
+
+
 def test_listing_code_with_dollars_preserved_literally():
     src = (
         r"\begin{document}\begin{lstlisting}[language=R]"

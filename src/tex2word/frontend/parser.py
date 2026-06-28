@@ -249,21 +249,28 @@ _IGNORE_MACROS = {
 def _flatten_stacked_tables(blocks: list[ir.Block]) -> list[ir.Block]:
     """Flatten a single-column nested ``tabular`` (the ``{@{}c@{}}a\\\\b`` line-
     stacking idiom common inside cells) into one paragraph with line breaks,
-    instead of emitting a nested table per cell."""
+    instead of emitting a nested table per cell.
+
+    Only flattened when every row is a single cell whose content is plain
+    paragraphs -- a cell holding a block (display math, nested list, another
+    table) keeps its nested-table form so that content isn't dropped."""
     out: list[ir.Block] = []
     for b in blocks:
         if (
             isinstance(b, ir.Table)
             and b.rows
             and all(len(r.cells) == 1 for r in b.rows)
+            and all(
+                isinstance(cb, ir.Paragraph)
+                for r in b.rows for cb in r.cells[0].blocks
+            )
         ):
             inlines: list[ir.Inline] = []
             for i, row in enumerate(b.rows):
                 if i:
                     inlines.append(ir.LineBreak())
                 for cb in row.cells[0].blocks:
-                    if isinstance(cb, ir.Paragraph):
-                        inlines.extend(cb.inlines)
+                    inlines.extend(cb.inlines)  # type: ignore[union-attr]
             out.append(ir.Paragraph(inlines))
         else:
             out.append(b)

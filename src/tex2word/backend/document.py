@@ -357,8 +357,11 @@ class DocumentWriter:
             w = widths[i] if i < len(widths) else None
             sub(grid, "w:gridCol", **({"w:w": str(w)} if w else {}))
 
-        # remaining vertical-merge continuations keyed by starting column index
-        vmerge_pending: dict[int, int] = {}
+        # remaining vertical-merge continuations keyed by starting column index ->
+        # (rows still to merge, colspan of the merged cell). The colspan must come
+        # from the originating cell, not the current row's cell, so a cell that is
+        # both \multicolumn and \multirow continues with the right grid width.
+        vmerge_pending: dict[int, tuple[int, int]] = {}
         for row in block.rows:
             tr = sub(tbl, "w:tr")
             if row.is_header:
@@ -366,17 +369,19 @@ class DocumentWriter:
                 sub(trpr, "w:tblHeader")  # repeat header on each page
             col = 0
             for cell in row.cells:
+                pending = vmerge_pending.get(col)
+                if pending and pending[0] > 0:
+                    remaining, merged_colspan = pending
+                    self._merge_continue_cell(tr, merged_colspan)
+                    vmerge_pending[col] = (remaining - 1, merged_colspan)
+                    col += merged_colspan
+                    continue
                 span_w = sum(
                     widths[c] or 0 for c in range(col, col + cell.colspan) if c < len(widths)
                 )
-                if vmerge_pending.get(col, 0) > 0:
-                    self._merge_continue_cell(tr, cell.colspan)
-                    vmerge_pending[col] -= 1
-                    col += cell.colspan
-                    continue
                 self._table_cell(tr, cell, width=span_w or None)
                 if cell.rowspan > 1:
-                    vmerge_pending[col] = cell.rowspan - 1
+                    vmerge_pending[col] = (cell.rowspan - 1, cell.colspan)
                 col += cell.colspan
         body.append(tbl)
         if block.caption is not None:
