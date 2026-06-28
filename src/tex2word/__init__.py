@@ -10,4 +10,4 @@ from __future__ import annotations
 from .pipeline import ConversionResult, convert_file, convert_source
 
 __all__ = ["ConversionResult", "convert_file", "convert_source"]
-__version__ = "1.0.2"
+__version__ = "1.0.3"

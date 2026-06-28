@@ -137,6 +137,39 @@ def _rewrite_mathoperators(source: str) -> str:
     return _DECLAREMATHOP_RE.sub(repl, source)
 
 
+_IFFALSE_RE = re.compile(r"\\iffalse(?![a-zA-Z@])")
+# An \if… opener is a control word (letters only, so it stops at a non-letter such
+# as the digit in \ifnum1>0); \fi closes. The negative lookahead keeps \fi from
+# matching \fill/\final.
+_IFFI_RE = re.compile(r"\\(if[a-zA-Z@]*|fi(?![a-zA-Z@]))")
+
+
+def strip_iffalse(source: str) -> str:
+    """Drop ``\\iffalse … \\fi`` blocks (a common way to comment out whole sections).
+
+    Left in, the disabled content is wrongly included in the output. Nested
+    ``\\if…``/``\\fi`` are tracked so the matching ``\\fi`` closes the block.
+    """
+    out: list[str] = []
+    i, n = 0, len(source)
+    while i < n:
+        m = _IFFALSE_RE.search(source, i)
+        if not m:
+            out.append(source[i:])
+            break
+        out.append(source[i : m.start()])
+        depth, j = 1, m.end()
+        for cm in _IFFI_RE.finditer(source, m.end()):
+            depth += -1 if cm.group(1) == "fi" else 1
+            if depth == 0:
+                j = cm.end()
+                break
+        else:
+            j = n  # unbalanced -> drop to end of source
+        i = j
+    return "".join(out)
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
@@ -144,6 +177,7 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(source), base_dir)
+    source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
     source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)

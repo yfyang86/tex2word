@@ -166,6 +166,24 @@ _TEXT_SYMBOLS = {
     "in": "∈", "forall": "∀", "exists": "∃", "emptyset": "∅",
 }
 
+# pifont \ding{N}: Zapf-Dingbats slot -> Unicode. Common check/cross marks plus
+# the three circled-digit ranges (used as level markers ❶❷… in many tables).
+_DING_MAP: dict[int, str] = {
+    51: "✓", 52: "✔", 53: "✗", 54: "✘", 55: "✗", 56: "✘",
+}
+for _i in range(10):
+    _DING_MAP[172 + _i] = chr(0x2780 + _i)  # ➀..➉ circled sans-serif digit
+    _DING_MAP[182 + _i] = chr(0x2776 + _i)  # ❶..❿ negative circled digit
+    _DING_MAP[192 + _i] = chr(0x278A + _i)  # ➊..➓ negative circled sans-serif
+
+
+def _ding_char(code: str) -> str:
+    """Map a pifont ``\\ding{N}`` code to a Unicode dingbat (``•`` if unknown)."""
+    try:
+        return _DING_MAP.get(int(code.strip()), "•")
+    except ValueError:
+        return "•"
+
 # Structural wrappers with no Word-visible formatting -> pass content through
 # silently (no "unknown environment" warning). subequations groups display math;
 # samepage/sloppypar/spacing affect TeX layout only; center/... handled earlier.
@@ -215,12 +233,41 @@ _IGNORE_MACROS = {
     "begingroup", "endgroup", "bgroup", "egroup",
     "AddToShipoutPicture", "ClearShipoutPicture",
     "newcounter", "addtocounter", "refstepcounter", "stepcounter",
+    # ACM/IEEE front-matter + layout macros with no body-visible output. The
+    # affiliation sub-fields take an argument (consumed by their MacroSpec below).
+    "authornote", "authornotemark", "balance", "acmnote",
+    "institution", "department", "city", "state", "country",
+    "postcode", "streetaddress", "position",
 }
 
 
 # --------------------------------------------------------------------------- #
 # Node helpers
 # --------------------------------------------------------------------------- #
+
+
+def _flatten_stacked_tables(blocks: list[ir.Block]) -> list[ir.Block]:
+    """Flatten a single-column nested ``tabular`` (the ``{@{}c@{}}a\\\\b`` line-
+    stacking idiom common inside cells) into one paragraph with line breaks,
+    instead of emitting a nested table per cell."""
+    out: list[ir.Block] = []
+    for b in blocks:
+        if (
+            isinstance(b, ir.Table)
+            and b.rows
+            and all(len(r.cells) == 1 for r in b.rows)
+        ):
+            inlines: list[ir.Inline] = []
+            for i, row in enumerate(b.rows):
+                if i:
+                    inlines.append(ir.LineBreak())
+                for cb in row.cells[0].blocks:
+                    if isinstance(cb, ir.Paragraph):
+                        inlines.extend(cb.inlines)
+            out.append(ir.Paragraph(inlines))
+        else:
+            out.append(b)
+    return out
 
 
 def _brace_groups(node: LatexMacroNode) -> list[list]:
@@ -345,6 +392,8 @@ class _Builder:
         self.unnumbered_theorems: set[str] = set()  # \newtheorem*-defined names
         # env name -> counter display title (shared counters resolve here)
         self.theorem_counters: dict[str, str] = {}
+        # user \newtcolorbox callout environments -> rendered as Quote blocks
+        self.box_envs: set[str] = set()
 
     # -- inline ----------------------------------------------------------- #
 
@@ -626,6 +675,14 @@ class _Builder:
         if name.lower() in _GLS_MACROS:
             label = _chars_of(_group_nodes(node)).strip()
             out.append(ir.Text(self._acronym_text(name, label)))
+            return
+        if name == "ding":  # pifont dingbat: \ding{51}=✓, \ding{182}=❶, ...
+            out.append(ir.Text(_ding_char(_chars_of(_group_nodes(node)))))
+            return
+        if name in ("shortstack", "stackanchor", "Shortstack"):
+            # \shortstack[pos]{a \\ b}: stacked lines -> the content with \\ kept
+            # as line breaks (the LatexMacroNode "\\" becomes ir.LineBreak).
+            out.extend(self.inlines(_group_nodes(node)))
             return
         if name in _TEXT_SYMBOLS:
             out.append(ir.Text(_TEXT_SYMBOLS[name]))
@@ -1004,7 +1061,7 @@ class _Builder:
             "quote", "quotation", "verse", "displayquote", "displaycquote",
             # boxed-content environments -> a set-off Quote block (the closest IR)
             "framed", "shaded", "mdframed", "tcolorbox", "boxedminipage", "leftbar",
-        ):
+        ) or base in self.box_envs:
             out.append(ir.Quote(self.blocks(node.nodelist)))
             return
         if base in ("verbatim", "lstlisting", "minted"):
@@ -1355,35 +1412,50 @@ class _Builder:
 
     def _make_cell(self, cell_nodes: list, align) -> ir.TableCell:
         shade, cell_nodes = self._strip_cellcolor(cell_nodes)
-        for m in cell_nodes:
-            if not isinstance(m, LatexMacroNode):
-                continue
-            groups = [
-                a for a in (m.nodeargd.argnlist if m.nodeargd else [])
-                if isinstance(a, LatexGroupNode)
-            ]
-            if m.macroname == "multicolumn" and len(groups) >= 3:
-                span = _int_or_default(_chars_of(groups[0].nodelist), 1)
-                cspec, _ = _parse_colspec(_chars_of(groups[1].nodelist))
-                # \cellcolor may sit inside the multicolumn content group
-                inner_shade, inner = self._strip_cellcolor(groups[2].nodelist)
-                return ir.TableCell(
-                    self.blocks(inner),
-                    colspan=span,
-                    align=cspec[0] if cspec else "center",
-                    shade=shade or inner_shade,
-                )
-            if m.macroname == "multirow" and len(groups) >= 2:
-                # \multirow{n}{width}{content}; the width is irrelevant to us and
-                # is often written unbraced as ``*`` (\multirow{6}*{Beauty}), which
-                # leaves only two brace groups -- so take span from the first group
-                # and the content from the last rather than insisting on three.
-                span = _int_or_default(_chars_of(groups[0].nodelist), 1)
-                inner_shade, inner = self._strip_cellcolor(groups[-1].nodelist)
-                return ir.TableCell(
-                    self.blocks(inner), rowspan=span, align=align, shade=shade or inner_shade
-                )
-        return ir.TableCell(self.blocks(cell_nodes), align=align, shade=shade)
+        colspan, rowspan = 1, 1
+        # Peel \multicolumn / \multirow wrappers. They nest in either order in
+        # generated colour tables, e.g. \multicolumn{1}{c|}{\multirow{-2}{*}{X}};
+        # loop so both the horizontal span (gridSpan) and vertical span (vMerge)
+        # plus the innermost content are recovered instead of one being lost.
+        peeled = True
+        while peeled:
+            peeled = False
+            for m in cell_nodes:
+                if not isinstance(m, LatexMacroNode):
+                    continue
+                groups = [
+                    a for a in (m.nodeargd.argnlist if m.nodeargd else [])
+                    if isinstance(a, LatexGroupNode)
+                ]
+                if m.macroname == "multicolumn" and len(groups) >= 3:
+                    colspan = _int_or_default(_chars_of(groups[0].nodelist), 1)
+                    cspec, _ = _parse_colspec(_chars_of(groups[1].nodelist))
+                    align = cspec[0] if cspec else "center"
+                    inner_shade, cell_nodes = self._strip_cellcolor(groups[2].nodelist)
+                    shade = shade or inner_shade
+                    peeled = True
+                    break
+                if m.macroname == "multirow" and len(groups) >= 2:
+                    # \multirow{n}{width}{content}; the width is irrelevant and is
+                    # often the bare ``*`` (\multirow{6}*{X}, only two groups), so
+                    # take span from the first group and content from the last.
+                    # A negative span (\multirow{-2}{*}{X}, generated tables anchor
+                    # the content in the *bottom* row) can't drive a top-down
+                    # w:vMerge, so we keep the content without merging.
+                    span = _int_or_default(_chars_of(groups[0].nodelist), 1)
+                    if span > 1:
+                        rowspan = span
+                    inner_shade, cell_nodes = self._strip_cellcolor(groups[-1].nodelist)
+                    shade = shade or inner_shade
+                    peeled = True
+                    break
+        return ir.TableCell(
+            _flatten_stacked_tables(self.blocks(cell_nodes)),
+            colspan=colspan,
+            rowspan=rowspan,
+            align=align,
+            shade=shade,
+        )
 
 def _has_star(node: LatexMacroNode) -> bool:
     """True if a macro was invoked with a starred form (e.g. ``\\section*``)."""
@@ -1707,6 +1779,20 @@ def _apply_text_accent(name: str, base: str) -> str:
     return unicodedata.normalize("NFC", base[0] + comb + base[1:])
 
 
+# User-defined tcolorbox callout environments -> rendered as set-off Quote blocks.
+# \newtcolorbox[init opts]{name}{style}, \DeclareTColorBox{name}{spec}{style},
+# \newtcbox / \NewTColorBox / \ProvideTColorBox variants.
+_NEWTCOLORBOX_RE = re.compile(
+    r"\\(?:new|renew|provide|Declare|New|Renew|Provide)?"
+    r"(?:tcolorbox|TColorBox|tcbox)\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}"
+)
+
+
+def _collect_tcolorbox_envs(source: str) -> set[str]:
+    """Names of user ``\\newtcolorbox`` environments (rendered as Quote blocks)."""
+    return {m.group(1).strip() for m in _NEWTCOLORBOX_RE.finditer(source) if m.group(1).strip()}
+
+
 # --------------------------------------------------------------------------- #
 # Public entry point
 # --------------------------------------------------------------------------- #
@@ -1927,6 +2013,18 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             MacroSpec("lstinline", "[{"),
             MacroSpec("mintinline", "[{{"),
             MacroSpec("ensuremath", "{"),
+            MacroSpec("ding", "{"),
+            MacroSpec("shortstack", "[{"),
+            # ACM affiliation sub-fields: consume the {…} so it isn't body text.
+            MacroSpec("institution", "{"),
+            MacroSpec("department", "{"),
+            MacroSpec("city", "{"),
+            MacroSpec("state", "{"),
+            MacroSpec("country", "{"),
+            MacroSpec("postcode", "{"),
+            MacroSpec("streetaddress", "{"),
+            MacroSpec("position", "{"),
+            MacroSpec("authornote", "{"),
             MacroSpec("texorpdfstring", "{{"),
             MacroSpec("labelcref", "{"),
             MacroSpec("nameref", "{"),
@@ -2151,6 +2249,7 @@ def parse_document(
     builder.theorem_envs.update(custom_theorems)
     builder.unnumbered_theorems = unnumbered_theorems
     builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
+    builder.box_envs = _collect_tcolorbox_envs(theorem_src)  # \newtcolorbox callouts
     builder.book_mode = _is_book_class(expanded)
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)
