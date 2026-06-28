@@ -50,6 +50,75 @@ def test_multirow_unbraced_star_width():
     assert not any("multirow" in (w.message or "") for w in res.report.warnings)
 
 
+def test_multirow_nested_in_multicolumn_is_unwrapped():
+    # generated colour tables write \multicolumn{1}{c|}{\multirow{-2}{*}{X}}; both
+    # wrappers must be peeled so the content survives (no unsupported-macro warning)
+    # and the column span is captured.
+    src = (
+        r"\begin{document}\begin{tabular}{cc}"
+        r"\multicolumn{2}{c}{\multirow{2}{*}{Header}} & B \\ & C \\"
+        r"\end{tabular}\end{document}"
+    )
+    table = _table(src)
+    cell = table.rows[0].cells[0]
+    assert cell.colspan == 2 and cell.rowspan == 2
+    body = "".join(
+        getattr(x, "value", "")
+        for blk in cell.blocks for x in getattr(blk, "inlines", [])
+    )
+    assert "Header" in body
+    assert not any("multirow" in (w.message or "") for w in convert_source(src).report.warnings)
+
+
+def test_negative_multirow_keeps_content_without_merge():
+    # \multirow{-2}{*}{X} (content anchored in the bottom row) can't drive a
+    # top-down vMerge -- content must be kept, span left at 1 (no broken merge).
+    src = (
+        r"\begin{document}\begin{tabular}{cl}"
+        r" & A \\ \multirow{-2}{*}{Cat} & B \\"
+        r"\end{tabular}\end{document}"
+    )
+    table = _table(src)
+    cell = table.rows[1].cells[0]
+    assert cell.rowspan == 1
+    body = "".join(
+        getattr(x, "value", "")
+        for blk in cell.blocks for x in getattr(blk, "inlines", [])
+    )
+    assert "Cat" in body
+
+
+def test_single_column_nested_tabular_flattens_to_linebreaks():
+    # \begin{tabular}[c]{@{}c@{}}a\\b\end{tabular} inside a cell is a line-stacking
+    # idiom; it must flatten to one paragraph with a line break, not a nested table.
+    src = (
+        r"\begin{document}\begin{tabular}{cc}"
+        r"\begin{tabular}[c]{@{}c@{}}Line1\\ Line2\end{tabular} & B \\"
+        r"\end{tabular}\end{document}"
+    )
+    table = _table(src)
+    cell = table.rows[0].cells[0]
+    assert all(not isinstance(b, ir.Table) for b in cell.blocks)  # no nested table
+    kinds = [type(x).__name__ for blk in cell.blocks for x in getattr(blk, "inlines", [])]
+    assert "LineBreak" in kinds
+
+
+def test_ding_and_shortstack_in_table_cells():
+    src = (
+        r"\begin{document}\begin{tabular}{cc}"
+        r"\ding{182} & \shortstack{Top \\ Bottom} \\"
+        r"\end{tabular}\end{document}"
+    )
+    res = convert_source(src)
+    assert not res.report.warnings
+    table = _table(src)
+    c0 = "".join(
+        getattr(x, "value", "")
+        for blk in table.rows[0].cells[0].blocks for x in getattr(blk, "inlines", [])
+    )
+    assert "❶" in c0  # \ding{182} -> negative circled one
+
+
 def test_header_row_detected_with_midrule():
     table = _table(BOOKTABS)
     assert table.rows[0].is_header is True

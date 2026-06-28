@@ -7,6 +7,34 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+Continued real-paper robustness, driven by a generated-colour-table paper
+(arXiv:2606.24775) whose taxonomy table couldn't convert.
+
+- **`\ding{N}` (pifont dingbats) now render as Unicode.** Check/cross marks and
+  the circled-digit ranges (`\ding{182}` → ❶, …) — used as level markers all
+  over generated tables — were dropped as an unsupported macro; they now map to
+  the matching Unicode glyph.
+- **`\multirow` nested inside `\multicolumn` is unwrapped.** Generated colour
+  tables write `\multicolumn{1}{c|}{\multirow{-2}{*}{…}}`; both wrappers are now
+  peeled so the content survives (no warning) and both the column span
+  (`w:gridSpan`) and row span (`w:vMerge`) are captured. A negative row span
+  (`\multirow{-N}`, content anchored in the bottom row) keeps its content without
+  attempting a top-down merge.
+- **Single-column nested `tabular` line-stacking flattens to line breaks.** The
+  `\begin{tabular}{@{}c@{}}a\\b\end{tabular}` idiom inside a cell became a nested
+  table *per cell*; it now flattens to one paragraph with line breaks (one table
+  instead of dozens).
+- **`\shortstack{a \\ b}`** renders as stacked lines.
+- **`\iffalse … \fi` blocks are dropped.** Content commented out with this TeX
+  conditional (often whole sections) was wrongly included; nested `\if…`/`\fi`
+  are tracked so the matching `\fi` closes the block.
+- **User `\newtcolorbox` callout environments** (e.g. a paper's `findingbox`)
+  render as set-off quote blocks instead of an "unknown environment" warning.
+- **ACM front-matter macros** (`\country`/`\city`/`\institution`/`\authornote`/…)
+  are consumed instead of leaking their arguments as body text.
+
 ## 1.0.2 — real-paper robustness (macros, theorems, tables, cross-refs)
 
 A robustness pass driven by real arXiv papers whose custom preambles and tables

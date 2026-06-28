@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tex2word import ir
+from tex2word import convert_source, ir
 from tex2word.frontend import parse_document
 from tex2word.frontend.macros import expand_macros
 
@@ -92,6 +92,59 @@ def test_newcommand_optional_arg():
 
 def test_declare_robust_command():
     assert "Tutti is fast" in expand_macros(r"\DeclareRobustCommand{\sys}{Tutti}\sys is fast")
+
+
+def test_strip_iffalse_drops_disabled_block():
+    from tex2word.frontend.preprocess import strip_iffalse
+
+    out = strip_iffalse(r"keep1 \iffalse hidden \section{X} body \fi keep2")
+    assert "keep1" in out and "keep2" in out
+    assert "hidden" not in out and "\\section" not in out
+
+
+def test_strip_iffalse_handles_nested_conditionals():
+    from tex2word.frontend.preprocess import strip_iffalse
+
+    out = strip_iffalse(r"A \iffalse x \ifnum1>0 y \fi z \fi B")
+    assert out.replace(" ", "") == "AB"  # the inner \fi must not close the block early
+
+
+def test_iffalse_block_not_in_output():
+    res = convert_source(
+        r"\documentclass{article}\begin{document}Visible."
+        r"\iffalse \section{Secret}Hidden paragraph.\fi\end{document}"
+    )
+    import io
+    import zipfile
+
+    from lxml import etree
+
+    W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    root = etree.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml")
+    )
+    text = "".join(t.text or "" for t in root.iter(f"{{{W}}}t"))
+    assert "Visible." in text and "Hidden" not in text and "Secret" not in text
+
+
+def test_newtcolorbox_environment_renders_as_quote():
+    # a user \newtcolorbox callout (findingbox) -> a set-off Quote block, not an
+    # "unknown environment" warning with the box markup leaking.
+    src = (
+        r"\documentclass{article}\newtcolorbox[auto counter]{findingbox}{colback=gray}"
+        r"\begin{document}\begin{findingbox}Key finding text.\end{findingbox}\end{document}"
+    )
+    doc = parse_document(src)[0]
+    quotes = [b for b in doc.blocks if isinstance(b, ir.Quote)]
+    assert quotes
+    body = "".join(
+        getattr(x, "value", "")
+        for blk in quotes[0].blocks for x in getattr(blk, "inlines", [])
+    )
+    assert "Key finding text." in body
+    assert not any(
+        "findingbox" in (w.message or "") for w in convert_source(src).report.warnings
+    )
 
 
 def test_newcommand_unbraced_single_token_body():
