@@ -7,6 +7,17 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- **TikZ compile no longer broken by a multi-line preamble macro.** The
+  standalone-figure preamble filter was line-based, so it kept only the opening
+  line of a multi-line `\newcommand{\box}[3]{ … }` and left an unbalanced `{` —
+  corrupting the preamble and making **every** TikZ figure's compile fail. It now
+  captures the full brace-balanced definition. (A `remember picture, overlay`
+  page-overlay picture — a logo/watermark referencing `current page` — still
+  can't be built as a standalone figure and degrades to a placeholder; that is
+  inherent, not a preamble bug.)
+
 ## 1.0.4 — multi-column layout + code-review fixes
 
 ### Added
