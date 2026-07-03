@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Multi-column body layout.** `\documentclass[twocolumn]` (and `\twocolumn` /
+  `multicols{N}`) is detected and the body flows in N Word columns; the
+  `--columns N` flag / `columns=` argument still overrides. A **starred float**
+  (`figure*`/`table*`) and the **title/abstract** span the full page width,
+  realised with continuous section breaks that switch the column count around
+  each spanning region.
+
+### Fixed
+
 Fixes from an in-depth code review of the 1.0.2/1.0.3 changes.
 
 - **`\iffalse … \else … \fi` keeps the `\else` branch.** The block remover dropped

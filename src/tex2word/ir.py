@@ -268,6 +268,7 @@ class Table(Node):
     label: str | None = None
     colwidths: list[float | None] = field(default_factory=list)  # per-column EMU (p{})
     caption_numbered: bool = True  # False for \caption* (unnumbered caption)
+    spanning: bool = False  # table* -> span the full page width in a multi-column body
 
 
 @dataclass
@@ -285,6 +286,7 @@ class Figure(Node):
     source: str = ""
     subfigures: list[SubFigure] = field(default_factory=list)
     caption_numbered: bool = True  # False for \caption* (unnumbered caption)
+    spanning: bool = False  # figure* -> span the full page width in a multi-column body
 
 
 @dataclass
@@ -398,6 +400,7 @@ class DocumentMeta(Node):
     affiliations: list[list[Inline]] = field(default_factory=list)
     language: str | None = None  # BCP-47 document language (from babel/polyglossia)
     running_head: str | None = None  # \markboth/\markright/\title[short] running head
+    columns: int = 1  # body column count (\documentclass[twocolumn]/\twocolumn)
     # XeLaTeX/fontspec + xeCJK font selection (from the preamble).
     main_font: str | None = None  # \setmainfont -> Latin ascii/hAnsi default
     cjk_main_font: str | None = None  # \setCJKmainfont -> East-Asian default (eastAsia)
