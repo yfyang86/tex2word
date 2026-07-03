@@ -55,6 +55,15 @@ def test_operator_body_contains_braced_group():
     assert not any("Exp" in (w.message or "") for w in res.report.warnings)
 
 
+def test_operator_body_with_two_levels_of_braces():
+    # \DeclareMathOperator{\E}{\mathbb{\mathcal{E}}}: the body nests braces two
+    # deep; the rewrite must capture the whole body, not stop at the inner brace.
+    from tex2word.frontend.preprocess import _rewrite_mathoperators
+
+    out = _rewrite_mathoperators(r"\DeclareMathOperator{\E}{\mathbb{\mathcal{E}}}")
+    assert r"\operatorname{\mathbb{\mathcal{E}}}" in out
+
+
 def test_operator_defined_in_local_package(tmp_path):
     # \DeclareMathOperator living in a \usepackage'd local .sty must be harvested
     # too (the operator name was previously unknown and sent the block to raw).

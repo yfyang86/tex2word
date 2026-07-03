@@ -116,6 +116,13 @@ that opens the `.docx` (e.g. `SimSun`/`宋体`, or any installed CJK font such a
   TeX engine** (xelatex/lualatex/pdflatex) into a cropped `standalone` PDF and
   rasterised to an embedded PNG (needs the `tex2word[pdf]` extra). With no TeX
   toolchain it degrades to a caption-only figure (the report says why).
+- **Multi-column layout**: `\documentclass[twocolumn]` (and a `\twocolumn`
+  command or `multicols{N}` environment) lays the body out in N Word columns;
+  `--columns N` overrides. Starred floats (`figure*`/`table*`) and the
+  title/abstract span the **full page width** (via continuous section breaks that
+  switch the column count around each spanning region). *Limitation:* a
+  **mid-document `\onecolumn`/`\twocolumn` switch is not modelled** — the largest
+  column count seen applies to the whole body.
 - **Custom macros**: `\newcommand`/`\renewcommand`/`\def` are expanded before
   parsing. Common `mathtools`/`physics` math (`\abs`, `\norm`, `\dv`, `\ket`, …)
   and `siunitx` (`\SI{9.81}{\meter\per\second\squared}` → `9.81 m/s²`, `\num`,

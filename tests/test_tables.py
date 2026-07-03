@@ -119,6 +119,39 @@ def test_ding_and_shortstack_in_table_cells():
     assert "❶" in c0  # \ding{182} -> negative circled one
 
 
+def test_multicolumn_multirow_continuation_keeps_colspan():
+    # a cell that is BOTH \multicolumn and \multirow must continue (vMerge) with
+    # the merged colspan (gridSpan=2), not the current row cell's colspan.
+    src = (
+        r"\begin{document}\begin{tabular}{ccc}"
+        r"\multicolumn{2}{c}{\multirow{2}{*}{H}} & a \\  & b \\"
+        r"\end{tabular}\end{document}"
+    )
+    root = document_root(convert_source(src).docx)
+    w = NS["w"]
+    cont = [
+        tc for tc in root.iter(f"{{{w}}}tc")
+        for vm in tc.iter(f"{{{w}}}vMerge")
+        if vm.get(f"{{{w}}}val") is None  # a continuation cell
+    ]
+    assert cont, "expected a vMerge continuation cell"
+    gs = cont[0].find(f"{{{w}}}tcPr/{{{w}}}gridSpan")
+    assert gs is not None and gs.get(f"{{{w}}}val") == "2"
+
+
+def test_nested_tabular_with_block_content_not_flattened():
+    # a single-column nested tabular whose cell holds a block (here an itemize)
+    # must NOT be flattened (which dropped non-paragraph blocks) -- content stays.
+    src = (
+        r"\begin{document}\begin{tabular}{cc}"
+        r"\begin{tabular}{@{}c@{}}\begin{itemize}\item Zeta\end{itemize}\end{tabular} & B \\"
+        r"\end{tabular}\end{document}"
+    )
+    root = document_root(convert_source(src).docx)
+    text = "".join(t.text or "" for t in root.iter(f"{{{NS['w']}}}t"))
+    assert "Zeta" in text  # the list content survived
+
+
 def test_header_row_detected_with_midrule():
     table = _table(BOOKTABS)
     assert table.rows[0].is_header is True

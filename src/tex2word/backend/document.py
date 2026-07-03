@@ -112,12 +112,45 @@ class DocumentWriter:
             if isinstance(block, ir.Bibliography):
                 self._cite_items = {e.id: e for e in block.entries}
         body = el("w:body")
-        self._title_block(doc.meta, body)
-        for block in doc.blocks:
-            self._block(block, body)
-        body.append(self._sect_pr())
+        self._emit_body(doc, body)
         document = el("w:document", body)
         return serialize(document)
+
+    def _emit_body(self, doc: ir.Document, body: _Element) -> None:
+        """Emit the title block and body blocks, inserting continuous section
+        breaks so ``figure*``/``table*`` (and, in a multi-column paper, the
+        title/abstract) span the full page width while text flows in N columns."""
+        n = self.columns
+        # (columns, emitter) for each top-level region, in order.
+        regions: list[tuple[int, Any]] = []
+        has_title = bool(
+            doc.meta.title or doc.meta.authors or doc.meta.affiliations
+            or doc.meta.date or doc.meta.abstract or doc.meta.keywords
+        )
+        if has_title:
+            # the title/authors/abstract are set full-width above the columns.
+            regions.append((1 if n > 1 else n, lambda: self._title_block(doc.meta, body)))
+        for block in doc.blocks:
+            cols = 1 if (n > 1 and getattr(block, "spanning", False)) else n
+            regions.append((cols, lambda b=block: self._block(b, body)))
+
+        prev: int | None = None
+        for cols, emit in regions:
+            if prev is not None and cols != prev:
+                # a continuous section break closes the previous region: its
+                # sectPr (carried on this empty paragraph) describes that region.
+                body.append(self._column_break_para(prev))
+            emit()
+            prev = cols
+        body.append(self._sect_pr(columns=prev if prev is not None else n))
+
+    def _column_break_para(self, columns: int) -> _Element:
+        """An empty paragraph whose pPr carries a continuous section break, used to
+        end a region with the given column count."""
+        p = el("w:p")
+        ppr = sub(p, "w:pPr")
+        ppr.append(self._sect_pr(columns=columns, continuous=True))
+        return p
 
     # -- title / meta ----------------------------------------------------- #
 
@@ -357,8 +390,11 @@ class DocumentWriter:
             w = widths[i] if i < len(widths) else None
             sub(grid, "w:gridCol", **({"w:w": str(w)} if w else {}))
 
-        # remaining vertical-merge continuations keyed by starting column index
-        vmerge_pending: dict[int, int] = {}
+        # remaining vertical-merge continuations keyed by starting column index ->
+        # (rows still to merge, colspan of the merged cell). The colspan must come
+        # from the originating cell, not the current row's cell, so a cell that is
+        # both \multicolumn and \multirow continues with the right grid width.
+        vmerge_pending: dict[int, tuple[int, int]] = {}
         for row in block.rows:
             tr = sub(tbl, "w:tr")
             if row.is_header:
@@ -366,17 +402,19 @@ class DocumentWriter:
                 sub(trpr, "w:tblHeader")  # repeat header on each page
             col = 0
             for cell in row.cells:
+                pending = vmerge_pending.get(col)
+                if pending and pending[0] > 0:
+                    remaining, merged_colspan = pending
+                    self._merge_continue_cell(tr, merged_colspan)
+                    vmerge_pending[col] = (remaining - 1, merged_colspan)
+                    col += merged_colspan
+                    continue
                 span_w = sum(
                     widths[c] or 0 for c in range(col, col + cell.colspan) if c < len(widths)
                 )
-                if vmerge_pending.get(col, 0) > 0:
-                    self._merge_continue_cell(tr, cell.colspan)
-                    vmerge_pending[col] -= 1
-                    col += cell.colspan
-                    continue
                 self._table_cell(tr, cell, width=span_w or None)
                 if cell.rowspan > 1:
-                    vmerge_pending[col] = cell.rowspan - 1
+                    vmerge_pending[col] = (cell.rowspan - 1, cell.colspan)
                 col += cell.colspan
         body.append(tbl)
         if block.caption is not None:
@@ -1147,14 +1185,17 @@ class DocumentWriter:
         jc = {"center": "center", "right": "end"}.get(align, "start")
         sub(ppr, "w:jc", **{"w:val": jc})
 
-    def _sect_pr(self) -> _Element:
+    def _sect_pr(self, columns: int | None = None, continuous: bool = False) -> _Element:
+        cols = self.columns if columns is None else max(columns, 1)
         sect = el("w:sectPr")
-        # header/footer references come first in CT_SectPr; titlePg if a first-page
-        # header/footer was carried.
+        # CT_SectPr child order: hdr/ftr refs, type, pgSz, pgMar, cols, …, titlePg.
+        # Same page size + header/footer refs on every section so continuous breaks
+        # (used for full-width figure*/table*) don't force a page break or drop the
+        # running head.
         for tag, w_type, rid in self.header_footer_refs:
             sub(sect, f"w:{tag}", **{"w:type": w_type, "r:id": rid})
-        if any(w_type == "first" for _, w_type, _ in self.header_footer_refs):
-            sub(sect, "w:titlePg")
+        if continuous:
+            sub(sect, "w:type", **{"w:val": "continuous"})
         pgsz = self.page_pgsz or {"w:w": "12240", "w:h": "15840"}
         pgmar = self.page_pgmar or {
             "w:top": "1440", "w:right": "1440", "w:bottom": "1440",
@@ -1162,8 +1203,13 @@ class DocumentWriter:
         }
         sub(sect, "w:pgSz", **pgsz)
         sub(sect, "w:pgMar", **pgmar)
-        if self.columns > 1:
-            sub(sect, "w:cols", **{"w:num": str(self.columns), "w:space": "720"})
+        # A section with no w:cols is single-column (the schema default), so only a
+        # multi-column section needs one; a 1-col region after a break resets to a
+        # single column simply by omitting it.
+        if cols > 1:
+            sub(sect, "w:cols", **{"w:num": str(cols), "w:space": "720"})
+        if any(w_type == "first" for _, w_type, _ in self.header_footer_refs):
+            sub(sect, "w:titlePg")
         return sect
 
 

@@ -195,12 +195,15 @@ def _emit_single(node: L.MNode) -> _Element:  # noqa: C901 - structural dispatch
 
     if isinstance(node, L.Matrix):
         m = el("m:m")
-        if node.aligned and node.rows:
-            _add_alignment_mcs(m, max(len(r) for r in node.rows))
+        ncols = max((len(r) for r in node.rows), default=0)
+        if node.aligned and ncols:
+            _add_alignment_mcs(m, ncols)
         for row in node.rows:
             mr = sub(m, "m:mr")
-            for cell in row:
-                mr.append(_fill("m:e", cell))
+            # pad short rows to the declared column count so every m:mr has one
+            # m:e per column (an aligned m:m with a ragged row corrupts in Word).
+            for c in range(ncols if node.aligned else len(row)):
+                mr.append(_fill("m:e", row[c] if c < len(row) else None))
         return m
 
     # Lit/Row/Group are handled by _emit; reaching here is a bug.
@@ -225,6 +228,21 @@ def render_inline(latex: str) -> _Element:
     return _omath(row)
 
 
+def _env_token(s: str, i: int) -> tuple[int, int]:
+    """Detect a ``\\begin{``/``\\end{`` environment delimiter starting at ``i``.
+
+    Returns ``(env_depth_change, token_length)`` -- ``(+1, 6)`` for ``\\begin``,
+    ``(-1, 4)`` for ``\\end``, ``(0, 0)`` otherwise. The next char must exist and
+    be non-alphabetic, which both distinguishes ``\\begin{x}`` from macros like
+    ``\\beginner`` and avoids a false match when ``\\begin`` sits at the very end
+    of the string (empty slice)."""
+    if s.startswith("\\begin", i) and i + 6 < len(s) and not s[i + 6].isalpha():
+        return 1, 6
+    if s.startswith("\\end", i) and i + 4 < len(s) and not s[i + 4].isalpha():
+        return -1, 4
+    return 0, 0
+
+
 def _split_top_level(latex: str, sep: str) -> list[str]:
     parts: list[str] = []
     depth = 0
@@ -232,15 +250,11 @@ def _split_top_level(latex: str, sep: str) -> list[str]:
     i, n = 0, len(latex)
     buf: list[str] = []
     while i < n:
-        if latex.startswith("\\begin", i) and not latex[i + 6 : i + 7].isalpha():
-            env += 1
-            buf.append(latex[i : i + 6])
-            i += 6
-            continue
-        if latex.startswith("\\end", i) and not latex[i + 4 : i + 5].isalpha():
-            env = max(0, env - 1)
-            buf.append(latex[i : i + 4])
-            i += 4
+        denv, tlen = _env_token(latex, i)
+        if tlen:
+            env = max(0, env + denv)
+            buf.append(latex[i : i + tlen])
+            i += tlen
             continue
         c = latex[i]
         if c == "{":
@@ -272,15 +286,11 @@ def _strip_align_markers(line: str) -> str:
     env = 0
     i, n = 0, len(line)
     while i < n:
-        if line.startswith("\\begin", i) and not line[i + 6 : i + 7].isalpha():
-            env += 1
-            out.append(line[i : i + 6])
-            i += 6
-            continue
-        if line.startswith("\\end", i) and not line[i + 4 : i + 5].isalpha():
-            env = max(0, env - 1)
-            out.append(line[i : i + 4])
-            i += 4
+        denv, tlen = _env_token(line, i)
+        if tlen:
+            env = max(0, env + denv)
+            out.append(line[i : i + tlen])
+            i += tlen
             continue
         c = line[i]
         if c == "{":
@@ -302,13 +312,10 @@ def _has_top_amp(line: str) -> bool:
     env = 0
     i, n = 0, len(line)
     while i < n:
-        if line.startswith("\\begin", i) and not line[i + 6 : i + 7].isalpha():
-            env += 1
-            i += 6
-            continue
-        if line.startswith("\\end", i) and not line[i + 4 : i + 5].isalpha():
-            env = max(0, env - 1)
-            i += 4
+        denv, tlen = _env_token(line, i)
+        if tlen:
+            env = max(0, env + denv)
+            i += tlen
             continue
         c = line[i]
         if c == "{":

@@ -109,6 +109,22 @@ def test_strip_iffalse_handles_nested_conditionals():
     assert out.replace(" ", "") == "AB"  # the inner \fi must not close the block early
 
 
+def test_strip_iffalse_keeps_else_branch():
+    from tex2word.frontend.preprocess import strip_iffalse
+
+    # \iffalse A \else B \fi -> B (the false branch drops, the else branch stays)
+    out = strip_iffalse(r"x \iffalse AAA \else BBB \fi y")
+    assert "BBB" in out and "AAA" not in out and "x" in out and "y" in out
+
+
+def test_strip_iffalse_else_respects_nesting():
+    from tex2word.frontend.preprocess import strip_iffalse
+
+    # a nested \else (inside \ifnum) must not be mistaken for this block's else
+    out = strip_iffalse(r"\iffalse \ifnum1>0 a \else b \fi \else KEEP \fi")
+    assert "KEEP" in out and "a" not in out and "b" not in out
+
+
 def test_iffalse_block_not_in_output():
     res = convert_source(
         r"\documentclass{article}\begin{document}Visible."
