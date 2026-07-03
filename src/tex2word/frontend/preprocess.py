@@ -180,6 +180,18 @@ def strip_iffalse(source: str) -> str:
     return "".join(out)
 
 
+# Common typo: the star of a starred environment belongs on the *name*
+# (\begin{figure*}), but authors sometimes write \begin*{figure}/\end*{figure}.
+# Normalise it so figure*/table* spanning (etc.) still works.
+_BEGINEND_STAR_RE = re.compile(r"\\(begin|end)\*\s*\{([^}]*)\}")
+
+
+def _normalize_begin_star(source: str) -> str:
+    return _BEGINEND_STAR_RE.sub(
+        lambda m: f"\\{m.group(1)}{{{m.group(2).strip().rstrip('*')}*}}", source
+    )
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
@@ -187,6 +199,7 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(source), base_dir)
+    source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}
     source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
     source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)

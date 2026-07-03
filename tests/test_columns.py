@@ -81,6 +81,21 @@ def test_single_column_by_default():
 # --------------------------------------------------------------------------- #
 
 
+def test_begin_star_typo_normalized_to_starred_env():
+    # \begin*{figure}/\end*{figure} (star misplaced) is a common typo for
+    # \begin{figure*}; it must still be recognised as a spanning float.
+    from tex2word.frontend.preprocess import _normalize_begin_star
+
+    got = _normalize_begin_star(r"\begin*{figure}x\end*{figure}")
+    assert got == r"\begin{figure*}x\end{figure*}"
+    doc = _doc(
+        r"\documentclass[twocolumn]{article}\begin{document}"
+        r"\begin*{figure}\caption{c}\end*{figure}\end{document}"
+    )
+    figs = [b for b in doc.blocks if isinstance(b, ir.Figure)]
+    assert figs and figs[0].spanning is True
+
+
 def test_starred_float_marked_spanning():
     doc = _doc(
         r"\documentclass{article}\begin{document}"

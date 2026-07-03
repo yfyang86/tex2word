@@ -16,9 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--columns N` flag / `columns=` argument still overrides. A **starred float**
   (`figure*`/`table*`) and the **title/abstract** span the full page width,
   realised with continuous section breaks that switch the column count around
-  each spanning region.
+  each spanning region. *Limitation:* a mid-document `\onecolumn`/`\twocolumn`
+  switch is not modelled — the largest column count seen applies to the whole
+  body.
 
 ### Fixed
+
+- **Misplaced environment star normalized.** The common typo `\begin*{figure}` /
+  `\end*{figure}` (the star belongs on the name: `\begin{figure*}`) is now
+  normalized, so such floats are still recognized as spanning and don't leak a
+  spurious `\caption` warning.
 
 Fixes from an in-depth code review of the 1.0.2/1.0.3 changes.
 
