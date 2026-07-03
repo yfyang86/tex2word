@@ -41,7 +41,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     conv.add_argument(
         "--columns", type=int, default=1, metavar="N",
-        help="lay out the body in N page columns (default 1)",
+        help="lay out the body in N page columns; the default (1) auto-detects "
+             "\\documentclass[twocolumn]/\\twocolumn/multicols, and N>1 overrides",
     )
     conv.add_argument(
         "--frontend", choices=("pure", "latexml"), default="pure",

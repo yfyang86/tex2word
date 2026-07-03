@@ -101,9 +101,9 @@ def inline_listing_files(source: str, base_dir: str) -> str:
 # Backreference \1 ties \end to the same environment name.
 _LISTING_ENV_RE = re.compile(
     r"\\begin\{(lstlisting|minted|Verbatim\*?|verbatim\*)\}"
-    # optional [options]; allow one level of nested {…}/[…] so keys whose value
-    # is braced (e.g. [caption={[x]}]) don't truncate at the inner ``]``.
-    r"[ \t]*(?:\[(?:[^\[\]{}]|\{[^{}]*\}|\[[^\]]*\])*\])?"
+    # optional [options]; allow two levels of nested {…}/[…] so braced keys like
+    # [caption={[x]}] or [caption={\textbf{C}}] don't truncate at an inner ]/}.
+    r"[ \t]*(?:\[(?:[^\[\]{}]|\{(?:[^{}]|\{[^{}]*\})*\}|\[[^\]]*\])*\])?"
     r"[ \t]*(?:\{[^}]*\})?"    # optional {lang} (minted)
     r"(?P<body>.*?)"
     r"\\end\{\1\}",
@@ -121,11 +121,11 @@ def normalize_listing_envs(source: str) -> str:
 
 # amsmath \DeclareMathOperator{\name}{body} (and starred, with limits) -> a
 # \newcommand that wraps the body in \operatorname, which the math path renders.
-# The body may itself contain a braced group (e.g. \DeclareMathOperator*{\Exp}{\mathbb{E}}),
-# so allow one level of nesting rather than only brace-free bodies.
+# The body may itself contain braced groups (e.g. \DeclareMathOperator*{\Exp}{\mathbb{E}}
+# or \mathbb{\mathcal{E}}), so allow two levels of nesting, not just brace-free bodies.
 _DECLAREMATHOP_RE = re.compile(
     r"\\DeclareMathOperator\s*(\*?)\s*\{\s*\\([A-Za-z]+)\s*\}\s*"
-    r"\{((?:[^{}]|\{[^{}]*\})*)\}"
+    r"\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 )
 
 
@@ -139,16 +139,18 @@ def _rewrite_mathoperators(source: str) -> str:
 
 _IFFALSE_RE = re.compile(r"\\iffalse(?![a-zA-Z@])")
 # An \if… opener is a control word (letters only, so it stops at a non-letter such
-# as the digit in \ifnum1>0); \fi closes. The negative lookahead keeps \fi from
-# matching \fill/\final.
-_IFFI_RE = re.compile(r"\\(if[a-zA-Z@]*|fi(?![a-zA-Z@]))")
+# as the digit in \ifnum1>0); \fi closes; \else splits. The negative lookahead
+# keeps \fi from matching \fill/\final and \else from \elsewhere.
+_IFFI_RE = re.compile(r"\\(if[a-zA-Z@]*|else(?![a-zA-Z@])|fi(?![a-zA-Z@]))")
 
 
 def strip_iffalse(source: str) -> str:
-    """Drop ``\\iffalse … \\fi`` blocks (a common way to comment out whole sections).
+    """Resolve ``\\iffalse … \\fi`` blocks (a common way to comment out sections).
 
-    Left in, the disabled content is wrongly included in the output. Nested
-    ``\\if…``/``\\fi`` are tracked so the matching ``\\fi`` closes the block.
+    The false branch is dropped; an ``\\else`` branch (``\\iffalse A \\else B \\fi``
+    -> ``B``) is kept, per TeX semantics. Nested ``\\if…``/``\\fi`` are tracked so
+    the matching ``\\fi`` closes the block and a nested ``\\else`` isn't mistaken
+    for this block's.
     """
     out: list[str] = []
     i, n = 0, len(source)
@@ -158,16 +160,36 @@ def strip_iffalse(source: str) -> str:
             out.append(source[i:])
             break
         out.append(source[i : m.start()])
-        depth, j = 1, m.end()
+        depth = 1
+        else_at: int | None = None  # end offset of a top-level \else, if any
+        j = n  # unbalanced -> drop to end of source
         for cm in _IFFI_RE.finditer(source, m.end()):
-            depth += -1 if cm.group(1) == "fi" else 1
+            tok = cm.group(1)
+            if tok == "else":
+                if depth == 1 and else_at is None:
+                    else_at = cm.end()  # this block's else branch starts here
+                continue
+            depth += -1 if tok == "fi" else 1
             if depth == 0:
+                # keep the else branch (between \else and \fi), drop the rest
+                if else_at is not None:
+                    out.append(source[else_at : cm.start()])
                 j = cm.end()
                 break
-        else:
-            j = n  # unbalanced -> drop to end of source
         i = j
     return "".join(out)
+
+
+# Common typo: the star of a starred environment belongs on the *name*
+# (\begin{figure*}), but authors sometimes write \begin*{figure}/\end*{figure}.
+# Normalise it so figure*/table* spanning (etc.) still works.
+_BEGINEND_STAR_RE = re.compile(r"\\(begin|end)\*\s*\{([^}]*)\}")
+
+
+def _normalize_begin_star(source: str) -> str:
+    return _BEGINEND_STAR_RE.sub(
+        lambda m: f"\\{m.group(1)}{{{m.group(2).strip().rstrip('*')}*}}", source
+    )
 
 
 def preprocess(source: str, base_dir: str = ".") -> str:
@@ -177,6 +199,7 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(source), base_dir)
+    source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}
     source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
     source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)

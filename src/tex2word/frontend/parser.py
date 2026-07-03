@@ -249,21 +249,28 @@ _IGNORE_MACROS = {
 def _flatten_stacked_tables(blocks: list[ir.Block]) -> list[ir.Block]:
     """Flatten a single-column nested ``tabular`` (the ``{@{}c@{}}a\\\\b`` line-
     stacking idiom common inside cells) into one paragraph with line breaks,
-    instead of emitting a nested table per cell."""
+    instead of emitting a nested table per cell.
+
+    Only flattened when every row is a single cell whose content is plain
+    paragraphs -- a cell holding a block (display math, nested list, another
+    table) keeps its nested-table form so that content isn't dropped."""
     out: list[ir.Block] = []
     for b in blocks:
         if (
             isinstance(b, ir.Table)
             and b.rows
             and all(len(r.cells) == 1 for r in b.rows)
+            and all(
+                isinstance(cb, ir.Paragraph)
+                for r in b.rows for cb in r.cells[0].blocks
+            )
         ):
             inlines: list[ir.Inline] = []
             for i, row in enumerate(b.rows):
                 if i:
                     inlines.append(ir.LineBreak())
                 for cb in row.cells[0].blocks:
-                    if isinstance(cb, ir.Paragraph):
-                        inlines.extend(cb.inlines)
+                    inlines.extend(cb.inlines)  # type: ignore[union-attr]
             out.append(ir.Paragraph(inlines))
         else:
             out.append(b)
@@ -1046,10 +1053,10 @@ class _Builder:
             ))
             return
         if base in ("figure", "wrapfigure"):
-            out.append(self._figure(node))
+            out.append(self._figure(node, spanning=starred))
             return
         if base in ("table", "wraptable"):
-            self._table_float(node, out)
+            self._table_float(node, out, spanning=starred)
             return
         if base in (
             "tabular", "array", "tabularx", "tabulary", "longtable",
@@ -1238,8 +1245,8 @@ class _Builder:
                 return _clean_inlines(self.inlines(arg.nodelist), trim=True)
         return None
 
-    def _figure(self, node: LatexEnvironmentNode) -> ir.Figure:
-        fig = ir.Figure(image=None, source=node.latex_verbatim())
+    def _figure(self, node: LatexEnvironmentNode, spanning: bool = False) -> ir.Figure:
+        fig = ir.Figure(image=None, source=node.latex_verbatim(), spanning=spanning)
         self._collect_figure_parts(node.nodelist, fig, top=True)
         if fig.image is None and not fig.subfigures:
             self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
@@ -1298,7 +1305,9 @@ class _Builder:
     def _figure_from_graphics(self, node: LatexMacroNode) -> ir.Figure:
         return ir.Figure(image=_make_image(node), source=node.latex_verbatim())
 
-    def _table_float(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:
+    def _table_float(
+        self, node: LatexEnvironmentNode, out: list[ir.Block], spanning: bool = False
+    ) -> None:
         # Pull the float's own caption/label, then process the rest as blocks --
         # which descends \resizebox/\scalebox and minipage so nested tabulars (a
         # grid of sub-tables) survive instead of being dumped as raw LaTeX.
@@ -1325,6 +1334,7 @@ class _Builder:
         tables[0].caption = caption
         tables[0].caption_numbered = caption_numbered
         tables[0].label = label
+        tables[0].spanning = spanning
         self._labelable = tables[0]
         out.extend(sub_blocks)
 
@@ -2224,6 +2234,29 @@ def _is_book_class(source: str) -> bool:
     return bool(_BOOK_CLASS_RE.search(source)) or bool(re.search(r"\\chapter\b", source))
 
 
+_DOCCLASS_OPTS_RE = re.compile(r"\\documentclass\s*\[([^\]]*)\]")
+# \begin{multicols}{N} / \begin{multicols*}{N} (multicol package)
+_MULTICOLS_RE = re.compile(r"\\begin\{multicols\*?\}\s*\{\s*(\d+)\s*\}")
+
+
+def _detect_columns(source: str) -> int:
+    """Body column count from the class options / `\\twocolumn` / `multicols`.
+
+    ``\\documentclass[twocolumn]`` (or a later ``\\twocolumn``) -> 2; a
+    ``multicols`` environment's ``{N}`` wins if larger. ``\\onecolumn`` after a
+    ``\\twocolumn`` is not modelled -- the max column count seen is used.
+    """
+    cols = 1
+    m = _DOCCLASS_OPTS_RE.search(source)
+    if m and "twocolumn" in [o.strip() for o in m.group(1).split(",")]:
+        cols = 2
+    if re.search(r"\\twocolumn\b", source):
+        cols = max(cols, 2)
+    for mc in _MULTICOLS_RE.finditer(source):
+        cols = max(cols, int(mc.group(1)))
+    return cols
+
+
 def parse_document(
     source: str, base_dir: str = ".", csl_path: str | None = None
 ) -> tuple[ir.Document, ConversionReport]:
@@ -2263,6 +2296,7 @@ def parse_document(
     if doc.meta.language is None:
         doc.meta.language = _detect_language(preamble)  # babel/polyglossia -> BCP-47
     _detect_fonts(doc, preamble)  # fontspec/xeCJK \setmainfont / \setCJK*font
+    doc.meta.columns = _detect_columns(expanded)  # twocolumn / \twocolumn / multicols
     _resolve_bibliography(doc, builder, base_dir, report, csl_path)
     return doc, report
 

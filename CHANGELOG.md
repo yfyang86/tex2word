@@ -7,6 +7,46 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.4 — multi-column layout + code-review fixes
+
+### Added
+
+- **Multi-column body layout.** `\documentclass[twocolumn]` (and `\twocolumn` /
+  `multicols{N}`) is detected and the body flows in N Word columns; the
+  `--columns N` flag / `columns=` argument still overrides. A **starred float**
+  (`figure*`/`table*`) and the **title/abstract** span the full page width,
+  realised with continuous section breaks that switch the column count around
+  each spanning region. *Limitation:* a mid-document `\onecolumn`/`\twocolumn`
+  switch is not modelled — the largest column count seen applies to the whole
+  body.
+
+### Fixed
+
+- **Misplaced environment star normalized.** The common typo `\begin*{figure}` /
+  `\end*{figure}` (the star belongs on the name: `\begin{figure*}`) is now
+  normalized, so such floats are still recognized as spanning and don't leak a
+  spurious `\caption` warning.
+
+Fixes from an in-depth code review of the 1.0.2/1.0.3 changes.
+
+- **`\iffalse … \else … \fi` keeps the `\else` branch.** The block remover dropped
+  *both* branches; it now drops only the false branch and preserves the `\else`
+  branch, with nested `\else` correctly scoped to its own conditional.
+- **Aligned math matrices pad ragged rows.** An `aligned`/`align` block with a
+  short line declared N columns but emitted fewer cells on that row, producing a
+  ragged `m:m` that Word could misrender; every row is now padded to the column
+  count.
+- **`\multicolumn`+`\multirow` cells merge with the correct width.** A cell that
+  was both spanned the wrong number of columns on its `vMerge` continuation rows
+  (it used the next row's cell width); the originating colspan is now tracked.
+- **Nested single-column `tabular` with block content is no longer flattened.**
+  The line-stacking flatten dropped non-paragraph blocks (display math, nested
+  lists); such cells now keep their content instead of silently losing it.
+- **Robustness:** code-listing `[options]` and `\DeclareMathOperator` bodies now
+  tolerate two levels of nested braces (`[caption={\textbf{C}}]`,
+  `\mathbb{\mathcal{E}}}`); the math env-delimiter scanner is bounds-safe at
+  end-of-string (and de-duplicated into one helper).
+
 ## 1.0.3 — generated colour-table support
 
 Continued real-paper robustness, driven by a generated-colour-table paper

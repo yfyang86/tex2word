@@ -44,7 +44,10 @@ def convert_source(
     ``number_by_section`` figures/tables/equations are numbered ``N.M`` per
     section instead of with a flat counter. ``citation_mode`` is ``"static"``
     (formatted text) or ``"zotero"`` (live ``CSL_CITATION`` fields). ``columns``
-    sets the page column count. ``frontend`` is ``"pure"`` (default, pylatexenc)
+    sets the page column count; the default (1) auto-detects
+    ``\documentclass[twocolumn]``/``\twocolumn``/``multicols`` and any value >1
+    overrides it (``figure*``/``table*`` and the title/abstract span all columns).
+    ``frontend`` is ``"pure"`` (default, pylatexenc)
     or ``"latexml"`` (genuine TeX expansion; falls back to pure if unavailable).
     ``reference_doc`` is a path to a Word ``.docx`` whose styles, theme and page
     geometry the output adopts (the journal/corporate "template" pattern).
@@ -80,13 +83,17 @@ def convert_source(
         # no template headers -> synthesise a running-head header + page footer
         _add_running_head(doc.meta.running_head, hf_refs, hf_parts, hf_rels)
 
+    # explicit columns>1 wins; otherwise honour the column count detected from the
+    # document class (\documentclass[twocolumn]/\twocolumn/multicols).
+    effective_columns = columns if columns and columns > 1 else max(doc.meta.columns, 1)
+
     writer = DocumentWriter(
         report,
         base_dir=base_dir,
         image_math_renderer=image_renderer,
         number_by_section=number_by_section,
         citation_mode=citation_mode,
-        columns=columns,
+        columns=effective_columns,
         page_pgsz=reference.page_pgsz if reference else None,
         page_pgmar=reference.page_pgmar if reference else None,
         header_footer_refs=hf_refs,

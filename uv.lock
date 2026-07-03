@@ -817,7 +817,7 @@ wheels = [
 
 [[package]]
 name = "tex2word"
-version = "1.0.3"
+version = "1.0.4"
 source = { editable = "." }
 dependencies = [
     { name = "lxml" },
