@@ -79,6 +79,40 @@ The font *name* is recorded as written, so it must be installed on the machine
 that opens the `.docx` (e.g. `SimSun`/`宋体`, or any installed CJK font such as
 `Noto Serif CJK SC`). The choices round-trip back to a XeLaTeX preamble.
 
+## Web app (GUI)
+
+Prefer a browser to the CLI? **[tex2word-gui](https://github.com/yfyang86/tex2word-gui)**
+is a companion web application — a thin adapter around tex2word's IR and outputs
+— for editing, converting and previewing LaTeX projects without touching a
+terminal. Highlights:
+
+- **Convert & download** a single file or a multi-file project to a real `.docx`,
+  with the tex2word **coverage report** (math OMML %, diagnostics, validity).
+  Conversions run as **background jobs** and outputs are stored **durably** in
+  SQLite (they survive restarts).
+- **Projects** with a collapsible **folder tree** (add / rename / delete files in
+  place), multi-file `\input`/`\include` resolution, and a LaTeX/Markdown editor
+  with **syntax highlighting**; a gallery with search, kind/state filters, and
+  per-card favourite / archive / rename / delete.
+- **Live preview** with typeset math (native MathML), a structure **outline** and
+  **statistics**, in a resizable source⇄preview split with two-way scroll sync.
+- **Figures** — upload/import images; `\includegraphics` embeds them in the
+  `.docx`, and **PDF/EPS** and inline **TikZ/PGF** are rasterised for the preview
+  through tex2word's own backend.
+- **Import** from **Markdown**, an **arXiv** source bundle, or a `.zip`/`.tar.gz`
+  project archive; **round-trip** a tex2word-generated `.docx` back to LaTeX.
+- **tex-copilot assistant** — fix / polish / explain / ask over the current file
+  and report via a configurable LLM (Anthropic or any OpenAI-compatible), with
+  streaming replies, diff-based accept/reject, `@file` and `/`-skill autocomplete,
+  and persisted multi-turn chat.
+- **Coverage dashboard** aggregating tex2word metrics across all projects.
+- **Optional accounts** (`[auth]`: scrypt-hashed passwords, RS256 JWT sessions,
+  owner-scoped projects) and **hardening** (per-IP rate limiting, request
+  body-size cap) — both off/configurable by default.
+
+The GUI depends on this package for the actual conversion, so everything in
+*What works today* below applies there too.
+
 ## What works today
 
 - **Reference Word templates** ★: `--reference-doc TEMPLATE.docx` adopts a
