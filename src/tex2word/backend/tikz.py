@@ -62,13 +62,46 @@ def extract_picture(source: str) -> str | None:
     return m.group(0) if m else None
 
 
+def _brace_delta(line: str) -> int:
+    """Net ``{`` minus ``}`` on a line, ignoring escaped ``\\{``/``\\}``."""
+    depth = 0
+    i, n = 0, len(line)
+    while i < n:
+        c = line[i]
+        if c == "\\":
+            i += 2  # skip the escaped char (\{ \} \% …)
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        i += 1
+    return depth
+
+
 def _filtered_preamble(preamble: str, *, unicode_engine: bool) -> str:
+    lines = preamble.splitlines()
     keep: list[str] = []
-    for line in preamble.splitlines():
-        if _KEEP_USEPACKAGE.search(line) or _KEEP_MACRO.search(line):
-            keep.append(line)
-        elif unicode_engine and _KEEP_FONT.search(line):
-            keep.append(line)
+    i, n = 0, len(lines)
+    while i < n:
+        line = lines[i]
+        matched = _KEEP_USEPACKAGE.search(line) or _KEEP_MACRO.search(line) or (
+            unicode_engine and _KEEP_FONT.search(line)
+        )
+        if not matched:
+            i += 1
+            continue
+        # Capture the whole (possibly multi-line) definition: a macro body like a
+        # multi-line \newcommand{\box}[3]{ … } would otherwise be truncated to its
+        # opening line, leaving an unbalanced "{" that breaks the standalone build.
+        block = [line]
+        depth = _brace_delta(line)
+        i += 1
+        while depth > 0 and i < n:
+            block.append(lines[i])
+            depth += _brace_delta(lines[i])
+            i += 1
+        keep.extend(block)
     return "\n".join(keep)
 
 
