@@ -63,6 +63,34 @@ def test_build_standalone_keeps_tikz_bits_and_drops_class_packages():
     assert "geometry" not in std and "hyperref" not in std  # class packages dropped
 
 
+def test_filtered_preamble_keeps_full_multiline_macro():
+    # a multi-line \newcommand body must be captured whole; keeping only its
+    # opening line leaves an unbalanced "{" that fails the standalone compile.
+    preamble = "\n".join([
+        r"\newcommand{\callout}[2]{",
+        r"  \begin{center}",
+        r"  \colorbox{gray}{\begin{minipage}{0.9\linewidth}#1 --- #2\end{minipage}}",
+        r"  \end{center}",
+        r"}",
+        r"\newcommand{\after}{X}",
+    ])
+    fp = tikz._filtered_preamble(preamble, unicode_engine=False)
+    # brace-balanced (no truncation) and the following macro survives intact
+    assert sum(tikz._brace_delta(line) for line in fp.splitlines()) == 0
+    assert r"\end{center}" in fp and r"\newcommand{\after}{X}" in fp
+
+
+def test_build_standalone_with_multiline_macro_is_balanced():
+    preamble = "\n".join([
+        r"\definecolor{c}{gray}{0.9}",
+        r"\newcommand{\box}[1]{",
+        r"  \colorbox{c}{#1}",
+        r"}",
+    ])
+    std = tikz.build_standalone(r"\begin{tikzpicture}\node {a};\end{tikzpicture}", preamble)
+    assert sum(tikz._brace_delta(line) for line in std.splitlines()) == 0
+
+
 # -- conversion behaviour ---------------------------------------------------- #
 
 def test_figure_never_shows_placeholder_text():
