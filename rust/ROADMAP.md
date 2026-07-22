@@ -120,6 +120,11 @@ Each phase is validated against the Python output on the corpus + UATs.
     PICTURE shapes with correct EMU sizes, the table read as 4×3.
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
   numbering, `transforms/crossref.py`, the multi-column section machinery.
+  Planned across two sprints — see [`PHASE4_PLAN.md`](PHASE4_PLAN.md): **Sprint 1**
+  = bookmarks + complex fields + the cross-reference pass (`\label`/`\ref` family
+  → live `REF`/`PAGEREF`, captions → live `SEQ`); **Sprint 2** = numbered sections
+  + refs, `\tableofcontents`/`\listof*` TOC fields, cleveref/autoref prefixes, and
+  multi-column section layout.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,
   round-trip manifest + `.docx`→LaTeX, coverage report, OOXML validator.
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
