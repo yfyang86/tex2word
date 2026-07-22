@@ -215,7 +215,9 @@ fn rewrite_inlines(
                 }
                 rewrite_inlines(inlines, labels, warns);
             }
-            Inline::Emphasis { inlines, .. } => rewrite_inlines(inlines, labels, warns),
+            Inline::Emphasis { inlines, .. } | Inline::Footnote { inlines } => {
+                rewrite_inlines(inlines, labels, warns)
+            }
             _ => {}
         }
     }

@@ -238,6 +238,19 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, ctx: &mut Ctx, out: &mut Str
                 url,
                 anchor,
             } => render_link(inlines, url, anchor, rp, ctx, out),
+            Inline::Cite { keys, rendered, .. } => {
+                let marker = rendered
+                    .clone()
+                    .unwrap_or_else(|| format!("[{}]", keys.join(", ")));
+                render_run(&marker, rp, out);
+            }
+            Inline::Footnote { inlines } => {
+                // Placeholder until footnotes.xml lands (next iteration): the note
+                // text as a parenthetical so nothing is lost.
+                render_run(" (", rp, out);
+                render_inlines(inlines, rp, ctx, out);
+                render_run(")", rp, out);
+            }
         }
     }
 }
@@ -461,6 +474,32 @@ fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
         Block::Table(table) => render_table(table, false, ctx, out),
         Block::Float(float) => render_float(float, ctx, out),
         Block::TableOfContents(kind) => render_toc(*kind, out),
+        Block::Bibliography { entries } => render_bibliography(entries, ctx, out),
+    }
+}
+
+/// Render a bibliography: a "References" heading + one numbered paragraph per
+/// entry. (Bookmarks + `\cite` hyperlinking are wired by the citation pass.)
+fn render_bibliography(entries: &[tex2word_ir::BibEntry], ctx: &mut Ctx, out: &mut String) {
+    render_paragraph(
+        Some("Heading1"),
+        &[Inline::Text("References".into())],
+        ctx,
+        out,
+    );
+    for (idx, e) in entries.iter().enumerate() {
+        let label = e.label.clone().unwrap_or_else(|| (idx + 1).to_string());
+        out.push_str("<w:p><w:pPr><w:pStyle w:val=\"Bibliography\"/></w:pPr>");
+        match ctx.bookmark_of(&Some(format!("cite:{}", e.key))) {
+            Some(name) => {
+                let id = ctx.bookmarks.start(&name, out);
+                render_run(&format!("[{label}]\t"), RunProps::default(), out);
+                ctx.bookmarks.end(id, out);
+            }
+            None => render_run(&format!("[{label}]\t"), RunProps::default(), out),
+        }
+        render_inlines(&e.inlines, RunProps::default(), ctx, out);
+        out.push_str("</w:p>");
     }
 }
 
@@ -874,6 +913,10 @@ pub fn styles_xml() -> String {
         "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
         "<w:pPr><w:spacing w:before=\"120\" w:after=\"120\"/></w:pPr>",
         "<w:rPr><w:sz w:val=\"18\"/></w:rPr></w:style>",
+        // Bibliography (reference list): hanging indent.
+        "<w:style w:type=\"paragraph\" w:styleId=\"Bibliography\"><w:name w:val=\"Bibliography\"/>",
+        "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
+        "<w:pPr><w:ind w:left=\"480\" w:hanging=\"480\"/></w:pPr></w:style>",
     ));
     // TableGrid: a bordered table style (referenced by rendered w:tbl elements).
     s.push_str(concat!(

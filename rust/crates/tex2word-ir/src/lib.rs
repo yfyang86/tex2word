@@ -56,6 +56,31 @@ pub enum Inline {
         url: String,
         anchor: Option<String>,
     },
+    /// A `\cite`/`\citep`/`\citet`/… citation. `rendered` (the in-text marker,
+    /// e.g. `[1]`) is filled by the citation pass.
+    Cite {
+        keys: Vec<String>,
+        mode: CiteMode,
+        rendered: Option<String>,
+    },
+    /// A `\footnote{…}`; the back-end lifts the content into `footnotes.xml`.
+    Footnote { inlines: Vec<Inline> },
+}
+
+/// The citation-command family (drives the in-text marker style).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CiteMode {
+    /// `\citep`/`\cite` — parenthesized numeric `[n]`.
+    #[default]
+    Paren,
+    /// `\citet` — textual "Author [n]".
+    Text,
+    /// `\citeauthor` — author name only.
+    Author,
+    /// `\citeyear` — year only.
+    Year,
+    /// `\citenum` — the bare number.
+    Num,
 }
 
 /// What a cross-reference points at (drives the counter + cleveref prefix).
@@ -119,6 +144,17 @@ pub enum Block {
     Float(Float),
     /// A `\tableofcontents`/`\listoffigures`/`\listoftables` → a Word `TOC` field.
     TableOfContents(TocKind),
+    /// A `thebibliography` — the reference list.
+    Bibliography { entries: Vec<BibEntry> },
+}
+
+/// One `\bibitem[label]{key} …` reference.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BibEntry {
+    pub key: String,
+    /// The `[label]` marker, or `None` for auto-numbering.
+    pub label: Option<String>,
+    pub inlines: Vec<Inline>,
 }
 
 /// Which list a `TableOfContents` renders (heading outline, or a caption series).
@@ -289,6 +325,12 @@ fn push_block_text(b: &Block, out: &mut String) {
             });
             out.push('\n');
         }
+        Block::Bibliography { entries } => {
+            for e in entries {
+                push_inline_text(&e.inlines, out);
+                out.push('\n');
+            }
+        }
     }
 }
 
@@ -305,6 +347,14 @@ fn push_inline_text(inlines: &[Inline], out: &mut String) {
                 out.push_str(bookmark.as_deref().unwrap_or(key));
             }
             Inline::Link { inlines, .. } => push_inline_text(inlines, out),
+            Inline::Cite { keys, rendered, .. } => {
+                out.push_str(
+                    &rendered
+                        .clone()
+                        .unwrap_or_else(|| format!("[{}]", keys.join(", "))),
+                );
+            }
+            Inline::Footnote { inlines } => push_inline_text(inlines, out),
         }
     }
 }

@@ -13,8 +13,8 @@
 use std::path::Path;
 
 use tex2word_ir::{
-    Block, Document, EmphasisKind, Float, FloatKind, Inline, RefKind, RefStyle, Table, TableAlign,
-    TableCell, TableRow, TocKind,
+    BibEntry, Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, RefKind, RefStyle,
+    Table, TableAlign, TableCell, TableRow, TocKind,
 };
 
 mod macros;
@@ -301,6 +301,9 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                     }
                     "table" | "table*" => {
                         blocks.push(parse_float(&body, FloatKind::Table, env.ends_with('*')));
+                    }
+                    "thebibliography" => {
+                        blocks.push(parse_bibliography(&body));
                     }
                     // display-math environments -> a numberable MathBlock
                     "equation" | "equation*" | "displaymath" | "align" | "align*" | "gather"
@@ -849,6 +852,61 @@ fn parse_float(body: &str, kind: FloatKind, spanning: bool) -> Block {
     })
 }
 
+/// Parse a `thebibliography` body into a [`Block::Bibliography`]: skip the
+/// `{widest-label}` argument, then split on `\bibitem[label]{key}`.
+fn parse_bibliography(body: &str) -> Block {
+    let s: Vec<char> = body.chars().collect();
+    let n = s.len();
+    let mut i = 0;
+    while i < n && s[i].is_whitespace() {
+        i += 1;
+    }
+    let (_, after) = read_braced(&s, i); // {widest-label}
+    i = after.max(i);
+
+    let mut entries: Vec<BibEntry> = Vec::new();
+    // (label, key, content) for the item currently being accumulated.
+    let mut pending: Option<(Option<String>, String, String)> = None;
+    let flush = |pending: &mut Option<(Option<String>, String, String)>,
+                 entries: &mut Vec<BibEntry>| {
+        if let Some((label, key, content)) = pending.take() {
+            entries.push(BibEntry {
+                key,
+                label,
+                inlines: parse_inlines(content.trim()),
+            });
+        }
+    };
+    while i < n {
+        if s[i] == '\\' {
+            let (name, aft) = read_command_name(&s, i);
+            if name == "bibitem" {
+                flush(&mut pending, &mut entries);
+                let (label, a1) = read_optional(&s, aft);
+                let (key, a2) = read_braced(&s, a1);
+                pending = Some((
+                    Some(label.trim().to_string()).filter(|l| !l.is_empty()),
+                    key.trim().to_string(),
+                    String::new(),
+                ));
+                i = a2;
+                continue;
+            }
+            if let Some((_, _, content)) = pending.as_mut() {
+                content.extend(&s[i..aft]);
+            }
+            i = aft;
+            continue;
+        }
+        if let Some((_, _, content)) = pending.as_mut() {
+            content.push(s[i]);
+        }
+        i += 1;
+    }
+    flush(&mut pending, &mut entries);
+    Block::Bibliography { entries }
+}
+
 fn is_blank_inline(i: &Inline) -> bool {
     matches!(i, Inline::Text(t) if t.trim().is_empty())
 }
@@ -957,6 +1015,33 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                         });
                         i = a2;
                     }
+                    "footnote" | "thanks" => {
+                        flush_text!();
+                        let (arg, a1) = read_braced(&s, after);
+                        out.push(Inline::Footnote {
+                            inlines: parse_inlines(arg.trim()),
+                        });
+                        i = a1;
+                    }
+                    // citations: \cite/\citep/\citet/\citeauthor/\citeyear/\citenum
+                    _ if cite_mode(&name).is_some() => {
+                        flush_text!();
+                        // up to two optional args: [prefix][suffix]
+                        let a1 = skip_optional_bracket(&s, after);
+                        let a2 = skip_optional_bracket(&s, a1);
+                        let (keys_s, a3) = read_braced(&s, a2);
+                        let keys: Vec<String> = keys_s
+                            .split(',')
+                            .map(|k| k.trim().to_string())
+                            .filter(|k| !k.is_empty())
+                            .collect();
+                        out.push(Inline::Cite {
+                            keys,
+                            mode: cite_mode(&name).unwrap(),
+                            rendered: None,
+                        });
+                        i = a3;
+                    }
                     // escaped literals: \& \% \_ \# \{ \} \$
                     "&" | "%" | "_" | "#" | "{" | "}" | "$" => {
                         text.push(name.chars().next().unwrap());
@@ -1041,6 +1126,18 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
     }
     flush_text!();
     out
+}
+
+/// The [`CiteMode`] for a citation macro, if it is one.
+fn cite_mode(name: &str) -> Option<CiteMode> {
+    Some(match name {
+        "cite" | "citep" | "citealp" | "parencite" => CiteMode::Paren,
+        "citet" | "citealt" | "textcite" => CiteMode::Text,
+        "citeauthor" => CiteMode::Author,
+        "citeyear" | "citeyearpar" => CiteMode::Year,
+        "citenum" => CiteMode::Num,
+        _ => return None,
+    })
 }
 
 /// The [`RefKind`] a reference macro targets.
@@ -1934,11 +2031,49 @@ See \ref{sec:intro} and Fig.~\autoref{fig:a} on page \pageref{fig:a}, eq.~\eqref
             })
             .collect();
         assert_eq!(spans, vec![true, false]); // figure* spans, figure doesn't
-        // a plain article is single-column
+                                              // a plain article is single-column
         assert_eq!(
             conv(r"\documentclass{article}\begin{document}x\end{document}").columns,
             1
         );
+    }
+
+    #[test]
+    fn citations_footnotes_and_bibliography() {
+        let doc = conv(
+            r"\begin{document}
+Text \citep{a,b} and \citet{c} with a note\footnote{See \ref{sec:x}.}.
+\begin{thebibliography}{9}
+\bibitem{a} Author A. Title A. 2020.
+\bibitem[XY]{b} Author B. Title B. 2021.
+\end{thebibliography}\end{document}",
+        );
+        let Block::Paragraph { inlines } = &doc.blocks[0] else {
+            panic!("expected paragraph, got {:?}", doc.blocks[0]);
+        };
+        // \citep{a,b} -> Cite with two keys, Paren mode
+        assert!(inlines.iter().any(|i| matches!(i,
+            Inline::Cite { keys, mode: CiteMode::Paren, .. } if keys == &["a", "b"])));
+        // \citet{c} -> Text mode
+        assert!(inlines.iter().any(|i| matches!(i,
+            Inline::Cite { keys, mode: CiteMode::Text, .. } if keys == &["c"])));
+        // footnote captured (with a nested ref inside)
+        assert!(inlines.iter().any(|i| matches!(i, Inline::Footnote { .. })));
+        // bibliography with two entries; [XY] custom label preserved
+        let bib = doc
+            .blocks
+            .iter()
+            .find_map(|b| match b {
+                Block::Bibliography { entries } => Some(entries),
+                _ => None,
+            })
+            .expect("bibliography");
+        assert_eq!(bib.len(), 2);
+        assert_eq!(bib[0].key, "a");
+        assert_eq!(bib[0].label, None);
+        assert_eq!(bib[1].key, "b");
+        assert_eq!(bib[1].label.as_deref(), Some("XY"));
+        assert!(bib[0].inlines.iter().any(|i| matches!(i, Inline::Text(t) if t.contains("Title A"))));
     }
 
     #[test]
