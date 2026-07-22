@@ -148,12 +148,22 @@ Each phase is validated against the Python output on the corpus + UATs.
     `TOC`/`SEQ`/`REF`/`PAGEREF`/`HYPERLINK` field codes, no Phase 1–3 regression.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,
   round-trip manifest + `.docx`→LaTeX, coverage report, OOXML validator.
-  Planned across three sprints — see [`PHASE5_PLAN.md`](PHASE5_PLAN.md):
-  **Sprint 1** = citations + `thebibliography` + footnotes; **Sprint 2** =
-  structural OOXML validator + conversion report + theorem environments;
-  **Sprint 3** = IR→LaTeX round-trip writer + reference-doc templates + coverage
-  report. (Full CSL/BibTeX/Zotero, endnotes/index, and `.docx`→LaTeX are out of
-  scope for Phase 5.)
+  Planned across three sprints — see [`PHASE5_PLAN.md`](PHASE5_PLAN.md).
+  - ✅ **Sprint 1 — citations, bibliography, footnotes.** IR: `Inline::Cite`/
+    `CiteMode`, `Inline::Footnote`, `Block::Bibliography`/`BibEntry`. Front-end
+    parses the `\cite` family, `\footnote`/`\thanks`, and `thebibliography`
+    (`\bibitem[label]{key}`). The citation pass registers each entry under
+    `cite:<key>` (auto number or explicit `[label]`) with a bookmark and warns on
+    unknown keys. Back-end: citations render as their reference number(s),
+    hyperlinked to the bookmark (`\citenum` bare, else `[…]`); `\footnote`s lift
+    into a real `word/footnotes.xml` (separator/continuation pair + a superscript
+    reference mark), with content-type + relationship wired; the bibliography is a
+    "References" heading + bookmarked, hanging-indent entries. UAT: a doc with
+    `\citep`/`\citet`/`\citenum` + two footnotes + `thebibliography` opens in
+    python-docx with a real footnotes part and clickable citations.
+  - ⏳ **Sprint 2** = structural OOXML validator + conversion report + theorems.
+  - ⏳ **Sprint 3** = IR→LaTeX round-trip writer + reference-doc templates.
+    (Full CSL/BibTeX/Zotero, endnotes/index, and `.docx`→LaTeX stay out of scope.)
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
   when green, make Rust the default and retire the Python tree.
 

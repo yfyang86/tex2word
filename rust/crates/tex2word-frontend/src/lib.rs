@@ -2073,7 +2073,10 @@ Text \citep{a,b} and \citet{c} with a note\footnote{See \ref{sec:x}.}.
         assert_eq!(bib[0].label, None);
         assert_eq!(bib[1].key, "b");
         assert_eq!(bib[1].label.as_deref(), Some("XY"));
-        assert!(bib[0].inlines.iter().any(|i| matches!(i, Inline::Text(t) if t.contains("Title A"))));
+        assert!(bib[0]
+            .inlines
+            .iter()
+            .any(|i| matches!(i, Inline::Text(t) if t.contains("Title A"))));
     }
 
     #[test]

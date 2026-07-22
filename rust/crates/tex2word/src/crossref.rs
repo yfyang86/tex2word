@@ -24,6 +24,7 @@ pub struct Warning {
 pub fn resolve(doc: &mut Document) -> Vec<Warning> {
     let mut labels: HashMap<String, LabelInfo> = HashMap::new();
     collect(&doc.blocks, &mut labels);
+    collect_citations(&doc.blocks, &mut labels);
     doc.labels = labels;
     let mut warnings = Vec::new();
     // Take the labels out to avoid borrowing doc immutably + mutably at once.
@@ -125,6 +126,27 @@ fn collect(blocks: &[Block], labels: &mut HashMap<String, LabelInfo>) {
     }
 }
 
+/// Register each `thebibliography` entry under `cite:<key>` with its reference
+/// number (or explicit `[label]`) and a bookmark, so `\cite` can resolve to it.
+fn collect_citations(blocks: &[Block], labels: &mut HashMap<String, LabelInfo>) {
+    for block in blocks {
+        if let Block::Bibliography { entries } = block {
+            for (idx, e) in entries.iter().enumerate() {
+                let number = e.label.clone().unwrap_or_else(|| (idx + 1).to_string());
+                labels.insert(
+                    format!("cite:{}", e.key),
+                    LabelInfo {
+                        kind: RefKind::Generic,
+                        counter_name: String::new(),
+                        bookmark: sanitize_bookmark(&format!("cite_{}", e.key)),
+                        name: Some(number),
+                    },
+                );
+            }
+        }
+    }
+}
+
 fn rewrite_blocks(
     blocks: &mut [Block],
     labels: &HashMap<String, LabelInfo>,
@@ -218,6 +240,16 @@ fn rewrite_inlines(
             Inline::Emphasis { inlines, .. } | Inline::Footnote { inlines } => {
                 rewrite_inlines(inlines, labels, warns)
             }
+            Inline::Cite { keys, .. } => {
+                for k in keys.iter() {
+                    if !labels.contains_key(&format!("cite:{k}")) {
+                        warns.push(Warning {
+                            context: "\\cite".into(),
+                            message: format!("unresolved citation '{k}'"),
+                        });
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -287,6 +319,38 @@ mod tests {
         assert!(matches!(&inlines[1], Inline::Ref { bookmark: None, .. }));
         assert_eq!(warns.len(), 1);
         assert!(warns[0].message.contains("missing"));
+    }
+
+    #[test]
+    fn citations_register_and_warn() {
+        use tex2word_ir::BibEntry;
+        let mut doc = Document {
+            blocks: vec![
+                Block::Paragraph {
+                    inlines: vec![Inline::Cite {
+                        keys: vec!["a".into(), "ghost".into()],
+                        mode: tex2word_ir::CiteMode::Paren,
+                        rendered: None,
+                    }],
+                },
+                Block::Bibliography {
+                    entries: vec![BibEntry {
+                        key: "a".into(),
+                        label: None,
+                        inlines: vec![Inline::Text("Ref A".into())],
+                    }],
+                },
+            ],
+            ..Default::default()
+        };
+        let warns = resolve(&mut doc);
+        // entry registered under cite:a with number "1" and a bookmark
+        let info = &doc.labels["cite:a"];
+        assert_eq!(info.name.as_deref(), Some("1"));
+        assert_eq!(info.bookmark, "cite_a");
+        // the unknown key warns
+        assert_eq!(warns.len(), 1);
+        assert!(warns[0].message.contains("ghost"));
     }
 
     #[test]

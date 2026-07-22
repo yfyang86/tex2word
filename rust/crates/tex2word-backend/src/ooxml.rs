@@ -3,17 +3,18 @@
 //! Emits `word/document.xml` (paragraphs, headings, styled runs, lists via
 //! `numbering.xml`, quotes, structured OMML math via the `tex2word-math` crate,
 //! `w:tbl` tables with spans/merges, figure/table floats with live `SEQ`-field
-//! captions and embedded images, and cross-references as live `REF`/`PAGEREF`
-//! fields with bookmarks + `HYPERLINK` fields) plus the package parts
-//! (`[Content_Types].xml`, relationships, `styles.xml`, `numbering.xml`,
-//! `word/media/*`). Numbered sections, TOC, and multi-column are Sprint 2.
+//! captions and embedded images, numbered sections, TOC fields, multi-column
+//! section layout, cross-references as live `REF`/`PAGEREF`/`HYPERLINK` fields
+//! with bookmarks, hyperlinked citations, and a bibliography) plus the package
+//! parts (`[Content_Types].xml`, relationships, `styles.xml`, `numbering.xml`,
+//! `word/media/*`, and `word/footnotes.xml`).
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use tex2word_ir::{
-    Block, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, RefKind, RefStyle, Table,
-    TableAlign, TocKind,
+    Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, RefKind,
+    RefStyle, Table, TableAlign, TocKind,
 };
 
 use crate::fields::{self, Bookmarks};
@@ -102,6 +103,9 @@ struct Ctx<'a> {
     bookmarks: Bookmarks,
     /// Resolved `\label` → bookmark/counter map (from the cross-reference pass).
     labels: &'a HashMap<String, LabelInfo>,
+    /// Collected `\footnote`s: `(id, content)` lifted into `footnotes.xml`.
+    footnote_id: u32,
+    footnotes: Vec<(u32, Vec<Inline>)>,
 }
 
 impl Ctx<'_> {
@@ -238,18 +242,17 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, ctx: &mut Ctx, out: &mut Str
                 url,
                 anchor,
             } => render_link(inlines, url, anchor, rp, ctx, out),
-            Inline::Cite { keys, rendered, .. } => {
-                let marker = rendered
-                    .clone()
-                    .unwrap_or_else(|| format!("[{}]", keys.join(", ")));
-                render_run(&marker, rp, out);
-            }
+            Inline::Cite { keys, mode, .. } => render_cite(keys, *mode, rp, ctx, out),
             Inline::Footnote { inlines } => {
-                // Placeholder until footnotes.xml lands (next iteration): the note
-                // text as a parenthetical so nothing is lost.
-                render_run(" (", rp, out);
-                render_inlines(inlines, rp, ctx, out);
-                render_run(")", rp, out);
+                // Assign the next id, collect the content for footnotes.xml, and
+                // emit a superscript reference mark in the body.
+                ctx.footnote_id += 1;
+                let id = ctx.footnote_id;
+                ctx.footnotes.push((id, inlines.clone()));
+                out.push_str(&format!(
+                    "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr>\
+                     <w:footnoteReference w:id=\"{id}\"/></w:r>"
+                ));
             }
         }
     }
@@ -349,6 +352,45 @@ fn ref_prefix(kind: RefKind, style: RefStyle) -> &'static str {
         (Theorem, Abbrev) => "thm. ",
         (Theorem, Full) => "Theorem ",
         _ => "",
+    }
+}
+
+/// Render a citation marker from a numeric `thebibliography`: each resolved key
+/// becomes its reference number, hyperlinked to the reference bookmark;
+/// `\citenum` drops the brackets. Unknown keys fall back to the raw key text
+/// (the citation pass already warned).
+fn render_cite(keys: &[String], mode: CiteMode, rp: RunProps, ctx: &mut Ctx, out: &mut String) {
+    let resolved: Vec<(String, Option<String>)> = keys
+        .iter()
+        .map(|k| match ctx.labels.get(&format!("cite:{k}")) {
+            Some(info) => (
+                info.name.clone().unwrap_or_else(|| k.clone()),
+                Some(info.bookmark.clone()),
+            ),
+            None => (k.clone(), None),
+        })
+        .collect();
+    let bracketed = mode != CiteMode::Num;
+    if bracketed {
+        render_run("[", rp, out);
+    }
+    for (i, (num, bookmark)) in resolved.iter().enumerate() {
+        if i > 0 {
+            render_run(", ", rp, out);
+        }
+        match bookmark {
+            Some(b) => {
+                fields::field_open(&format!("HYPERLINK \\l \"{}\"", b.replace('"', "")), out);
+                let mut rp2 = rp;
+                rp2.underline = true;
+                render_run(num, rp2, out);
+                fields::field_close(out);
+            }
+            None => render_run(num, rp, out),
+        }
+    }
+    if bracketed {
+        render_run("]", rp, out);
     }
 }
 
@@ -730,6 +772,8 @@ pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
         media: MediaRegistry::new(base_dir),
         bookmarks: Bookmarks::default(),
         labels: &doc.labels,
+        footnote_id: 0,
+        footnotes: Vec::new(),
     };
     // Emit the body as column "regions": the title block and any spanning
     // `figure*`/`table*` are full-width (1 col); the rest flows in `n` columns.
@@ -776,11 +820,11 @@ pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
     );
 
     // Collect image relationships, content-type defaults, and media parts.
-    let mut image_rels = String::new();
+    let mut extra_rels = String::new();
     let mut exts: Vec<String> = Vec::new();
     let mut media: Vec<MediaPart> = Vec::new();
     for m in &ctx.media.items {
-        image_rels.push_str(&format!(
+        extra_rels.push_str(&format!(
             "<Relationship Id=\"{}\" Type=\"{R_NS}/image\" Target=\"{}\"/>",
             m.rid, m.target
         ));
@@ -793,16 +837,64 @@ pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
         });
     }
 
+    // Footnotes: render the collected notes into word/footnotes.xml + wire the
+    // relationship and content type.
+    let has_footnotes = !ctx.footnotes.is_empty();
+    if has_footnotes {
+        let footnotes_xml = render_footnotes_xml(&mut ctx);
+        extra_rels.push_str(&format!(
+            "<Relationship Id=\"rIdFootnotes\" Type=\"{R_NS}/footnotes\" Target=\"footnotes.xml\"/>"
+        ));
+        media.push(MediaPart {
+            part_name: "word/footnotes.xml".into(),
+            data: footnotes_xml.into_bytes(),
+        });
+    }
+
     Package {
         document_xml,
-        content_types_xml: content_types_xml(&exts),
-        doc_rels_xml: doc_rels_xml(&image_rels),
+        content_types_xml: content_types_xml(&exts, has_footnotes),
+        doc_rels_xml: doc_rels_xml(&extra_rels),
         media,
     }
 }
 
-/// The `[Content_Types].xml` part, with a `Default` for each embedded image ext.
-fn content_types_xml(image_exts: &[String]) -> String {
+/// Render `word/footnotes.xml`: the mandatory separator/continuationSeparator
+/// pair (ids −1/0) then one `w:footnote` per collected note. Notes discovered
+/// while rendering a note's own content are drained in a follow-up round.
+fn render_footnotes_xml(ctx: &mut Ctx) -> String {
+    let mut s = String::from(concat!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
+        "<w:footnotes xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ",
+        "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">",
+        "<w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr>",
+        "<w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>",
+        "<w:r><w:separator/></w:r></w:p></w:footnote>",
+        "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:pPr>",
+        "<w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>",
+        "<w:r><w:continuationSeparator/></w:r></w:p></w:footnote>",
+    ));
+    let mut pending = std::mem::take(&mut ctx.footnotes);
+    while !pending.is_empty() {
+        for (id, inlines) in &pending {
+            s.push_str(&format!("<w:footnote w:id=\"{id}\">"));
+            s.push_str("<w:p><w:pPr><w:pStyle w:val=\"FootnoteText\"/></w:pPr>");
+            s.push_str(
+                "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteRef/></w:r>",
+            );
+            render_run(" ", RunProps::default(), &mut s);
+            render_inlines(inlines, RunProps::default(), ctx, &mut s);
+            s.push_str("</w:p></w:footnote>");
+        }
+        pending = std::mem::take(&mut ctx.footnotes); // notes nested inside notes
+    }
+    s.push_str("</w:footnotes>");
+    s
+}
+
+/// The `[Content_Types].xml` part, with a `Default` for each embedded image ext
+/// and (when present) the `footnotes.xml` override.
+fn content_types_xml(image_exts: &[String], footnotes: bool) -> String {
     let mut s = String::from(concat!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
         "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">",
@@ -824,12 +916,16 @@ fn content_types_xml(image_exts: &[String]) -> String {
         "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>",
         "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/>",
         "<Override PartName=\"/word/numbering.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml\"/>",
-        "</Types>"
     ));
+    if footnotes {
+        s.push_str("<Override PartName=\"/word/footnotes.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml\"/>");
+    }
+    s.push_str("</Types>");
     s
 }
 
-/// The `word/_rels/document.xml.rels` part: styles + numbering + image rels.
+/// The `word/_rels/document.xml.rels` part: styles + numbering + image/footnote
+/// relationships.
 fn doc_rels_xml(image_rels: &str) -> String {
     format!(
         concat!(
@@ -917,6 +1013,11 @@ pub fn styles_xml() -> String {
         "<w:style w:type=\"paragraph\" w:styleId=\"Bibliography\"><w:name w:val=\"Bibliography\"/>",
         "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
         "<w:pPr><w:ind w:left=\"480\" w:hanging=\"480\"/></w:pPr></w:style>",
+        // Footnote reference mark (superscript) + footnote text (smaller).
+        "<w:style w:type=\"character\" w:styleId=\"FootnoteReference\">",
+        "<w:name w:val=\"footnote reference\"/><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr></w:style>",
+        "<w:style w:type=\"paragraph\" w:styleId=\"FootnoteText\"><w:name w:val=\"footnote text\"/>",
+        "<w:basedOn w:val=\"Normal\"/><w:rPr><w:sz w:val=\"20\"/></w:rPr></w:style>",
     ));
     // TableGrid: a bordered table style (referenced by rendered w:tbl elements).
     s.push_str(concat!(
@@ -1190,6 +1291,72 @@ mod tests {
         let xml = document_xml(&doc);
         assert!(!xml.contains("<w:cols"));
         assert_eq!(xml.matches("<w:sectPr>").count(), 1); // just the final one
+    }
+
+    #[test]
+    fn cites_resolve_and_footnotes_lift_to_part() {
+        use std::collections::HashMap;
+        use tex2word_ir::BibEntry;
+        let mut labels = HashMap::new();
+        labels.insert(
+            "cite:a".to_string(),
+            LabelInfo {
+                kind: RefKind::Generic,
+                counter_name: String::new(),
+                bookmark: "cite_a".into(),
+                name: Some("1".into()),
+            },
+        );
+        let doc = Document {
+            labels,
+            blocks: vec![
+                Block::Paragraph {
+                    inlines: vec![
+                        Inline::Cite {
+                            keys: vec!["a".into(), "missing".into()],
+                            mode: CiteMode::Paren,
+                            rendered: None,
+                        },
+                        Inline::Footnote {
+                            inlines: vec![Inline::Text("a note".into())],
+                        },
+                    ],
+                },
+                Block::Bibliography {
+                    entries: vec![BibEntry {
+                        key: "a".into(),
+                        label: None,
+                        inlines: vec![Inline::Text("Author. Title. 2020.".into())],
+                    }],
+                },
+            ],
+            ..Default::default()
+        };
+        // package (not just document_xml) so footnotes.xml + rels are built
+        let pkg = build_package(&doc, Path::new("."));
+        let d = &pkg.document_xml;
+        // resolved cite "a" hyperlinks to cite_a and shows its number "1"
+        assert!(d.contains("HYPERLINK \\l \"cite_a\""));
+        assert!(d.contains(">1</w:t>"));
+        // footnote reference mark in the body
+        assert!(d.contains("<w:footnoteReference w:id=\"1\"/>"));
+        assert!(d.contains("w:val=\"FootnoteReference\""));
+        // References heading + hanging-indent bibliography paragraph, bookmarked
+        assert!(d.contains(">References</w:t>"));
+        assert!(d.contains("w:pStyle w:val=\"Bibliography\""));
+        assert!(d.contains("w:name=\"cite_a\""));
+        // footnotes.xml part exists with the note content + separators
+        let fn_part = pkg
+            .media
+            .iter()
+            .find(|m| m.part_name == "word/footnotes.xml")
+            .expect("footnotes.xml");
+        let f = String::from_utf8_lossy(&fn_part.data);
+        assert!(f.contains("w:type=\"separator\"") && f.contains("<w:footnoteRef/>"));
+        assert!(f.contains("a note"));
+        // relationship + content type wired
+        assert!(pkg.doc_rels_xml.contains("Target=\"footnotes.xml\""));
+        assert!(pkg.content_types_xml.contains("/word/footnotes.xml"));
     }
 
     #[test]
