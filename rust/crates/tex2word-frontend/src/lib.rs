@@ -9,9 +9,12 @@
 
 use tex2word_ir::{Block, Document, EmphasisKind, Inline};
 
+mod macros;
+
 /// Parse a LaTeX document string into the IR.
 pub fn parse_document(source: &str) -> Document {
-    let src = strip_comments(source);
+    // strip comments, then expand user macros (\newcommand/\def/…) before parsing.
+    let src = macros::expand_macros(&strip_comments(source));
     let title = extract_braced_macro_arg(&src, "title").map(|t| parse_inlines(&t));
     let body = extract_environment(&src, "document").unwrap_or(src.clone());
     Document {
@@ -556,6 +559,23 @@ end\end{document}",
                 inlines: vec![Inline::Text("A quoted line.".into())]
             }]
         );
+    }
+
+    #[test]
+    fn user_macros_expand_before_parsing() {
+        let doc = conv(
+            r"\newcommand{\kw}[1]{\textbf{#1}}\newcommand\prod{tex2word}
+\begin{document}Use \kw{\prod} today.\end{document}",
+        );
+        let Block::Paragraph { inlines } = &doc.blocks[0] else {
+            panic!("expected paragraph");
+        };
+        // \kw{\prod} -> \textbf{tex2word} -> a bold "tex2word"
+        assert!(inlines.iter().any(|i| matches!(
+            i,
+            Inline::Emphasis { kind: EmphasisKind::Bold, inlines }
+                if inlines == &vec![Inline::Text("tex2word".into())]
+        )));
     }
 
     #[test]
