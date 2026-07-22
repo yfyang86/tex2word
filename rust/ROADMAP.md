@@ -98,8 +98,10 @@ Each phase is validated against the Python output on the corpus + UATs.
     `\bottomrule`/`\cmidrule`) and `\hline`/`\cline` rules drop out; rows above the
     first `\midrule`/`\hline` become repeated header rows (`w:tblHeader`).
     `\multicolumn{n}{spec}{…}` → `w:gridSpan` with an alignment override.
-  - ⏳ Next: `\multirow` (`w:vMerge`), `figure`/`table` floats + `\caption`
-    (numbered), `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
+  - ✅ `\multirow[pos]{n}{width}{…}` → `w:vMerge` (restart + continue on the
+    covered rows' placeholder cells); nests with `\multicolumn`.
+  - ⏳ Next: `figure`/`table` floats + `\caption` (numbered), `\includegraphics`
+    (PNG/JPEG embed; PDF/TikZ raster).
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
   numbering, `transforms/crossref.py`, the multi-column section machinery.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,

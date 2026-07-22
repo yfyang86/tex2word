@@ -200,16 +200,37 @@ fn render_table(table: &Table, out: &mut String) {
         out.push_str("<w:gridCol/>");
     }
     out.push_str("</w:tblGrid>");
+    // Per grid-column countdown of remaining `\multirow` continuation rows.
+    let mut pending = vec![0usize; ncols];
     for row in &table.rows {
         out.push_str("<w:tr>");
         if row.is_header {
             out.push_str("<w:trPr><w:tblHeader/></w:trPr>");
         }
+        let mut gridcol = 0usize;
         for cell in &row.cells {
+            let span = cell.colspan.max(1);
+            let end = (gridcol + span).min(ncols);
+            // Vertical-merge state: a \multirow starts a "restart"; a cell landing
+            // on a column still counting down is a "continue".
+            let vmerge = if cell.rowspan > 1 {
+                for p in pending.iter_mut().take(end).skip(gridcol) {
+                    *p = cell.rowspan - 1;
+                }
+                "<w:vMerge w:val=\"restart\"/>"
+            } else if gridcol < ncols && pending[gridcol] > 0 {
+                for p in pending.iter_mut().take(end).skip(gridcol) {
+                    *p = p.saturating_sub(1);
+                }
+                "<w:vMerge/>"
+            } else {
+                ""
+            };
             out.push_str("<w:tc><w:tcPr>");
-            if cell.colspan > 1 {
-                out.push_str(&format!("<w:gridSpan w:val=\"{}\"/>", cell.colspan));
+            if span > 1 {
+                out.push_str(&format!("<w:gridSpan w:val=\"{span}\"/>"));
             }
+            out.push_str(vmerge);
             out.push_str("</w:tcPr>");
             // Cell body: a single paragraph justified per the column alignment.
             out.push_str("<w:p><w:pPr><w:jc w:val=\"");
@@ -217,6 +238,7 @@ fn render_table(table: &Table, out: &mut String) {
             out.push_str("\"/></w:pPr>");
             render_inlines(&cell.inlines, RunProps::default(), out);
             out.push_str("</w:p></w:tc>");
+            gridcol += span;
         }
         out.push_str("</w:tr>");
     }
@@ -384,6 +406,7 @@ mod tests {
                     cells: vec![TableCell {
                         inlines: vec![Inline::Text("Head".into())],
                         colspan: 2,
+                        rowspan: 1,
                         align: TableAlign::Center,
                     }],
                 },
@@ -393,11 +416,13 @@ mod tests {
                         TableCell {
                             inlines: vec![Inline::Text("a".into())],
                             colspan: 1,
+                            rowspan: 1,
                             align: TableAlign::Left,
                         },
                         TableCell {
                             inlines: vec![Inline::Text("b".into())],
                             colspan: 1,
+                            rowspan: 1,
                             align: TableAlign::Right,
                         },
                     ],
@@ -417,6 +442,42 @@ mod tests {
         assert_eq!(xml.matches("<w:tr>").count(), 2);
         // styles.xml must define the referenced TableGrid style
         assert!(styles_xml().contains("w:styleId=\"TableGrid\""));
+    }
+
+    #[test]
+    fn table_multirow_renders_vmerge() {
+        use tex2word_ir::{TableCell, TableRow};
+        let cell = |text: &str, rowspan: usize| TableCell {
+            inlines: if text.is_empty() {
+                vec![]
+            } else {
+                vec![Inline::Text(text.into())]
+            },
+            colspan: 1,
+            rowspan,
+            align: TableAlign::Left,
+        };
+        let table = Table {
+            colspec: vec![TableAlign::Left, TableAlign::Left],
+            rows: vec![
+                TableRow {
+                    is_header: false,
+                    cells: vec![cell("Group", 2), cell("a", 1)],
+                },
+                TableRow {
+                    is_header: false,
+                    cells: vec![cell("", 1), cell("b", 1)],
+                },
+            ],
+        };
+        let doc = Document {
+            blocks: vec![Block::Table(table)],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        assert!(xml.contains("<w:vMerge w:val=\"restart\"/>")); // top cell starts merge
+        assert!(xml.contains("<w:vMerge/>")); // placeholder continues merge
+        assert_eq!(xml.matches("w:vMerge").count(), 2);
     }
 
     #[test]

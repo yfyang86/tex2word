@@ -66,8 +66,12 @@ pub enum TableAlign {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TableCell {
     pub inlines: Vec<Inline>,
-    /// `\multicolumn` span (1 = normal).
+    /// `\multicolumn` horizontal span (1 = normal).
     pub colspan: usize,
+    /// `\multirow` vertical span (1 = normal). The cell starts a vertical merge
+    /// that covers this many rows; the covered rows carry an empty placeholder
+    /// cell at the same grid position (LaTeX convention).
+    pub rowspan: usize,
     pub align: TableAlign,
 }
 

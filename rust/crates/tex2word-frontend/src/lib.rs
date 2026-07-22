@@ -547,43 +547,77 @@ fn parse_table_rows(s: &[char], colspec: &[TableAlign]) -> Vec<TableRow> {
         .collect()
 }
 
-/// Split a row on top-level `&` and parse each cell (handling `\multicolumn`).
+/// The parsed shape of a table cell.
+struct CellSpec {
+    inlines: Vec<Inline>,
+    colspan: usize,
+    rowspan: usize,
+    align: Option<TableAlign>,
+}
+
+/// Split a row on top-level `&` and parse each cell (handling `\multicolumn`
+/// and `\multirow`, including one wrapping the other).
 fn parse_row_cells(row: &str, colspec: &[TableAlign]) -> Vec<TableCell> {
     let mut cells: Vec<TableCell> = Vec::new();
     let mut col = 0;
     for raw in split_top_level(row, '&') {
-        let (inlines, colspan, align_override) = parse_cell(&raw);
-        let align = align_override.unwrap_or_else(|| colspec.get(col).copied().unwrap_or_default());
+        let spec = parse_cell(&raw);
+        let align = spec
+            .align
+            .unwrap_or_else(|| colspec.get(col).copied().unwrap_or_default());
         cells.push(TableCell {
-            inlines,
-            colspan,
+            inlines: spec.inlines,
+            colspan: spec.colspan,
+            rowspan: spec.rowspan,
             align,
         });
-        col += colspan;
+        col += spec.colspan;
     }
     cells
 }
 
-/// Parse one cell: `\multicolumn{n}{spec}{body}` -> (inlines, n, override align),
-/// otherwise (inlines, 1, None).
-fn parse_cell(raw: &str) -> (Vec<Inline>, usize, Option<TableAlign>) {
-    let cs: Vec<char> = raw.chars().collect();
-    let mut i = 0;
-    while i < cs.len() && cs[i].is_whitespace() {
-        i += 1;
-    }
-    if i < cs.len() && cs[i] == '\\' {
+/// Parse one cell, peeling nested `\multicolumn{n}{spec}{…}` (sets colspan +
+/// alignment) and `\multirow[pos]{n}{width}{…}` (sets rowspan) wrappers.
+fn parse_cell(raw: &str) -> CellSpec {
+    let mut content = raw.to_string();
+    let mut colspan = 1;
+    let mut rowspan = 1;
+    let mut align = None;
+    loop {
+        let cs: Vec<char> = content.chars().collect();
+        let mut i = 0;
+        while i < cs.len() && cs[i].is_whitespace() {
+            i += 1;
+        }
+        if i >= cs.len() || cs[i] != '\\' {
+            break;
+        }
         let (name, after) = read_command_name(&cs, i);
         if name == "multicolumn" {
             let (n_s, a1) = read_braced(&cs, after);
             let (spec, a2) = read_braced(&cs, a1);
-            let (content, _) = read_braced(&cs, a2);
-            let colspan = n_s.trim().parse::<usize>().unwrap_or(1).max(1);
-            let align = parse_colspec(&spec).into_iter().next();
-            return (parse_inlines(content.trim()), colspan, align);
+            let (inner, _) = read_braced(&cs, a2);
+            colspan = n_s.trim().parse::<usize>().unwrap_or(1).max(1);
+            align = parse_colspec(&spec).into_iter().next().or(align);
+            content = inner;
+        } else if name == "multirow" {
+            // \multirow[pos]{n}{width}{content}: an optional [pos] then 3 groups
+            let a0 = skip_optional_bracket(&cs, after);
+            let (n_s, a1) = read_braced(&cs, a0);
+            let (_width, a2) = read_braced(&cs, a1); // width (often *) — ignored
+            let (inner, _) = read_braced(&cs, a2);
+            rowspan = n_s.trim().parse::<usize>().unwrap_or(1).max(1);
+            content = inner;
+        } else {
+            break;
         }
     }
-    (parse_inlines(raw.trim()), 1, None)
+    CellSpec {
+        inlines: parse_inlines(content.trim()),
+        colspan,
+        rowspan,
+        align,
+    }
 }
 
 /// Split on an unescaped top-level `sep` (respecting `{…}` groups and `\x`).
@@ -1385,6 +1419,30 @@ a & b \\
             parse_colspec("|l|@{}c|"),
             vec![TableAlign::Left, TableAlign::Center]
         );
+    }
+
+    #[test]
+    fn tabular_multirow_sets_rowspan() {
+        let doc = conv(
+            r"\begin{document}\begin{tabular}{l l}
+\hline
+\multirow{2}{*}{Group} & a \\
+ & b \\
+\hline
+\end{tabular}\end{document}",
+        );
+        let Block::Table(t) = &doc.blocks[0] else {
+            panic!("expected table");
+        };
+        assert_eq!(t.rows[0].cells[0].rowspan, 2);
+        assert_eq!(
+            t.rows[0].cells[0].inlines,
+            vec![Inline::Text("Group".into())]
+        );
+        // continuation row keeps the empty placeholder cell
+        assert_eq!(t.rows[1].cells[0].rowspan, 1);
+        assert!(t.rows[1].cells[0].inlines.is_empty());
+        assert_eq!(t.rows[1].cells[1].inlines, vec![Inline::Text("b".into())]);
     }
 
     #[test]
