@@ -148,6 +148,12 @@ Each phase is validated against the Python output on the corpus + UATs.
     `TOC`/`SEQ`/`REF`/`PAGEREF`/`HYPERLINK` field codes, no Phase 1–3 regression.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,
   round-trip manifest + `.docx`→LaTeX, coverage report, OOXML validator.
+  Planned across three sprints — see [`PHASE5_PLAN.md`](PHASE5_PLAN.md):
+  **Sprint 1** = citations + `thebibliography` + footnotes; **Sprint 2** =
+  structural OOXML validator + conversion report + theorem environments;
+  **Sprint 3** = IR→LaTeX round-trip writer + reference-doc templates + coverage
+  report. (Full CSL/BibTeX/Zotero, endnotes/index, and `.docx`→LaTeX are out of
+  scope for Phase 5.)
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
   when green, make Rust the default and retire the Python tree.
 
