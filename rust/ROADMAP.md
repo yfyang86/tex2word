@@ -62,8 +62,11 @@ Each phase is validated against the Python output on the corpus + UATs.
     super/subscript runs), `--`/`---` dashes, `` `` ``/`''` smart quotes, `~`
     non-breaking space, and a batch of text symbol macros (`\S`/`\dag`/
     `\copyright`/`\LaTeX`/spacing/…).
-  - ⏳ Next: accents (`\'e`, `\"o`, `\c c`, … via a precomposed-char table), then
-    a proper tokenizer and preamble/metadata (`\author`/`\date`) handling.
+  - ✅ Accents: `\'e`/`` \`a ``/`\^o`/`\"u`/`\~n`/`\=o`/`\.z`/`\c c`/`\v s`/`\u a`/
+    `\H o`/`\r a`/`\k e` → precomposed Unicode (unknown combos fall back to the
+    base letter), plus special letters `\o`/`\ss`/`\ae`/`\oe`/`\aa`/`\l`/….
+  - ⏳ Next: preamble metadata (`\author`/`\date` → IR), then a proper tokenizer.
+    That closes out Phase 1; **Phase 2 (the OMML math engine) is next.**
 - **Phase 2 — math (OMML).** The big one: port `mathml/latex_math.py` (LaTeX math
   AST) + `mathml/omml.py` (AST → OMML) + `symbols.py`. Fractions, scripts, roots,
   n-ary ops, matrices/aligned, delimiters, hundreds of symbols.

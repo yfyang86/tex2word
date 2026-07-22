@@ -5,9 +5,10 @@
 //! Coverage so far (Phase 1): `\title`, sectioning, paragraphs, the
 //! `itemize`/`enumerate`/`quote` environments, `\textbf`/`\emph`/`\textit`/
 //! `\texttt`/`\underline`/`\textsc`/`\textsuperscript`/`\textsubscript`, escaped
-//! literals, dashes/smart-quotes/`~`, a batch of text symbol macros, `\\` breaks
-//! and inline `$…$` math. The roadmap tracks what still needs porting (accents,
-//! a proper tokenizer, display math, …).
+//! literals, dashes/smart-quotes/`~`, a batch of text symbol macros, accents
+//! (`\'e`/`\"o`/`\c c`/… -> precomposed Unicode), `\\` breaks and inline `$…$`
+//! math. The roadmap tracks what still needs porting (preamble metadata, a
+//! proper tokenizer, display math, …).
 
 use std::path::Path;
 
@@ -393,6 +394,16 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                         text.push('…');
                         i = after;
                     }
+                    // accents: \'e \`a \^o \"u \~n \=o \.z \c{c} \v{s} \u{a}
+                    // \H{o} \r{a} \k{e} … -> a precomposed Unicode letter.
+                    "'" | "`" | "^" | "\"" | "~" | "=" | "." | "c" | "v" | "u" | "H" | "r"
+                    | "k" | "d" | "b" | "t" => {
+                        let (base, after2) = read_accent_base(&s, after);
+                        if let Some(b) = base {
+                            text.push(apply_accent(&name, b).unwrap_or(b));
+                        }
+                        i = after2;
+                    }
                     _ => {
                         if let Some(sym) = text_symbol(&name) {
                             text.push_str(sym);
@@ -497,9 +508,177 @@ fn text_symbol(name: &str) -> Option<&'static str> {
         "textemdash" => "\u{2014}",
         "LaTeX" | "LaTeXe" => "LaTeX",
         "TeX" => "TeX",
+        // special letters
+        "o" => "ø",
+        "O" => "Ø",
+        "l" => "ł",
+        "L" => "Ł",
+        "ss" => "ß",
+        "ae" => "æ",
+        "AE" => "Æ",
+        "oe" => "œ",
+        "OE" => "Œ",
+        "aa" => "å",
+        "AA" => "Å",
+        "i" => "ı",
+        "j" => "ȷ",
+        "dh" => "ð",
+        "DH" => "Ð",
+        "th" => "þ",
+        "TH" => "Þ",
         // spacing commands -> a space, or nothing for the negative/discretionary ones
         "," | ";" | ":" | " " | "quad" | "qquad" | "enspace" | "thinspace" => " ",
         "!" | "@" | "/" | "-" => "",
+        _ => return None,
+    })
+}
+
+/// Read an accent's base letter: `{x}` (or `{\i}`), `\i`/`\j`, or a bare char.
+fn read_accent_base(s: &[char], i: usize) -> (Option<char>, usize) {
+    let mut j = i;
+    while j < s.len() && (s[j] == ' ' || s[j] == '\t') {
+        j += 1;
+    }
+    if j >= s.len() {
+        return (None, j);
+    }
+    if s[j] == '{' {
+        let (inner, after) = read_braced(s, j);
+        (base_char(&inner), after)
+    } else if s[j] == '\\' {
+        let (name, after) = read_command_name(s, j);
+        (dotless_base(&name), after)
+    } else {
+        (Some(s[j]), j + 1)
+    }
+}
+
+fn base_char(inner: &str) -> Option<char> {
+    let t = inner.trim();
+    if let Some(rest) = t.strip_prefix('\\') {
+        return dotless_base(rest.trim());
+    }
+    t.chars().next()
+}
+
+/// `\i`/`\j` (dotless i/j, used under accents) resolve to the plain letter.
+fn dotless_base(name: &str) -> Option<char> {
+    match name {
+        "i" => Some('i'),
+        "j" => Some('j'),
+        other => other.chars().next(),
+    }
+}
+
+/// Map (accent command, base letter) to the precomposed Unicode character.
+/// Unknown combinations return `None` (the caller keeps the base letter).
+fn apply_accent(accent: &str, base: char) -> Option<char> {
+    Some(match (accent, base) {
+        // acute \'
+        ("'", 'a') => 'á',
+        ("'", 'e') => 'é',
+        ("'", 'i') => 'í',
+        ("'", 'o') => 'ó',
+        ("'", 'u') => 'ú',
+        ("'", 'y') => 'ý',
+        ("'", 'n') => 'ń',
+        ("'", 'c') => 'ć',
+        ("'", 's') => 'ś',
+        ("'", 'z') => 'ź',
+        ("'", 'r') => 'ŕ',
+        ("'", 'l') => 'ĺ',
+        ("'", 'A') => 'Á',
+        ("'", 'E') => 'É',
+        ("'", 'I') => 'Í',
+        ("'", 'O') => 'Ó',
+        ("'", 'U') => 'Ú',
+        ("'", 'N') => 'Ń',
+        // grave \`
+        ("`", 'a') => 'à',
+        ("`", 'e') => 'è',
+        ("`", 'i') => 'ì',
+        ("`", 'o') => 'ò',
+        ("`", 'u') => 'ù',
+        ("`", 'A') => 'À',
+        ("`", 'E') => 'È',
+        ("`", 'O') => 'Ò',
+        ("`", 'U') => 'Ù',
+        // circumflex \^
+        ("^", 'a') => 'â',
+        ("^", 'e') => 'ê',
+        ("^", 'i') => 'î',
+        ("^", 'o') => 'ô',
+        ("^", 'u') => 'û',
+        ("^", 'A') => 'Â',
+        ("^", 'E') => 'Ê',
+        ("^", 'O') => 'Ô',
+        ("^", 'w') => 'ŵ',
+        ("^", 'y') => 'ŷ',
+        // diaeresis \"
+        ("\"", 'a') => 'ä',
+        ("\"", 'e') => 'ë',
+        ("\"", 'i') => 'ï',
+        ("\"", 'o') => 'ö',
+        ("\"", 'u') => 'ü',
+        ("\"", 'y') => 'ÿ',
+        ("\"", 'A') => 'Ä',
+        ("\"", 'E') => 'Ë',
+        ("\"", 'O') => 'Ö',
+        ("\"", 'U') => 'Ü',
+        // tilde \~
+        ("~", 'a') => 'ã',
+        ("~", 'n') => 'ñ',
+        ("~", 'o') => 'õ',
+        ("~", 'A') => 'Ã',
+        ("~", 'N') => 'Ñ',
+        ("~", 'O') => 'Õ',
+        // macron \=
+        ("=", 'a') => 'ā',
+        ("=", 'e') => 'ē',
+        ("=", 'i') => 'ī',
+        ("=", 'o') => 'ō',
+        ("=", 'u') => 'ū',
+        // dot above \.
+        (".", 'z') => 'ż',
+        (".", 'e') => 'ė',
+        (".", 'c') => 'ċ',
+        (".", 'g') => 'ġ',
+        // cedilla \c
+        ("c", 'c') => 'ç',
+        ("c", 'C') => 'Ç',
+        ("c", 's') => 'ş',
+        ("c", 'S') => 'Ş',
+        ("c", 'g') => 'ģ',
+        // caron \v
+        ("v", 'c') => 'č',
+        ("v", 's') => 'š',
+        ("v", 'z') => 'ž',
+        ("v", 'r') => 'ř',
+        ("v", 'e') => 'ě',
+        ("v", 'n') => 'ň',
+        ("v", 'd') => 'ď',
+        ("v", 't') => 'ť',
+        ("v", 'C') => 'Č',
+        ("v", 'S') => 'Š',
+        ("v", 'Z') => 'Ž',
+        // breve \u
+        ("u", 'a') => 'ă',
+        ("u", 'g') => 'ğ',
+        ("u", 'G') => 'Ğ',
+        // double acute \H
+        ("H", 'o') => 'ő',
+        ("H", 'u') => 'ű',
+        ("H", 'O') => 'Ő',
+        ("H", 'U') => 'Ű',
+        // ring \r
+        ("r", 'a') => 'å',
+        ("r", 'A') => 'Å',
+        ("r", 'u') => 'ů',
+        // ogonek \k
+        ("k", 'a') => 'ą',
+        ("k", 'e') => 'ę',
+        ("k", 'A') => 'Ą',
+        ("k", 'E') => 'Ę',
         _ => return None,
     })
 }
@@ -792,6 +971,22 @@ end\end{document}",
             "curly quotes"
         );
         assert!(t.contains('\u{00A0}'), "nbsp from ~");
+    }
+
+    #[test]
+    fn accents_and_special_letters() {
+        // \"i needs a hashed raw string (it contains a double quote)
+        let doc = conv(
+            r#"\begin{document}Caf\'e na\"ive \c{c}a \^o \~n Erd\H{o}s stra\ss e \o \ae\end{document}"#,
+        );
+        let t = doc.plain_text();
+        for ch in ['é', 'ï', 'ç', 'ô', 'ñ', 'ő', 'ß', 'ø', 'æ'] {
+            assert!(t.contains(ch), "missing {ch:?} in {t:?}");
+        }
+        // unknown accent combo falls back to the base letter (no crash, no drop)
+        assert!(conv(r"\begin{document}\'q\end{document}")
+            .plain_text()
+            .contains('q'));
     }
 
     #[test]
