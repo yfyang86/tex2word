@@ -14,7 +14,7 @@ use std::path::Path;
 
 use tex2word_ir::{
     Block, Document, EmphasisKind, Float, FloatKind, Inline, RefKind, RefStyle, Table, TableAlign,
-    TableCell, TableRow,
+    TableCell, TableRow, TocKind,
 };
 
 mod macros;
@@ -216,6 +216,16 @@ fn section_level(name: &str) -> Option<u8> {
     }
 }
 
+/// Map a table-of-contents macro to its [`TocKind`], if it is one.
+fn toc_kind(name: &str) -> Option<TocKind> {
+    match name {
+        "tableofcontents" => Some(TocKind::Contents),
+        "listoffigures" => Some(TocKind::Figures),
+        "listoftables" => Some(TocKind::Tables),
+        _ => None,
+    }
+}
+
 /// Split a document body into block-level units (headings + paragraphs).
 fn parse_blocks(body: &str) -> Vec<Block> {
     let s: Vec<char> = body.chars().collect();
@@ -306,16 +316,29 @@ fn parse_blocks(body: &str) -> Vec<Block> {
             }
             if let Some(level) = section_level(&name) {
                 flush_paragraph(&mut blocks, &mut para);
-                let (arg, after2) = read_braced(&s, after);
+                // \section* is unnumbered: consume the star.
+                let mut j = after;
+                let numbered = !(j < n && s[j] == '*');
+                if !numbered {
+                    j += 1;
+                }
+                let (arg, after2) = read_braced(&s, j);
                 blocks.push(Block::Heading {
                     level,
                     inlines: parse_inlines(&arg),
                     label: None,
+                    numbered,
                 });
                 i = after2;
                 continue;
             }
             if name == "maketitle" {
+                i = after;
+                continue;
+            }
+            if let Some(kind) = toc_kind(&name) {
+                flush_paragraph(&mut blocks, &mut para);
+                blocks.push(Block::TableOfContents(kind));
                 i = after;
                 continue;
             }
@@ -1365,6 +1388,7 @@ More.\end{document}",
                     level: 1,
                     inlines: vec![Inline::Text("Intro".into())],
                     label: None,
+                    numbered: true,
                 },
                 Block::Paragraph {
                     inlines: vec![Inline::Text("Hello world.".into())]
@@ -1373,6 +1397,7 @@ More.\end{document}",
                     level: 2,
                     inlines: vec![Inline::Text("Sub".into())],
                     label: None,
+                    numbered: true,
                 },
                 Block::Paragraph {
                     inlines: vec![Inline::Text("More.".into())]
@@ -1846,6 +1871,23 @@ See \ref{sec:intro} and Fig.~\autoref{fig:a} on page \pageref{fig:a}, eq.~\eqref
         );
         assert!(doc2.blocks.iter().any(|b| matches!(b,
             Block::Float(f) if f.label.as_deref() == Some("fig:z"))));
+    }
+
+    #[test]
+    fn starred_sections_unnumbered_and_toc_macros() {
+        let doc = conv(
+            r"\begin{document}\tableofcontents \listoffigures \listoftables
+\section{Numbered}\section*{Unnumbered}\end{document}",
+        );
+        assert_eq!(doc.blocks[0], Block::TableOfContents(TocKind::Contents));
+        assert_eq!(doc.blocks[1], Block::TableOfContents(TocKind::Figures));
+        assert_eq!(doc.blocks[2], Block::TableOfContents(TocKind::Tables));
+        assert!(matches!(&doc.blocks[3],
+            Block::Heading { numbered: true, inlines, .. }
+                if inlines == &vec![Inline::Text("Numbered".into())]));
+        assert!(matches!(&doc.blocks[4],
+            Block::Heading { numbered: false, inlines, .. }
+                if inlines == &vec![Inline::Text("Unnumbered".into())]));
     }
 
     #[test]

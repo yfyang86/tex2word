@@ -80,8 +80,7 @@ pub fn pageref_field(bookmark: &str, out: &mut String) {
 }
 
 /// A `TOC` field (table of contents / list of figures/tables) with a cached
-/// "update fields" hint. Used by the Sprint-2 `\tableofcontents` support.
-#[allow(dead_code)]
+/// "update fields" hint.
 pub fn toc_field(code: &str, out: &mut String) {
     field(
         code,

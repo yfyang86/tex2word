@@ -87,11 +87,13 @@ pub enum RefStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block {
     /// `level` 1..=3 maps to Word `Heading1`..`Heading3`. `label` is a `\label`
-    /// target attached to the heading (for `\ref`/`\nameref`).
+    /// target attached to the heading (for `\ref`/`\nameref`). `numbered` is
+    /// false for the starred forms (`\section*`).
     Heading {
         level: u8,
         inlines: Vec<Inline>,
         label: Option<String>,
+        numbered: bool,
     },
     /// A body paragraph.
     Paragraph { inlines: Vec<Inline> },
@@ -115,6 +117,16 @@ pub enum Block {
     Table(Table),
     /// A `figure`/`table` float (content + an optional numbered caption).
     Float(Float),
+    /// A `\tableofcontents`/`\listoffigures`/`\listoftables` → a Word `TOC` field.
+    TableOfContents(TocKind),
+}
+
+/// Which list a `TableOfContents` renders (heading outline, or a caption series).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TocKind {
+    Contents,
+    Figures,
+    Tables,
 }
 
 /// A `figure`/`table` float environment.
@@ -262,6 +274,14 @@ fn push_block_text(b: &Block, out: &mut String) {
                 push_inline_text(cap, out);
                 out.push('\n');
             }
+        }
+        Block::TableOfContents(kind) => {
+            out.push_str(match kind {
+                TocKind::Contents => "Contents",
+                TocKind::Figures => "List of Figures",
+                TocKind::Tables => "List of Tables",
+            });
+            out.push('\n');
         }
     }
 }

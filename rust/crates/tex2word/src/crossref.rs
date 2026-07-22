@@ -241,6 +241,7 @@ mod tests {
                     level: 1,
                     inlines: vec![Inline::Text("Intro".into())],
                     label: Some("sec:intro".into()),
+                    numbered: true,
                 },
                 Block::Paragraph {
                     inlines: vec![
@@ -293,6 +294,7 @@ mod tests {
                     level: 1,
                     inlines: vec![Inline::Text("Methods".into())],
                     label: Some("sec:m".into()),
+                    numbered: true,
                 },
                 Block::Paragraph {
                     inlines: vec![Inline::Ref {

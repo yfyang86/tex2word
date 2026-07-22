@@ -13,7 +13,7 @@ use std::path::Path;
 
 use tex2word_ir::{
     Block, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, RefKind, RefStyle, Table,
-    TableAlign,
+    TableAlign, TocKind,
 };
 
 use crate::fields::{self, Bookmarks};
@@ -293,7 +293,7 @@ fn emit_drawing(rid: &str, id: u32, cx: u64, cy: u64, out: &mut String) {
 fn render_ref(
     key: &str,
     kind: RefKind,
-    _style: RefStyle,
+    style: RefStyle,
     bookmark: &Option<String>,
     rp: RunProps,
     out: &mut String,
@@ -302,6 +302,11 @@ fn render_ref(
         render_run(key, rp, out); // unresolved -> literal key
         return;
     };
+    // cleveref-style type prefix ("Figure ", "fig. ", …); \ref/\eqref stay bare.
+    let prefix = ref_prefix(kind, style);
+    if !prefix.is_empty() {
+        render_run(prefix, rp, out);
+    }
     match kind {
         RefKind::Page => fields::pageref_field(bm, out),
         RefKind::Equation => {
@@ -311,6 +316,26 @@ fn render_ref(
         }
         RefKind::Section | RefKind::ListItem => fields::ref_field(bm, true, out),
         _ => fields::ref_field(bm, false, out),
+    }
+}
+
+/// The cleveref-style type prefix for a `(kind, style)` pair (mirrors Python's
+/// `_REF_NAMES`/`_REF_PREFIX`); `Plain` and unlisted kinds get no prefix.
+fn ref_prefix(kind: RefKind, style: RefStyle) -> &'static str {
+    use RefKind::{Equation, Figure, Section, Table, Theorem};
+    use RefStyle::{Abbrev, Full};
+    match (kind, style) {
+        (Figure, Abbrev) => "fig. ",
+        (Figure, Full) => "Figure ",
+        (Table, Abbrev) => "tab. ",
+        (Table, Full) => "Table ",
+        (Section, Abbrev) => "sec. ",
+        (Section, Full) => "Section ",
+        (Equation, Abbrev) => "eq. ",
+        (Equation, Full) => "Equation ",
+        (Theorem, Abbrev) => "thm. ",
+        (Theorem, Full) => "Theorem ",
+        _ => "",
     }
 }
 
@@ -384,22 +409,8 @@ fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
             level,
             inlines,
             label,
-        } => {
-            let style = format!("Heading{}", level.clamp(&1, &9));
-            match ctx.bookmark_of(label) {
-                // labelled heading: bookmark its text so REF \r can cite its number
-                Some(name) => {
-                    out.push_str(&format!(
-                        "<w:p><w:pPr><w:pStyle w:val=\"{style}\"/></w:pPr>"
-                    ));
-                    let id = ctx.bookmarks.start(&name, out);
-                    render_inlines(inlines, RunProps::default(), ctx, out);
-                    ctx.bookmarks.end(id, out);
-                    out.push_str("</w:p>");
-                }
-                None => render_paragraph(Some(&style), inlines, ctx, out),
-            }
-        }
+            numbered,
+        } => render_heading(*level, inlines, label, *numbered, ctx, out),
         Block::Paragraph { inlines } => render_paragraph(None, inlines, ctx, out),
         Block::MathBlock {
             latex,
@@ -449,7 +460,53 @@ fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
         }
         Block::Table(table) => render_table(table, false, ctx, out),
         Block::Float(float) => render_float(float, ctx, out),
+        Block::TableOfContents(kind) => render_toc(*kind, out),
     }
+}
+
+/// Render a heading paragraph: `HeadingN` style, auto-numbering for the numbered
+/// forms (levels 1–4, via the multilevel list `numId` 3), and a bookmark around
+/// the text when the heading is labelled (so `REF \r` can cite its number).
+fn render_heading(
+    level: u8,
+    inlines: &[Inline],
+    label: &Option<String>,
+    numbered: bool,
+    ctx: &mut Ctx,
+    out: &mut String,
+) {
+    let style = format!("Heading{}", level.clamp(1, 9));
+    out.push_str(&format!("<w:p><w:pPr><w:pStyle w:val=\"{style}\"/>"));
+    if numbered && (1..=4).contains(&level) {
+        out.push_str(&format!(
+            "<w:numPr><w:ilvl w:val=\"{}\"/><w:numId w:val=\"3\"/></w:numPr>",
+            level - 1
+        ));
+    }
+    out.push_str("</w:pPr>");
+    match ctx.bookmark_of(label) {
+        Some(name) => {
+            let id = ctx.bookmarks.start(&name, out);
+            render_inlines(inlines, RunProps::default(), ctx, out);
+            ctx.bookmarks.end(id, out);
+        }
+        None => render_inlines(inlines, RunProps::default(), ctx, out),
+    }
+    out.push_str("</w:p>");
+}
+
+/// Render a `\tableofcontents`/`\listof*` as a heading + a live `TOC` field.
+fn render_toc(kind: TocKind, out: &mut String) {
+    let (title, code) = match kind {
+        TocKind::Contents => ("Contents", "TOC \\o \"1-3\" \\h \\z \\u"),
+        TocKind::Figures => ("List of Figures", "TOC \\h \\z \\c \"Figure\""),
+        TocKind::Tables => ("List of Tables", "TOC \\h \\z \\c \"Table\""),
+    };
+    out.push_str("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr>");
+    render_run(title, RunProps::default(), out);
+    out.push_str("</w:p><w:p>");
+    fields::toc_field(code, out);
+    out.push_str("</w:p>");
 }
 
 /// Render a `figure`/`table` float: its content (centered if requested) followed
@@ -719,8 +776,23 @@ pub const NUMBERING_XML: &str = concat!(
     "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/>",
     "<w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:lvlJc w:val=\"left\"/>",
     "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
+    // abstractNum 2 = multilevel heading numbering (1, 1.1, 1.1.1, 1.1.1.1).
+    "<w:abstractNum w:abstractNumId=\"2\"><w:multiLevelType w:val=\"multilevel\"/>",
+    "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/>",
+    "<w:lvlText w:val=\"%1\"/><w:lvlJc w:val=\"left\"/>",
+    "<w:pPr><w:ind w:left=\"0\" w:firstLine=\"0\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/>",
+    "<w:lvlText w:val=\"%1.%2\"/><w:lvlJc w:val=\"left\"/>",
+    "<w:pPr><w:ind w:left=\"0\" w:firstLine=\"0\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/>",
+    "<w:lvlText w:val=\"%1.%2.%3\"/><w:lvlJc w:val=\"left\"/>",
+    "<w:pPr><w:ind w:left=\"0\" w:firstLine=\"0\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"3\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/>",
+    "<w:lvlText w:val=\"%1.%2.%3.%4\"/><w:lvlJc w:val=\"left\"/>",
+    "<w:pPr><w:ind w:left=\"0\" w:firstLine=\"0\"/></w:pPr></w:lvl></w:abstractNum>",
     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>",
     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>",
+    "<w:num w:numId=\"3\"><w:abstractNumId w:val=\"2\"/></w:num>",
     "</w:numbering>"
 );
 
@@ -929,6 +1001,59 @@ mod tests {
         assert!(xml.contains("w:pStyle w:val=\"Caption\""));
         assert!(xml.contains("<w:jc w:val=\"center\"/>"));
         assert!(styles_xml().contains("w:styleId=\"Caption\""));
+    }
+
+    #[test]
+    fn numbered_headings_toc_and_cleveref_prefix() {
+        use std::collections::HashMap;
+        let mut labels = HashMap::new();
+        labels.insert(
+            "fig:a".to_string(),
+            LabelInfo {
+                kind: RefKind::Figure,
+                counter_name: "Figure".into(),
+                bookmark: "fig_a".into(),
+                name: None,
+            },
+        );
+        let doc = Document {
+            labels,
+            blocks: vec![
+                Block::TableOfContents(TocKind::Contents),
+                Block::Heading {
+                    level: 1,
+                    inlines: vec![Inline::Text("Intro".into())],
+                    label: None,
+                    numbered: true,
+                },
+                Block::Heading {
+                    level: 1,
+                    inlines: vec![Inline::Text("Unnum".into())],
+                    label: None,
+                    numbered: false,
+                },
+                Block::Paragraph {
+                    inlines: vec![Inline::Ref {
+                        key: "fig:a".into(),
+                        kind: RefKind::Figure,
+                        style: RefStyle::Full, // \Cref -> "Figure " prefix
+                        bookmark: Some("fig_a".into()),
+                    }],
+                },
+            ],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        // numbered heading carries numPr (numId 3); the starred one does not
+        assert_eq!(xml.matches("<w:numId w:val=\"3\"/>").count(), 1);
+        // TOC heading + field
+        assert!(xml.contains(">Contents</w:t>"));
+        assert!(xml.contains("TOC \\o \"1-3\" \\h \\z \\u"));
+        // cleveref \Cref prefix precedes the REF field
+        assert!(xml.contains(">Figure </w:t>"));
+        assert!(xml.contains("REF fig_a \\h"));
+        // heading numbering definition exists
+        assert!(NUMBERING_XML.contains("w:numId=\"3\""));
     }
 
     #[test]
