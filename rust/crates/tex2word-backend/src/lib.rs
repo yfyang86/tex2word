@@ -10,12 +10,19 @@ use std::path::Path;
 use tex2word_ir::Document;
 use zip::Entry;
 
-/// Convert an IR document into a `.docx` (an OPC ZIP of the WordprocessingML
-/// parts). `\includegraphics` images are read relative to `base_dir` and
-/// embedded as `word/media/*` parts. The output is deterministic for a given
-/// input.
+pub use ooxml::PageGeometry;
+
+/// Convert an IR document into a `.docx` (default US-Letter geometry).
 pub fn to_docx(doc: &Document, base_dir: &Path) -> Vec<u8> {
-    let pkg = ooxml::build_package(doc, base_dir);
+    to_docx_with(doc, base_dir, &PageGeometry::default())
+}
+
+/// Convert an IR document into a `.docx` (an OPC ZIP of the WordprocessingML
+/// parts) with explicit page geometry (e.g. from a `--reference-doc`).
+/// `\includegraphics` images are read relative to `base_dir` and embedded as
+/// `word/media/*` parts. The output is deterministic for a given input.
+pub fn to_docx_with(doc: &Document, base_dir: &Path, page: &PageGeometry) -> Vec<u8> {
+    let pkg = ooxml::build_package(doc, base_dir, page);
     let mut entries = vec![
         Entry {
             name: "[Content_Types].xml".into(),
@@ -90,6 +97,21 @@ mod tests {
         // width=2in -> 1828800 EMU (aspect keeps cy = cx * 3/7)
         assert!(text.contains("cx=\"1828800\""));
         assert!(!text.contains("[image:")); // no placeholder fallback
+    }
+
+    #[test]
+    fn page_geometry_applies_to_sectpr() {
+        let doc = Document {
+            blocks: vec![Block::Paragraph {
+                inlines: vec![Inline::Text("x".into())],
+            }],
+            ..Default::default()
+        };
+        let letter = String::from_utf8_lossy(&to_docx(&doc, Path::new("."))).into_owned();
+        assert!(letter.contains("w:w=\"12240\" w:h=\"15840\""));
+        let a4 = to_docx_with(&doc, Path::new("."), &PageGeometry::a4());
+        let a4 = String::from_utf8_lossy(&a4);
+        assert!(a4.contains("w:w=\"11906\" w:h=\"16838\""));
     }
 
     #[test]

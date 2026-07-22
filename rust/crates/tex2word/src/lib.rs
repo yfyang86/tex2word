@@ -6,6 +6,7 @@
 //! valid `.docx` from real LaTeX) while the feature surface is ported module by
 //! module — see `rust/ROADMAP.md`.
 
+pub use tex2word_backend::PageGeometry;
 pub use tex2word_ir as ir;
 
 pub mod crossref;
@@ -15,6 +16,13 @@ use std::io;
 use std::path::Path;
 
 pub use crossref::Warning;
+
+/// Convert LaTeX source to a normalized `.tex` string via the IR (round-trip
+/// writer). Useful for differential testing and re-emitting a canonical form.
+pub fn to_latex_source(source: &str) -> String {
+    let document = tex2word_frontend::parse_document(source);
+    tex2word_latex::to_latex(&document)
+}
 
 /// The result of a conversion: the `.docx` bytes, the parsed IR, and any
 /// non-fatal warnings (e.g. unresolved cross-references).
@@ -55,6 +63,7 @@ fn unsupported_warnings(macros: &[String]) -> Vec<Warning> {
 pub fn convert_file(
     input: &Path,
     output: Option<&Path>,
+    page: &PageGeometry,
 ) -> io::Result<(std::path::PathBuf, Vec<Warning>)> {
     let source = fs::read_to_string(input)?;
     let base = input
@@ -64,7 +73,7 @@ pub fn convert_file(
     let (mut document, unsupported) = tex2word_frontend::parse_document_reporting(&source, base);
     let mut warnings = crossref::resolve(&mut document);
     warnings.extend(unsupported_warnings(&unsupported));
-    let docx = tex2word_backend::to_docx(&document, base);
+    let docx = tex2word_backend::to_docx_with(&document, base, page);
     let out = match output {
         Some(p) => p.to_path_buf(),
         None => input.with_extension("docx"),

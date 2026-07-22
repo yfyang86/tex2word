@@ -41,6 +41,70 @@ pub struct Package {
     pub media: Vec<MediaPart>,
 }
 
+/// Page geometry (`w:pgSz`/`w:pgMar`, in twips) for the section properties.
+/// Defaults to US Letter with 1-inch margins; a `--reference-doc` can override.
+#[derive(Debug, Clone, Copy)]
+pub struct PageGeometry {
+    pub width: u32,
+    pub height: u32,
+    pub top: u32,
+    pub right: u32,
+    pub bottom: u32,
+    pub left: u32,
+    pub header: u32,
+    pub footer: u32,
+}
+
+impl Default for PageGeometry {
+    fn default() -> Self {
+        Self::letter()
+    }
+}
+
+impl PageGeometry {
+    /// US Letter, 8.5×11in, 1in margins.
+    pub fn letter() -> Self {
+        Self {
+            width: 12240,
+            height: 15840,
+            top: 1440,
+            right: 1440,
+            bottom: 1440,
+            left: 1440,
+            header: 720,
+            footer: 720,
+        }
+    }
+
+    /// ISO A4, 210×297mm (11906×16838 twips).
+    pub fn a4() -> Self {
+        Self {
+            width: 11906,
+            height: 16838,
+            ..Self::letter()
+        }
+    }
+
+    /// US Legal, 8.5×14in.
+    pub fn legal() -> Self {
+        Self {
+            width: 12240,
+            height: 20160,
+            ..Self::letter()
+        }
+    }
+
+    /// A named preset (`letter`/`a4`/`legal`), if recognised.
+    pub fn preset(name: &str) -> Option<Self> {
+        match name.to_ascii_lowercase().as_str() {
+            "letter" => Some(Self::letter()),
+            "a4" => Some(Self::a4()),
+            "legal" => Some(Self::legal()),
+            _ => None,
+        }
+    }
+}
+
 /// A resolved, embeddable image and its relationship/part identity.
 struct Media {
     part_name: String, // word/media/image1.png
@@ -788,25 +852,26 @@ fn render_table(table: &Table, center: bool, ctx: &mut Ctx, out: &mut String) {
 /// package builder [`build_package`] is the real entry point.
 #[cfg(test)]
 pub fn document_xml(doc: &Document) -> String {
-    build_package(doc, Path::new(".")).document_xml
+    build_package(doc, Path::new("."), &PageGeometry::default()).document_xml
 }
 
-/// Render the body-dependent package parts: `word/document.xml`, the content
-/// types, the document relationships, and any embedded media (images resolved
-/// against `base_dir`).
 /// A `w:sectPr` for a column region: `continuous` marks a mid-page section
 /// break; `cols > 1` adds a `w:cols` (a single-column section omits it, the
-/// schema default).
-fn sect_pr(cols: usize, continuous: bool) -> String {
+/// schema default). Page size/margins come from `page`.
+fn sect_pr(cols: usize, continuous: bool, page: &PageGeometry) -> String {
     let mut s = String::from("<w:sectPr>");
     if continuous {
         s.push_str("<w:type w:val=\"continuous\"/>");
     }
-    s.push_str("<w:pgSz w:w=\"12240\" w:h=\"15840\"/>");
-    s.push_str(
-        "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" \
-         w:header=\"720\" w:footer=\"720\"/>",
-    );
+    s.push_str(&format!(
+        "<w:pgSz w:w=\"{}\" w:h=\"{}\"/>",
+        page.width, page.height
+    ));
+    s.push_str(&format!(
+        "<w:pgMar w:top=\"{}\" w:right=\"{}\" w:bottom=\"{}\" w:left=\"{}\" \
+         w:header=\"{}\" w:footer=\"{}\"/>",
+        page.top, page.right, page.bottom, page.left, page.header, page.footer
+    ));
     if cols > 1 {
         s.push_str(&format!("<w:cols w:num=\"{cols}\" w:space=\"720\"/>"));
     }
@@ -816,18 +881,18 @@ fn sect_pr(cols: usize, continuous: bool) -> String {
 
 /// Between regions of differing column counts, emit an empty paragraph whose
 /// `pPr` carries the *closing* region's continuous `sectPr`. Updates `prev`.
-fn region_break(prev: &mut Option<usize>, cols: usize, body: &mut String) {
+fn region_break(prev: &mut Option<usize>, cols: usize, page: &PageGeometry, body: &mut String) {
     if let Some(p) = *prev {
         if p != cols {
             body.push_str("<w:p><w:pPr>");
-            body.push_str(&sect_pr(p, true));
+            body.push_str(&sect_pr(p, true, page));
             body.push_str("</w:pPr></w:p>");
         }
     }
     *prev = Some(cols);
 }
 
-pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
+pub fn build_package(doc: &Document, base_dir: &Path, page: &PageGeometry) -> Package {
     let mut ctx = Ctx {
         drawing_id: 0,
         media: MediaRegistry::new(base_dir),
@@ -845,7 +910,7 @@ pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
     let mut prev: Option<usize> = None;
     let has_title = doc.title.is_some() || !doc.authors.is_empty() || doc.date.is_some();
     if has_title {
-        region_break(&mut prev, if n > 1 { 1 } else { n }, &mut body);
+        region_break(&mut prev, if n > 1 { 1 } else { n }, page, &mut body);
         if let Some(title) = &doc.title {
             render_paragraph(Some("Title"), title, &mut ctx, &mut body);
         }
@@ -859,11 +924,11 @@ pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
     for block in &doc.blocks {
         let spanning = matches!(block, Block::Float(f) if f.spanning);
         let cols = if n > 1 && spanning { 1 } else { n };
-        region_break(&mut prev, cols, &mut body);
+        region_break(&mut prev, cols, page, &mut body);
         render_block(block, &mut ctx, &mut body);
     }
     // The final region's sectPr closes the body.
-    body.push_str(&sect_pr(prev.unwrap_or(n), false));
+    body.push_str(&sect_pr(prev.unwrap_or(n), false, page));
     let document_xml = format!(
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
@@ -1394,7 +1459,7 @@ mod tests {
             ..Default::default()
         };
         // package (not just document_xml) so footnotes.xml + rels are built
-        let pkg = build_package(&doc, Path::new("."));
+        let pkg = build_package(&doc, Path::new("."), &PageGeometry::default());
         let d = &pkg.document_xml;
         // resolved cite "a" hyperlinks to cite_a and shows its number "1"
         assert!(d.contains("HYPERLINK \\l \"cite_a\""));
