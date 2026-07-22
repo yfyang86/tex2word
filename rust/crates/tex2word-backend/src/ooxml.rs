@@ -654,11 +654,12 @@ fn render_table(table: &Table, center: bool, ctx: &mut Ctx, out: &mut String) {
         .unwrap_or(0)
         .max(table.colspec.len())
         .max(1);
+    // CT_TblPr child order: tblStyle, tblW, jc, tblBorders, … (tblW before jc).
     out.push_str("<w:tbl><w:tblPr><w:tblStyle w:val=\"TableGrid\"/>");
+    out.push_str("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
     if center {
         out.push_str("<w:jc w:val=\"center\"/>");
     }
-    out.push_str("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
     out.push_str(concat!(
         "<w:tblBorders>",
         "<w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",

@@ -12,3 +12,4 @@ path = "src/main.rs"
 
 [dependencies]
 tex2word = { path = "../tex2word" }
+tex2word-validate = { path = "../tex2word-validate" }

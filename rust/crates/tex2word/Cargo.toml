@@ -11,3 +11,6 @@ repository.workspace = true
 tex2word-ir = { path = "../tex2word-ir" }
 tex2word-frontend = { path = "../tex2word-frontend" }
 tex2word-backend = { path = "../tex2word-backend" }
+
+[dev-dependencies]
+tex2word-validate = { path = "../tex2word-validate" }
