@@ -100,8 +100,15 @@ Each phase is validated against the Python output on the corpus + UATs.
     `\multicolumn{n}{spec}{…}` → `w:gridSpan` with an alignment override.
   - ✅ `\multirow[pos]{n}{width}{…}` → `w:vMerge` (restart + continue on the
     covered rows' placeholder cells); nests with `\multicolumn`.
-  - ⏳ Next: `figure`/`table` floats + `\caption` (numbered), `\includegraphics`
-    (PNG/JPEG embed; PDF/TikZ raster).
+  - ✅ Floats: `figure`/`figure*`/`table`/`table*` → the float's content followed
+    by a numbered `\caption` paragraph ("Figure N: …" / "Table N: …", independent
+    counters, `Caption` style). `\centering` centers the content (paragraphs and
+    the wrapped `tabular`); `[htbp]` placement and `\label`/`\captionsetup` are
+    dropped. `\includegraphics[opts]{path}` → `Inline::Image` (path + raw opts).
+  - ⏳ Next: `\includegraphics` **binary embedding** — read PNG/JPEG bytes, add a
+    `word/media/*` part + image relationship + a `w:drawing` (EMU-sized from the
+    image header and the `width=` option); PDF/TikZ raster is a later step. For
+    now images render as a `[image: path]` placeholder.
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
   numbering, `transforms/crossref.py`, the multi-column section machinery.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,

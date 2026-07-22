@@ -6,7 +6,14 @@
 //! `styles.xml`, `numbering.xml`). Tables, figures and live fields are later
 //! milestones.
 
-use tex2word_ir::{Block, Document, EmphasisKind, Inline, Table, TableAlign};
+use tex2word_ir::{Block, Document, EmphasisKind, Float, FloatKind, Inline, Table, TableAlign};
+
+/// Running caption numbers (Figure N / Table N) during a render pass.
+#[derive(Default)]
+struct Counters {
+    figure: u32,
+    table: u32,
+}
 
 const W_NS: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const M_NS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/math";
@@ -110,16 +117,41 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, out: &mut String) {
             }
             Inline::Math(m) => render_math(m, out),
             Inline::LineBreak => out.push_str("<w:r><w:br/></w:r>"),
+            Inline::Image { path, .. } => {
+                // Placeholder until binary embedding lands (see roadmap Phase 3).
+                out.push_str("<w:r><w:rPr><w:i/></w:rPr><w:t xml:space=\"preserve\">");
+                out.push_str(&escape(&format!("[image: {path}]")));
+                out.push_str("</w:t></w:r>");
+            }
         }
     }
 }
 
 fn render_paragraph(style: Option<&str>, inlines: &[Inline], out: &mut String) {
+    render_paragraph_jc(style, None, inlines, out);
+}
+
+/// Like [`render_paragraph`] but with an optional `w:jc` justification.
+fn render_paragraph_jc(
+    style: Option<&str>,
+    jc: Option<&str>,
+    inlines: &[Inline],
+    out: &mut String,
+) {
     out.push_str("<w:p>");
-    if let Some(style) = style {
-        out.push_str("<w:pPr><w:pStyle w:val=\"");
-        out.push_str(style);
-        out.push_str("\"/></w:pPr>");
+    if style.is_some() || jc.is_some() {
+        out.push_str("<w:pPr>");
+        if let Some(style) = style {
+            out.push_str("<w:pStyle w:val=\"");
+            out.push_str(style);
+            out.push_str("\"/>");
+        }
+        if let Some(jc) = jc {
+            out.push_str("<w:jc w:val=\"");
+            out.push_str(jc);
+            out.push_str("\"/>");
+        }
+        out.push_str("</w:pPr>");
     }
     render_inlines(inlines, RunProps::default(), out);
     out.push_str("</w:p>");
@@ -137,7 +169,7 @@ fn render_list_item(inlines: &[Inline], num_id: u32, out: &mut String) {
     out.push_str("</w:p>");
 }
 
-fn render_block(block: &Block, out: &mut String) {
+fn render_block(block: &Block, counters: &mut Counters, out: &mut String) {
     match block {
         Block::Heading { level, inlines } => {
             let style = format!("Heading{}", level.clamp(&1, &9));
@@ -154,11 +186,48 @@ fn render_block(block: &Block, out: &mut String) {
             for b in blocks {
                 match b {
                     Block::Paragraph { inlines } => render_paragraph(Some("Quote"), inlines, out),
-                    other => render_block(other, out),
+                    other => render_block(other, counters, out),
                 }
             }
         }
-        Block::Table(table) => render_table(table, out),
+        Block::Table(table) => render_table(table, false, out),
+        Block::Float(float) => render_float(float, counters, out),
+    }
+}
+
+/// Render a `figure`/`table` float: its content (centered if requested) followed
+/// by a numbered caption paragraph.
+fn render_float(float: &Float, counters: &mut Counters, out: &mut String) {
+    for b in &float.content {
+        match b {
+            Block::Paragraph { inlines } => {
+                render_paragraph_jc(None, float.centered.then_some("center"), inlines, out);
+            }
+            Block::Table(table) => render_table(table, float.centered, out),
+            other => render_block(other, counters, out),
+        }
+    }
+    if let Some(cap) = &float.caption {
+        let (prefix, num) = match float.kind {
+            FloatKind::Figure => {
+                counters.figure += 1;
+                ("Figure", counters.figure)
+            }
+            FloatKind::Table => {
+                counters.table += 1;
+                ("Table", counters.table)
+            }
+        };
+        out.push_str("<w:p><w:pPr><w:pStyle w:val=\"Caption\"/>");
+        if float.centered {
+            out.push_str("<w:jc w:val=\"center\"/>");
+        }
+        out.push_str("</w:pPr>");
+        out.push_str(&format!(
+            "<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">{prefix} {num}: </w:t></w:r>"
+        ));
+        render_inlines(cap, RunProps::default(), out);
+        out.push_str("</w:p>");
     }
 }
 
@@ -172,8 +241,9 @@ fn jc_val(align: TableAlign) -> &'static str {
 }
 
 /// Render a [`Table`] to a WordprocessingML `w:tbl` (single-line borders; header
-/// rows repeat across pages; `\multicolumn` -> `w:gridSpan`).
-fn render_table(table: &Table, out: &mut String) {
+/// rows repeat across pages; `\multicolumn` -> `w:gridSpan`; `center` -> the
+/// table is centered on the page).
+fn render_table(table: &Table, center: bool, out: &mut String) {
     // Grid column count: the widest row after expanding colspans.
     let ncols = table
         .rows
@@ -184,6 +254,9 @@ fn render_table(table: &Table, out: &mut String) {
         .max(table.colspec.len())
         .max(1);
     out.push_str("<w:tbl><w:tblPr><w:tblStyle w:val=\"TableGrid\"/>");
+    if center {
+        out.push_str("<w:jc w:val=\"center\"/>");
+    }
     out.push_str("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
     out.push_str(concat!(
         "<w:tblBorders>",
@@ -260,8 +333,9 @@ pub fn document_xml(doc: &Document) -> String {
     if let Some(date) = &doc.date {
         render_paragraph(Some("Subtitle"), date, &mut body);
     }
+    let mut counters = Counters::default();
     for block in &doc.blocks {
-        render_block(block, &mut body);
+        render_block(block, &mut counters, &mut body);
     }
     format!(
         concat!(
@@ -345,6 +419,11 @@ pub fn styles_xml() -> String {
         "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
         "<w:pPr><w:ind w:left=\"720\" w:right=\"720\"/></w:pPr>",
         "<w:rPr><w:i/></w:rPr></w:style>",
+        // Caption (figure/table captions): small text, spaced above.
+        "<w:style w:type=\"paragraph\" w:styleId=\"Caption\"><w:name w:val=\"Caption\"/>",
+        "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
+        "<w:pPr><w:spacing w:before=\"120\" w:after=\"120\"/></w:pPr>",
+        "<w:rPr><w:sz w:val=\"18\"/></w:rPr></w:style>",
     ));
     // TableGrid: a bordered table style (referenced by rendered w:tbl elements).
     s.push_str(concat!(
@@ -478,6 +557,43 @@ mod tests {
         assert!(xml.contains("<w:vMerge w:val=\"restart\"/>")); // top cell starts merge
         assert!(xml.contains("<w:vMerge/>")); // placeholder continues merge
         assert_eq!(xml.matches("w:vMerge").count(), 2);
+    }
+
+    #[test]
+    fn floats_number_captions_and_placeholder_image() {
+        let fig = |n: &str| {
+            Block::Float(Float {
+                kind: FloatKind::Figure,
+                content: vec![Block::Paragraph {
+                    inlines: vec![Inline::Image {
+                        path: format!("{n}.png"),
+                        options: String::new(),
+                    }],
+                }],
+                caption: Some(vec![Inline::Text(format!("Cap {n}"))]),
+                centered: true,
+            })
+        };
+        let tbl = Block::Float(Float {
+            kind: FloatKind::Table,
+            content: vec![],
+            caption: Some(vec![Inline::Text("T".into())]),
+            centered: false,
+        });
+        let doc = Document {
+            blocks: vec![fig("a"), tbl, fig("b")],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        // independent Figure / Table counters
+        assert!(xml.contains("Figure 1: "));
+        assert!(xml.contains("Figure 2: "));
+        assert!(xml.contains("Table 1: "));
+        // image placeholder + caption style + centered content
+        assert!(xml.contains("[image: a.png]"));
+        assert!(xml.contains("w:pStyle w:val=\"Caption\""));
+        assert!(xml.contains("<w:jc w:val=\"center\"/>"));
+        assert!(styles_xml().contains("w:styleId=\"Caption\""));
     }
 
     #[test]

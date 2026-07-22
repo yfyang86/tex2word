@@ -12,7 +12,9 @@
 
 use std::path::Path;
 
-use tex2word_ir::{Block, Document, EmphasisKind, Inline, Table, TableAlign, TableCell, TableRow};
+use tex2word_ir::{
+    Block, Document, EmphasisKind, Float, FloatKind, Inline, Table, TableAlign, TableCell, TableRow,
+};
 
 mod macros;
 
@@ -256,6 +258,13 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                     "tabular" | "tabular*" | "array" | "longtable" => {
                         blocks.push(parse_tabular(&body));
                     }
+                    "figure" | "figure*" => {
+                        blocks.push(parse_float(&body, FloatKind::Figure));
+                    }
+                    "table" | "table*" => {
+                        blocks.push(parse_float(&body, FloatKind::Table));
+                    }
+                    // center/flushleft/flushright: descend, keep the content
                     // unknown environment: descend transparently (keep content)
                     _ => blocks.extend(parse_blocks(&body)),
                 }
@@ -658,6 +667,60 @@ fn split_top_level(s: &str, sep: char) -> Vec<String> {
     parts
 }
 
+/// Parse a `figure`/`table` float: pull out `\caption` and `\centering`, drop
+/// `\label`/`\captionsetup`, and parse the remaining content as blocks (so a
+/// nested `tabular` or an `\includegraphics` is handled normally).
+fn parse_float(body: &str, kind: FloatKind) -> Block {
+    let s: Vec<char> = body.chars().collect();
+    let n = s.len();
+    let mut centered = false;
+    let mut caption: Option<Vec<Inline>> = None;
+    let mut content = String::new();
+    let mut i = 0;
+    while i < n && s[i].is_whitespace() {
+        i += 1;
+    }
+    let (_, after_opt) = read_optional(&s, i); // drop the [htbp] placement spec
+    i = after_opt;
+    while i < n {
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            match name.as_str() {
+                "caption" => {
+                    let a0 = skip_optional_bracket(&s, after); // optional [short]
+                    let (cap, a1) = read_braced(&s, a0);
+                    caption = Some(parse_inlines(cap.trim()));
+                    i = a1.max(a0);
+                    continue;
+                }
+                "centering" => {
+                    centered = true;
+                    i = after;
+                    continue;
+                }
+                "label" | "captionsetup" => {
+                    let (_, a1) = read_braced(&s, after);
+                    i = a1.max(after);
+                    continue;
+                }
+                _ => {
+                    content.extend(&s[i..after]);
+                    i = after;
+                    continue;
+                }
+            }
+        }
+        content.push(s[i]);
+        i += 1;
+    }
+    Block::Float(Float {
+        kind,
+        content: parse_blocks(&content),
+        caption,
+        centered,
+    })
+}
+
 fn is_blank_inline(i: &Inline) -> bool {
     matches!(i, Inline::Text(t) if t.trim().is_empty())
 }
@@ -708,6 +771,16 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                         flush_text!();
                         out.push(Inline::LineBreak);
                         i = after;
+                    }
+                    "includegraphics" => {
+                        flush_text!();
+                        let (options, a1) = read_optional(&s, after);
+                        let (path, a2) = read_braced(&s, a1);
+                        out.push(Inline::Image {
+                            path: path.trim().to_string(),
+                            options: options.trim().to_string(),
+                        });
+                        i = a2;
                     }
                     // escaped literals: \& \% \_ \# \{ \} \$
                     "&" | "%" | "_" | "#" | "{" | "}" | "$" => {
@@ -1065,6 +1138,31 @@ fn read_braced(s: &[char], i: usize) -> (String, usize) {
         j += 1;
     }
     // unbalanced: take the rest
+    (s[start..].iter().collect(), s.len())
+}
+
+/// Skip whitespace then read a bracketed `[ … ]` optional argument (brace-aware).
+/// Returns (inner, index-after); if no `[` follows, returns ("", i) unchanged.
+fn read_optional(s: &[char], i: usize) -> (String, usize) {
+    let mut j = i;
+    while j < s.len() && (s[j] == ' ' || s[j] == '\n' || s[j] == '\t' || s[j] == '\r') {
+        j += 1;
+    }
+    if j >= s.len() || s[j] != '[' {
+        return (String::new(), i);
+    }
+    let start = j + 1;
+    let mut depth = 0;
+    j = start;
+    while j < s.len() {
+        match s[j] {
+            '{' => depth += 1,
+            '}' => depth -= 1,
+            ']' if depth == 0 => return (s[start..j].iter().collect(), j + 1),
+            _ => {}
+        }
+        j += 1;
+    }
     (s[start..].iter().collect(), s.len())
 }
 
@@ -1457,6 +1555,74 @@ x & y \\
         };
         assert_eq!(t.colspec, vec![TableAlign::Center, TableAlign::Center]);
         assert_eq!(t.rows[0].cells[0].inlines, vec![Inline::Text("x".into())]);
+    }
+
+    #[test]
+    fn figure_float_caption_centering_and_image() {
+        let doc = conv(
+            r"\begin{document}\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.5\textwidth]{plot.png}
+\caption{A nice \textbf{plot}.}
+\label{fig:plot}
+\end{figure}\end{document}",
+        );
+        let Block::Float(f) = &doc.blocks[0] else {
+            panic!("expected float, got {:?}", doc.blocks[0]);
+        };
+        assert_eq!(f.kind, FloatKind::Figure);
+        assert!(f.centered);
+        // \label dropped; caption parsed with markup
+        let cap = f.caption.as_ref().expect("caption");
+        assert_eq!(cap[0], Inline::Text("A nice ".into()));
+        assert!(matches!(
+            &cap[1],
+            Inline::Emphasis {
+                kind: EmphasisKind::Bold,
+                ..
+            }
+        ));
+        // content holds the image inline
+        let Block::Paragraph { inlines } = &f.content[0] else {
+            panic!("expected paragraph with image");
+        };
+        assert!(inlines
+            .iter()
+            .any(|i| matches!(i, Inline::Image { path, .. } if path == "plot.png")));
+    }
+
+    #[test]
+    fn table_float_wraps_tabular_with_caption() {
+        let doc = conv(
+            r"\begin{document}\begin{table}[h]
+\centering
+\caption{Results}
+\begin{tabular}{c c}
+a & b \\
+\end{tabular}
+\end{table}\end{document}",
+        );
+        let Block::Float(f) = &doc.blocks[0] else {
+            panic!("expected float");
+        };
+        assert_eq!(f.kind, FloatKind::Table);
+        assert_eq!(f.caption, Some(vec![Inline::Text("Results".into())]));
+        assert!(matches!(f.content[0], Block::Table(_)));
+    }
+
+    #[test]
+    fn includegraphics_without_options() {
+        let doc = conv(r"\begin{document}\includegraphics{a.jpg}\end{document}");
+        let Block::Paragraph { inlines } = &doc.blocks[0] else {
+            panic!("expected paragraph");
+        };
+        assert_eq!(
+            inlines[0],
+            Inline::Image {
+                path: "a.jpg".into(),
+                options: String::new()
+            }
+        );
     }
 
     #[test]

@@ -33,6 +33,11 @@ pub enum Inline {
     Math(String),
     /// An explicit line break (`\\`).
     LineBreak,
+    /// An `\includegraphics[options]{path}` image. `path` is as written in the
+    /// source; `options` is the raw option string (e.g. `width=0.5\textwidth`).
+    /// Binary embedding is a later milestone — for now it renders as a labelled
+    /// placeholder.
+    Image { path: String, options: String },
 }
 
 /// Block-level content.
@@ -52,6 +57,27 @@ pub enum Block {
     Quote(Vec<Block>),
     /// A `tabular`/`array` table.
     Table(Table),
+    /// A `figure`/`table` float (content + an optional numbered caption).
+    Float(Float),
+}
+
+/// A `figure`/`table` float environment.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Float {
+    pub kind: FloatKind,
+    /// The float's body (image/table/paragraphs), in source order.
+    pub content: Vec<Block>,
+    /// The `\caption{…}` text, if any (numbered `Figure N` / `Table N`).
+    pub caption: Option<Vec<Inline>>,
+    /// `\centering` was present.
+    pub centered: bool,
+}
+
+/// Which caption series a float belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FloatKind {
+    Figure,
+    Table,
 }
 
 /// Horizontal cell alignment (from a column spec like `{lcr}`).
@@ -151,6 +177,15 @@ fn push_block_text(b: &Block, out: &mut String) {
                 out.push('\n');
             }
         }
+        Block::Float(f) => {
+            for b in &f.content {
+                push_block_text(b, out);
+            }
+            if let Some(cap) = &f.caption {
+                push_inline_text(cap, out);
+                out.push('\n');
+            }
+        }
     }
 }
 
@@ -161,6 +196,7 @@ fn push_inline_text(inlines: &[Inline], out: &mut String) {
             Inline::Emphasis { inlines, .. } => push_inline_text(inlines, out),
             Inline::Math(m) => out.push_str(m),
             Inline::LineBreak => out.push(' '),
+            Inline::Image { .. } => {}
         }
     }
 }
