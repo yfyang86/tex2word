@@ -12,7 +12,7 @@
 
 use std::path::Path;
 
-use tex2word_ir::{Block, Document, EmphasisKind, Inline};
+use tex2word_ir::{Block, Document, EmphasisKind, Inline, Table, TableAlign, TableCell, TableRow};
 
 mod macros;
 
@@ -253,6 +253,9 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                     "quote" | "quotation" => {
                         blocks.push(Block::Quote(parse_blocks(&body)));
                     }
+                    "tabular" | "tabular*" | "array" | "longtable" => {
+                        blocks.push(parse_tabular(&body));
+                    }
                     // unknown environment: descend transparently (keep content)
                     _ => blocks.extend(parse_blocks(&body)),
                 }
@@ -396,6 +399,229 @@ fn skip_optional_bracket(s: &[char], i: usize) -> usize {
         return j;
     }
     i
+}
+
+/// Parse a `tabular`/`array`/`longtable` body into a [`Block::Table`].
+///
+/// Reads the leading column spec (skipping an optional `[pos]` and, for
+/// `tabular*`/`longtable`, a leading width group), then splits the body into
+/// rows on top-level `\\` and cells on top-level `&`, dropping booktabs/`\hline`
+/// rules. Rows above the first `\midrule` (or first `\hline` after data) become
+/// header rows; `\multicolumn` sets a cell's colspan and alignment.
+fn parse_tabular(body: &str) -> Block {
+    let s: Vec<char> = body.chars().collect();
+    let mut i = 0;
+    while i < s.len() && s[i].is_whitespace() {
+        i += 1;
+    }
+    i = skip_optional_bracket(&s, i); // optional [t]/[b]/[c] position
+    let (mut spec, mut after) = read_braced(&s, i);
+    if spec.contains('\\') {
+        // the first group was a width (e.g. \textwidth); the real colspec follows
+        let (spec2, after2) = read_braced(&s, after);
+        spec = spec2;
+        after = after2;
+    }
+    let colspec = parse_colspec(&spec);
+    let rows = parse_table_rows(&s[after..], &colspec);
+    Block::Table(Table { rows, colspec })
+}
+
+/// Map a LaTeX column spec (e.g. `{|l c r|}`, `p{3cm}`, `*{3}{c}`) to per-column
+/// alignments, ignoring rules/spacers (`|`, `@{…}`, `<{…}`, `>{…}`, `!{…}`).
+fn parse_colspec(spec: &str) -> Vec<TableAlign> {
+    let cs: Vec<char> = spec.chars().collect();
+    let mut out: Vec<TableAlign> = Vec::new();
+    let mut i = 0;
+    while i < cs.len() {
+        match cs[i] {
+            'l' => {
+                out.push(TableAlign::Left);
+                i += 1;
+            }
+            'c' => {
+                out.push(TableAlign::Center);
+                i += 1;
+            }
+            'r' => {
+                out.push(TableAlign::Right);
+                i += 1;
+            }
+            // p{w}/m{w}/b{w} fixed-width paragraph columns -> left; drop the width
+            'p' | 'm' | 'b' => {
+                out.push(TableAlign::Left);
+                let (_, after) = read_braced(&cs, i + 1);
+                i = after.max(i + 1);
+            }
+            // @{…}/!{…}/<{…}/>{…} inserts: skip the following brace group
+            '@' | '!' | '<' | '>' => {
+                let (_, after) = read_braced(&cs, i + 1);
+                i = after.max(i + 1);
+            }
+            // *{n}{cols}: repeat the inner spec n times
+            '*' => {
+                let (count, a1) = read_braced(&cs, i + 1);
+                let (inner, a2) = read_braced(&cs, a1);
+                if let Ok(n) = count.trim().parse::<usize>() {
+                    let sub = parse_colspec(&inner);
+                    for _ in 0..n {
+                        out.extend(sub.iter().copied());
+                    }
+                }
+                i = a2.max(i + 1);
+            }
+            _ => i += 1, // '|', whitespace, unknown
+        }
+    }
+    out
+}
+
+/// Split a tabular body into [`TableRow`]s (top-level `\\`), stripping rules.
+fn parse_table_rows(s: &[char], colspec: &[TableAlign]) -> Vec<TableRow> {
+    let n = s.len();
+    let mut row_strings: Vec<String> = Vec::new();
+    let mut header_boundary: Option<usize> = None;
+    let mut buf = String::new();
+    let mut i = 0;
+    while i < n {
+        let c = s[i];
+        if c == '\\' {
+            let (name, after) = read_command_name(s, i);
+            match name.as_str() {
+                "\\" | "tabularnewline" => {
+                    row_strings.push(std::mem::take(&mut buf));
+                    let mut j = after;
+                    if j < n && s[j] == '*' {
+                        j += 1;
+                    }
+                    i = skip_optional_bracket(s, j); // drop \\[len] spacing
+                    continue;
+                }
+                "hline" | "toprule" | "midrule" | "bottomrule" => {
+                    // header ends at the first \midrule (or first \hline after data)
+                    let boundary = name == "midrule" || name == "hline";
+                    if boundary && header_boundary.is_none() && !row_strings.is_empty() {
+                        header_boundary = Some(row_strings.len());
+                    }
+                    i = after;
+                    continue;
+                }
+                "cline" | "cmidrule" => {
+                    let mut j = after;
+                    if j < n && s[j] == '(' {
+                        while j < n && s[j] != ')' {
+                            j += 1;
+                        }
+                        j = (j + 1).min(n);
+                    }
+                    let (_, j2) = read_braced(s, j);
+                    i = j2.max(j);
+                    continue;
+                }
+                "noalign" | "addlinespace" | "morecmidrules" => {
+                    let (_, j) = read_braced(s, after);
+                    i = j.max(after);
+                    continue;
+                }
+                _ => {
+                    buf.extend(&s[i..after]);
+                    i = after;
+                    continue;
+                }
+            }
+        }
+        buf.push(c);
+        i += 1;
+    }
+    if !buf.trim().is_empty() {
+        row_strings.push(buf);
+    }
+    row_strings
+        .iter()
+        .enumerate()
+        .filter(|(_, rs)| !rs.trim().is_empty())
+        .map(|(idx, rs)| TableRow {
+            cells: parse_row_cells(rs, colspec),
+            is_header: header_boundary.is_some_and(|b| idx < b),
+        })
+        .collect()
+}
+
+/// Split a row on top-level `&` and parse each cell (handling `\multicolumn`).
+fn parse_row_cells(row: &str, colspec: &[TableAlign]) -> Vec<TableCell> {
+    let mut cells: Vec<TableCell> = Vec::new();
+    let mut col = 0;
+    for raw in split_top_level(row, '&') {
+        let (inlines, colspan, align_override) = parse_cell(&raw);
+        let align = align_override.unwrap_or_else(|| colspec.get(col).copied().unwrap_or_default());
+        cells.push(TableCell {
+            inlines,
+            colspan,
+            align,
+        });
+        col += colspan;
+    }
+    cells
+}
+
+/// Parse one cell: `\multicolumn{n}{spec}{body}` -> (inlines, n, override align),
+/// otherwise (inlines, 1, None).
+fn parse_cell(raw: &str) -> (Vec<Inline>, usize, Option<TableAlign>) {
+    let cs: Vec<char> = raw.chars().collect();
+    let mut i = 0;
+    while i < cs.len() && cs[i].is_whitespace() {
+        i += 1;
+    }
+    if i < cs.len() && cs[i] == '\\' {
+        let (name, after) = read_command_name(&cs, i);
+        if name == "multicolumn" {
+            let (n_s, a1) = read_braced(&cs, after);
+            let (spec, a2) = read_braced(&cs, a1);
+            let (content, _) = read_braced(&cs, a2);
+            let colspan = n_s.trim().parse::<usize>().unwrap_or(1).max(1);
+            let align = parse_colspec(&spec).into_iter().next();
+            return (parse_inlines(content.trim()), colspan, align);
+        }
+    }
+    (parse_inlines(raw.trim()), 1, None)
+}
+
+/// Split on an unescaped top-level `sep` (respecting `{…}` groups and `\x`).
+fn split_top_level(s: &str, sep: char) -> Vec<String> {
+    let cs: Vec<char> = s.chars().collect();
+    let n = cs.len();
+    let mut parts: Vec<String> = Vec::new();
+    let mut buf = String::new();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < n {
+        let c = cs[i];
+        if c == '\\' && i + 1 < n {
+            buf.push(c);
+            buf.push(cs[i + 1]);
+            i += 2;
+            continue;
+        }
+        match c {
+            '{' => {
+                depth += 1;
+                buf.push(c);
+            }
+            '}' => {
+                depth -= 1;
+                buf.push(c);
+            }
+            _ if c == sep && depth == 0 => {
+                parts.push(std::mem::take(&mut buf));
+                i += 1;
+                continue;
+            }
+            _ => buf.push(c),
+        }
+        i += 1;
+    }
+    parts.push(buf);
+    parts
 }
 
 fn is_blank_inline(i: &Inline) -> bool {
@@ -1088,6 +1314,91 @@ end\end{document}",
         assert!(conv(r"\begin{document}\'q\end{document}")
             .plain_text()
             .contains('q'));
+    }
+
+    #[test]
+    fn tabular_booktabs_header_and_alignment() {
+        let doc = conv(
+            r"\begin{document}\begin{tabular}{l c r}
+\toprule
+Name & Age & Score \\
+\midrule
+Ada & 28 & 99 \\
+Alan & 41 & 87 \\
+\bottomrule
+\end{tabular}\end{document}",
+        );
+        let Block::Table(t) = &doc.blocks[0] else {
+            panic!("expected table, got {:?}", doc.blocks[0]);
+        };
+        assert_eq!(
+            t.colspec,
+            vec![TableAlign::Left, TableAlign::Center, TableAlign::Right]
+        );
+        assert_eq!(t.rows.len(), 3);
+        assert!(t.rows[0].is_header);
+        assert!(!t.rows[1].is_header);
+        assert_eq!(t.rows[0].cells.len(), 3);
+        assert_eq!(
+            t.rows[0].cells[0].inlines,
+            vec![Inline::Text("Name".into())]
+        );
+        assert_eq!(t.rows[0].cells[2].align, TableAlign::Right);
+        assert_eq!(t.rows[1].cells[0].inlines, vec![Inline::Text("Ada".into())]);
+    }
+
+    #[test]
+    fn tabular_multicolumn_spans_and_overrides_align() {
+        let doc = conv(
+            r"\begin{document}\begin{tabular}{|l|l|}
+\hline
+\multicolumn{2}{c}{Heading} \\
+\hline
+a & b \\
+\hline
+\end{tabular}\end{document}",
+        );
+        let Block::Table(t) = &doc.blocks[0] else {
+            panic!("expected table");
+        };
+        // first row: a single spanning cell, centered, then a normal 2-cell row
+        assert_eq!(t.rows[0].cells.len(), 1);
+        assert_eq!(t.rows[0].cells[0].colspan, 2);
+        assert_eq!(t.rows[0].cells[0].align, TableAlign::Center);
+        assert_eq!(t.rows[1].cells.len(), 2);
+        assert_eq!(t.rows[1].cells[1].inlines, vec![Inline::Text("b".into())]);
+    }
+
+    #[test]
+    fn colspec_repeat_and_paragraph_columns() {
+        // *{3}{c} expands to three centered columns; p{2cm} -> left
+        assert_eq!(
+            parse_colspec("*{3}{c}"),
+            vec![TableAlign::Center, TableAlign::Center, TableAlign::Center]
+        );
+        assert_eq!(
+            parse_colspec("l p{2cm} r"),
+            vec![TableAlign::Left, TableAlign::Left, TableAlign::Right]
+        );
+        // rules/inserts are ignored
+        assert_eq!(
+            parse_colspec("|l|@{}c|"),
+            vec![TableAlign::Left, TableAlign::Center]
+        );
+    }
+
+    #[test]
+    fn tabular_star_skips_width_argument() {
+        let doc = conv(
+            r"\begin{document}\begin{tabular*}{\textwidth}{c c}
+x & y \\
+\end{tabular*}\end{document}",
+        );
+        let Block::Table(t) = &doc.blocks[0] else {
+            panic!("expected table");
+        };
+        assert_eq!(t.colspec, vec![TableAlign::Center, TableAlign::Center]);
+        assert_eq!(t.rows[0].cells[0].inlines, vec![Inline::Text("x".into())]);
     }
 
     #[test]

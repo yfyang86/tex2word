@@ -50,6 +50,39 @@ pub enum Block {
     },
     /// A `quote`/`quotation` set-off block.
     Quote(Vec<Block>),
+    /// A `tabular`/`array` table.
+    Table(Table),
+}
+
+/// Horizontal cell alignment (from a column spec like `{lcr}`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TableAlign {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableCell {
+    pub inlines: Vec<Inline>,
+    /// `\multicolumn` span (1 = normal).
+    pub colspan: usize,
+    pub align: TableAlign,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableRow {
+    pub cells: Vec<TableCell>,
+    /// A header row (repeated on each page; e.g. above a `\midrule`).
+    pub is_header: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Table {
+    pub rows: Vec<TableRow>,
+    /// Per-column default alignment (from the column spec).
+    pub colspec: Vec<TableAlign>,
 }
 
 /// A whole document: title/author/date metadata plus a sequence of blocks.
@@ -101,6 +134,17 @@ fn push_block_text(b: &Block, out: &mut String) {
         Block::Quote(blocks) => {
             for b in blocks {
                 push_block_text(b, out);
+            }
+        }
+        Block::Table(t) => {
+            for row in &t.rows {
+                for (idx, cell) in row.cells.iter().enumerate() {
+                    if idx > 0 {
+                        out.push('\t');
+                    }
+                    push_inline_text(&cell.inlines, out);
+                }
+                out.push('\n');
             }
         }
     }

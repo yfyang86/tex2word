@@ -91,6 +91,15 @@ Each phase is validated against the Python output on the corpus + UATs.
     more symbols, `$$…$$` display, numbered equations.
 - **Phase 3 — tables & figures.** `tabular`/`booktabs`, `\multicolumn`/`\multirow`
   (grid/vMerge), captions, `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
+  - ✅ Tables: `tabular`/`tabular*`/`array`/`longtable` → native Word `w:tbl`
+    (bordered `TableGrid` style, auto grid). Column spec (`l`/`c`/`r`, `p`/`m`/`b`
+    fixed-width → left, `|`/`@{}`/`<{}`/`>{}` inserts ignored, `*{n}{cols}`
+    expansion) sets per-column `w:jc`. Booktabs (`\toprule`/`\midrule`/
+    `\bottomrule`/`\cmidrule`) and `\hline`/`\cline` rules drop out; rows above the
+    first `\midrule`/`\hline` become repeated header rows (`w:tblHeader`).
+    `\multicolumn{n}{spec}{…}` → `w:gridSpan` with an alignment override.
+  - ⏳ Next: `\multirow` (`w:vMerge`), `figure`/`table` floats + `\caption`
+    (numbered), `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
   numbering, `transforms/crossref.py`, the multi-column section machinery.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,

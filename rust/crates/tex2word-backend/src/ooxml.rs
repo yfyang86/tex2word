@@ -6,7 +6,7 @@
 //! `styles.xml`, `numbering.xml`). Tables, figures and live fields are later
 //! milestones.
 
-use tex2word_ir::{Block, Document, EmphasisKind, Inline};
+use tex2word_ir::{Block, Document, EmphasisKind, Inline, Table, TableAlign};
 
 const W_NS: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const M_NS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/math";
@@ -158,7 +158,72 @@ fn render_block(block: &Block, out: &mut String) {
                 }
             }
         }
+        Block::Table(table) => render_table(table, out),
     }
+}
+
+/// Map a cell alignment to a `w:jc` justification value.
+fn jc_val(align: TableAlign) -> &'static str {
+    match align {
+        TableAlign::Left => "left",
+        TableAlign::Center => "center",
+        TableAlign::Right => "right",
+    }
+}
+
+/// Render a [`Table`] to a WordprocessingML `w:tbl` (single-line borders; header
+/// rows repeat across pages; `\multicolumn` -> `w:gridSpan`).
+fn render_table(table: &Table, out: &mut String) {
+    // Grid column count: the widest row after expanding colspans.
+    let ncols = table
+        .rows
+        .iter()
+        .map(|r| r.cells.iter().map(|c| c.colspan.max(1)).sum::<usize>())
+        .max()
+        .unwrap_or(0)
+        .max(table.colspec.len())
+        .max(1);
+    out.push_str("<w:tbl><w:tblPr><w:tblStyle w:val=\"TableGrid\"/>");
+    out.push_str("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
+    out.push_str(concat!(
+        "<w:tblBorders>",
+        "<w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:left w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:right w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:insideH w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "</w:tblBorders></w:tblPr>",
+    ));
+    out.push_str("<w:tblGrid>");
+    for _ in 0..ncols {
+        out.push_str("<w:gridCol/>");
+    }
+    out.push_str("</w:tblGrid>");
+    for row in &table.rows {
+        out.push_str("<w:tr>");
+        if row.is_header {
+            out.push_str("<w:trPr><w:tblHeader/></w:trPr>");
+        }
+        for cell in &row.cells {
+            out.push_str("<w:tc><w:tcPr>");
+            if cell.colspan > 1 {
+                out.push_str(&format!("<w:gridSpan w:val=\"{}\"/>", cell.colspan));
+            }
+            out.push_str("</w:tcPr>");
+            // Cell body: a single paragraph justified per the column alignment.
+            out.push_str("<w:p><w:pPr><w:jc w:val=\"");
+            out.push_str(jc_val(cell.align));
+            out.push_str("\"/></w:pPr>");
+            render_inlines(&cell.inlines, RunProps::default(), out);
+            out.push_str("</w:p></w:tc>");
+        }
+        out.push_str("</w:tr>");
+    }
+    out.push_str("</w:tbl>");
+    // A trailing empty paragraph keeps a table from being the final body element
+    // (Word requires a paragraph after a table / before sectPr).
+    out.push_str("<w:p/>");
 }
 
 /// Render the IR document to `word/document.xml`.
@@ -259,6 +324,21 @@ pub fn styles_xml() -> String {
         "<w:pPr><w:ind w:left=\"720\" w:right=\"720\"/></w:pPr>",
         "<w:rPr><w:i/></w:rPr></w:style>",
     ));
+    // TableGrid: a bordered table style (referenced by rendered w:tbl elements).
+    s.push_str(concat!(
+        "<w:style w:type=\"table\" w:styleId=\"TableGrid\"><w:name w:val=\"Table Grid\"/>",
+        "<w:basedOn w:val=\"TableNormal\"/><w:tblPr>",
+        "<w:tblBorders>",
+        "<w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:left w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:right w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:insideH w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "<w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>",
+        "</w:tblBorders></w:tblPr></w:style>",
+        "<w:style w:type=\"table\" w:default=\"1\" w:styleId=\"TableNormal\">",
+        "<w:name w:val=\"Normal Table\"/></w:style>",
+    ));
     s.push_str("</w:styles>");
     s
 }
@@ -291,6 +371,52 @@ mod tests {
         assert!(xml.contains("w:pStyle w:val=\"Title\""));
         assert!(xml.contains("<w:b/>"));
         assert!(xml.contains("<m:oMath>"));
+    }
+
+    #[test]
+    fn table_renders_grid_header_and_span() {
+        use tex2word_ir::{TableCell, TableRow};
+        let table = Table {
+            colspec: vec![TableAlign::Left, TableAlign::Right],
+            rows: vec![
+                TableRow {
+                    is_header: true,
+                    cells: vec![TableCell {
+                        inlines: vec![Inline::Text("Head".into())],
+                        colspan: 2,
+                        align: TableAlign::Center,
+                    }],
+                },
+                TableRow {
+                    is_header: false,
+                    cells: vec![
+                        TableCell {
+                            inlines: vec![Inline::Text("a".into())],
+                            colspan: 1,
+                            align: TableAlign::Left,
+                        },
+                        TableCell {
+                            inlines: vec![Inline::Text("b".into())],
+                            colspan: 1,
+                            align: TableAlign::Right,
+                        },
+                    ],
+                },
+            ],
+        };
+        let doc = Document {
+            blocks: vec![Block::Table(table)],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        assert!(xml.contains("<w:tbl>"));
+        assert_eq!(xml.matches("<w:gridCol/>").count(), 2); // 2-column grid
+        assert!(xml.contains("<w:tblHeader/>")); // header row flagged
+        assert!(xml.contains("<w:gridSpan w:val=\"2\"/>")); // multicolumn span
+        assert!(xml.contains("<w:jc w:val=\"right\"/>")); // right-aligned cell
+        assert_eq!(xml.matches("<w:tr>").count(), 2);
+        // styles.xml must define the referenced TableGrid style
+        assert!(styles_xml().contains("w:styleId=\"TableGrid\""));
     }
 
     #[test]
