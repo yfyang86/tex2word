@@ -76,9 +76,11 @@ Each phase is validated against the Python output on the corpus + UATs.
     `m:sSubSup`), roots (`m:rad`, incl. `\sqrt[n]`), Greek + operator/relation/
     arrow symbol table, and upright function names (`\sin` → `m:nor`). Wired into
     the back-end (`Inline::Math` now emits structured OMML).
-  - ⏳ Next: n-ary operators (`\sum`/`\int`/`\prod` with limits → `m:nary`),
-    `\left…\right` delimiters (`m:d`), matrices/`aligned` (`m:m`), accents in
-    math, `\text`, and the rest of the symbol tables.
+  - ✅ N-ary operators: `\sum`/`\prod`/`\int`/`\oint`/`\bigcup`/… with `_`/`^`
+    limits → `m:nary` (limits above/below for sums, as scripts for integrals).
+  - ✅ Delimiters: `\left<d>…\right<d>` → `m:d` (nesting-aware; `\left.` = none).
+  - ⏳ Next: matrices/`aligned`/`cases` (`m:m`), accents in math
+    (`\hat`/`\bar`/`\vec`/`\tilde` → `m:acc`), `\text` runs, and more symbols.
 - **Phase 3 — tables & figures.** `tabular`/`booktabs`, `\multicolumn`/`\multirow`
   (grid/vMerge), captions, `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,

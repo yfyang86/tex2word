@@ -23,6 +23,22 @@ pub enum Node {
     Sqrt(Box<Node>),
     /// An nth root: (index, radicand).
     Root(Box<Node>, Box<Node>),
+    /// A big/n-ary operator (∑/∫/∏/…) with optional lower/upper limits and an
+    /// operand. `over_under` places the limits above/below (sums) vs. as scripts
+    /// (integrals).
+    Nary {
+        op: String,
+        sub: Option<Box<Node>>,
+        sup: Option<Box<Node>>,
+        body: Box<Node>,
+        over_under: bool,
+    },
+    /// A `\left<d> … \right<d>` delimited group (empty delim = `\left.`).
+    Delim {
+        open: String,
+        close: String,
+        body: Box<Node>,
+    },
 }
 
 /// Parse a LaTeX math string into a [`Node::Row`].
@@ -154,8 +170,20 @@ impl Parser {
                 // upright content (styling nuances are a later milestone)
                 Node::Upright(flatten_text(&self.parse_atom()))
             }
+            "left" => self.parse_delim(),
+            "right" => Node::Run(String::new()), // stray \right (parse_delim owns it)
             _ => {
-                if let Some(f) = symbols::function_name(&name) {
+                if let Some((op, over_under)) = symbols::nary(&name) {
+                    let (sub, sup) = self.parse_nary_limits();
+                    let body = self.parse_operand();
+                    Node::Nary {
+                        op: op.to_string(),
+                        sub,
+                        sup,
+                        body: Box::new(body),
+                        over_under,
+                    }
+                } else if let Some(f) = symbols::function_name(&name) {
                     Node::Upright(f.to_string())
                 } else if let Some(sym) = symbols::symbol(&name) {
                     Node::Run(sym.to_string())
@@ -163,6 +191,115 @@ impl Parser {
                     Node::Run(String::new()) // unknown command: drop
                 }
             }
+        }
+    }
+
+    /// Read an n-ary operator's `_lower`/`^upper` limits (in either order).
+    fn parse_nary_limits(&mut self) -> (Option<Box<Node>>, Option<Box<Node>>) {
+        let mut sub = None;
+        let mut sup = None;
+        loop {
+            self.skip_space();
+            match self.peek() {
+                Some('_') => {
+                    self.i += 1;
+                    self.skip_space();
+                    sub = Some(Box::new(self.parse_atom()));
+                }
+                Some('^') => {
+                    self.i += 1;
+                    self.skip_space();
+                    sup = Some(Box::new(self.parse_atom()));
+                }
+                _ => break,
+            }
+        }
+        (sub, sup)
+    }
+
+    /// The operand of an n-ary operator: the next atom (with its own scripts).
+    /// Kept to a single atom so a trailing `+ c` / `=` is not swallowed.
+    fn parse_operand(&mut self) -> Node {
+        self.skip_space();
+        match self.peek() {
+            None | Some('}') => Node::Row(Vec::new()),
+            _ => {
+                let a = self.parse_atom();
+                self.maybe_scripts(a)
+            }
+        }
+    }
+
+    /// True if a complete `\name` control word begins at the cursor.
+    fn at_command(&self, name: &str) -> bool {
+        if self.peek() != Some('\\') {
+            return false;
+        }
+        let mut k = self.i + 1;
+        for pc in name.chars() {
+            if self.s.get(k) != Some(&pc) {
+                return false;
+            }
+            k += 1;
+        }
+        !matches!(self.s.get(k), Some(c) if c.is_ascii_alphabetic())
+    }
+
+    /// Parse `\left<open> … \right<close>` (the `\left` is already consumed).
+    fn parse_delim(&mut self) -> Node {
+        let open = self.read_delim();
+        let start = self.i;
+        let mut depth = 1;
+        while self.i < self.s.len() {
+            if self.at_command("left") {
+                depth += 1;
+                self.i += 5; // "\left"
+                continue;
+            }
+            if self.at_command("right") {
+                depth -= 1;
+                if depth == 0 {
+                    let inner: String = self.s[start..self.i].iter().collect();
+                    self.i += 6; // "\right"
+                    let close = self.read_delim();
+                    return Node::Delim {
+                        open,
+                        close,
+                        body: Box::new(parse(&inner)),
+                    };
+                }
+                self.i += 6;
+                continue;
+            }
+            self.i += 1;
+        }
+        // no matching \right: take the rest as the body
+        let inner: String = self.s[start..].iter().collect();
+        self.i = self.s.len();
+        Node::Delim {
+            open,
+            close: String::new(),
+            body: Box::new(parse(&inner)),
+        }
+    }
+
+    /// Read a delimiter after `\left`/`\right`: a char, a `\cmd`, or `.` (none).
+    fn read_delim(&mut self) -> String {
+        self.skip_space();
+        match self.peek() {
+            Some('\\') => {
+                let name = self.read_name();
+                delim_symbol(&name).to_string()
+            }
+            Some('.') => {
+                self.i += 1;
+                String::new()
+            }
+            Some(c) => {
+                self.i += 1;
+                c.to_string()
+            }
+            None => String::new(),
         }
     }
 
@@ -201,6 +338,25 @@ fn flatten_text(node: &Node) -> String {
         Node::Run(s) | Node::Upright(s) => s.clone(),
         Node::Row(items) => items.iter().map(flatten_text).collect(),
         _ => String::new(),
+    }
+}
+
+/// Map a `\left`/`\right` delimiter command name to its glyph.
+fn delim_symbol(name: &str) -> &'static str {
+    match name {
+        "{" | "lbrace" => "{",
+        "}" | "rbrace" => "}",
+        "|" | "Vert" | "lVert" | "rVert" => "‖",
+        "langle" => "⟨",
+        "rangle" => "⟩",
+        "lceil" => "⌈",
+        "rceil" => "⌉",
+        "lfloor" => "⌊",
+        "rfloor" => "⌋",
+        "backslash" => "\\",
+        "uparrow" => "↑",
+        "downarrow" => "↓",
+        other => symbols::symbol(other).unwrap_or(""),
     }
 }
 

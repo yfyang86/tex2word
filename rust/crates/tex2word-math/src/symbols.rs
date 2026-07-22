@@ -163,6 +163,29 @@ pub fn symbol(name: &str) -> Option<&'static str> {
     })
 }
 
+/// N-ary/big operators: `(glyph, over_under)` where `over_under` places the
+/// limits above/below (sums) rather than as scripts (integrals).
+pub fn nary(name: &str) -> Option<(&'static str, bool)> {
+    Some(match name {
+        "sum" => ("∑", true),
+        "prod" => ("∏", true),
+        "coprod" => ("∐", true),
+        "bigcup" => ("⋃", true),
+        "bigcap" => ("⋂", true),
+        "bigsqcup" => ("⨆", true),
+        "bigvee" => ("⋁", true),
+        "bigwedge" => ("⋀", true),
+        "bigoplus" => ("⨁", true),
+        "bigotimes" => ("⨂", true),
+        "bigodot" => ("⨀", true),
+        "int" => ("∫", false),
+        "iint" => ("∬", false),
+        "iiint" => ("∭", false),
+        "oint" => ("∮", false),
+        _ => return None,
+    })
+}
+
 /// Math function names that render upright (e.g. `\sin` -> upright "sin").
 pub fn function_name(name: &str) -> Option<&'static str> {
     Some(match name {

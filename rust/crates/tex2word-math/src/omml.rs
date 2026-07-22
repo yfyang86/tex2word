@@ -83,6 +83,41 @@ pub fn render(node: &Node) -> String {
             cell(index),
             cell(rad)
         ),
+        Node::Nary {
+            op,
+            sub,
+            sup,
+            body,
+            over_under,
+        } => {
+            let limloc = if *over_under { "undOvr" } else { "subSup" };
+            let (sub_hide, sub_xml) = match sub {
+                Some(n) => ("0", render(n)),
+                None => ("1", String::new()),
+            };
+            let (sup_hide, sup_xml) = match sup {
+                Some(n) => ("0", render(n)),
+                None => ("1", String::new()),
+            };
+            format!(
+                "<m:nary><m:naryPr><m:chr m:val=\"{}\"/><m:limLoc m:val=\"{}\"/>\
+                 <m:subHide m:val=\"{}\"/><m:supHide m:val=\"{}\"/></m:naryPr>\
+                 <m:sub>{}</m:sub><m:sup>{}</m:sup><m:e>{}</m:e></m:nary>",
+                escape(op),
+                limloc,
+                sub_hide,
+                sup_hide,
+                sub_xml,
+                sup_xml,
+                cell(body)
+            )
+        }
+        Node::Delim { open, close, body } => format!(
+            "<m:d><m:dPr><m:begChr m:val=\"{}\"/><m:endChr m:val=\"{}\"/></m:dPr><m:e>{}</m:e></m:d>",
+            escape(open),
+            escape(close),
+            cell(body)
+        ),
     }
 }
 
@@ -108,5 +143,37 @@ mod tests {
     #[test]
     fn amp_is_escaped() {
         assert!(render(&Node::Run("a&b".into())).contains("a&amp;b"));
+    }
+
+    #[test]
+    fn nary_sum_and_int() {
+        let sum = render(&parse(r"\sum_{i=1}^{n} a_i"));
+        assert!(sum.contains("<m:nary>"));
+        assert!(sum.contains("m:chr m:val=\"∑\""));
+        assert!(sum.contains("m:limLoc m:val=\"undOvr\"")); // sums: limits above/below
+        assert!(sum.contains("m:subHide m:val=\"0\"") && sum.contains("m:supHide m:val=\"0\""));
+        // integral: limits as scripts, only a lower limit here
+        let int = render(&parse(r"\int_0 f"));
+        assert!(int.contains("m:limLoc m:val=\"subSup\""));
+        assert!(int.contains("m:supHide m:val=\"1\"")); // no upper limit
+    }
+
+    #[test]
+    fn delimiters() {
+        let d = render(&parse(r"\left( \frac{a}{b} \right)"));
+        assert!(d.contains("<m:d>"));
+        assert!(d.contains("m:begChr m:val=\"(\"") && d.contains("m:endChr m:val=\")\""));
+        assert!(d.contains("<m:f>")); // the fraction inside
+                                      // \left. … \right| (one-sided; . = no left delim, | = single bar)
+        let one = render(&parse(r"\left. x \right|"));
+        assert!(one.contains("m:begChr m:val=\"\"") && one.contains("m:endChr m:val=\"|\""));
+        // \right\| gives a double bar ‖
+        assert!(render(&parse(r"\left. x \right\|")).contains("m:endChr m:val=\"‖\""));
+        assert!(
+            render(&parse(r"\left(\left[x\right]\right)"))
+                .matches("<m:d>")
+                .count()
+                == 2
+        );
     }
 }
