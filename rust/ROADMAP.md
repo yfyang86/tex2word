@@ -56,8 +56,10 @@ Each phase is validated against the Python output on the corpus + UATs.
   - ✅ Macro expansion: `\newcommand`/`\renewcommand`/`\providecommand`/`\def`
     (args + one optional arg, unbraced-name and unbraced single-token body),
     expanded before parsing.
-  - ⏳ Next: `\input`/`\include` flattening, then more inline macros + symbols
-    and a proper tokenizer.
+  - ✅ `\input`/`\include` flattening: recursive, comment-stripped, resolved
+    against the input file's directory; missing files dropped gracefully.
+  - ⏳ Next: more inline macros + symbols (accents, `\textsc`, quotes, dashes,
+    `~`), then a proper tokenizer and preamble/metadata handling.
 - **Phase 2 — math (OMML).** The big one: port `mathml/latex_math.py` (LaTeX math
   AST) + `mathml/omml.py` (AST → OMML) + `symbols.py`. Fractions, scripts, roots,
   n-ary ops, matrices/aligned, delimiters, hundreds of symbols.

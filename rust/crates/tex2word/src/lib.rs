@@ -26,13 +26,19 @@ pub fn convert_source(source: &str) -> Conversion {
 }
 
 /// Convert a `.tex` file to a `.docx` on disk. Returns the output path used.
+/// `\input`/`\include` files are resolved relative to the input file's directory.
 pub fn convert_file(input: &Path, output: Option<&Path>) -> io::Result<std::path::PathBuf> {
     let source = fs::read_to_string(input)?;
-    let conv = convert_source(&source);
+    let base = input
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let document = tex2word_frontend::parse_document_in(&source, base);
+    let docx = tex2word_backend::to_docx(&document);
     let out = match output {
         Some(p) => p.to_path_buf(),
         None => input.with_extension("docx"),
     };
-    fs::write(&out, &conv.docx)?;
+    fs::write(&out, &docx)?;
     Ok(out)
 }

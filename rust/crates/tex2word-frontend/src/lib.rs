@@ -7,20 +7,84 @@
 //! inline `$…$` math. The Python front-end is far broader; the roadmap tracks
 //! what still needs porting (macro expansion, environments, display math, …).
 
+use std::path::Path;
+
 use tex2word_ir::{Block, Document, EmphasisKind, Inline};
 
 mod macros;
 
-/// Parse a LaTeX document string into the IR.
+/// Parse a LaTeX document string into the IR (relative `\input`s resolved against
+/// the current directory).
 pub fn parse_document(source: &str) -> Document {
-    // strip comments, then expand user macros (\newcommand/\def/…) before parsing.
-    let src = macros::expand_macros(&strip_comments(source));
+    parse_document_in(source, Path::new("."))
+}
+
+/// Parse a LaTeX document, resolving `\input`/`\include` files against `base_dir`.
+pub fn parse_document_in(source: &str, base_dir: &Path) -> Document {
+    // strip comments, flatten \input/\include, then expand macros, then parse.
+    let flat = flatten_inputs(&strip_comments(source), base_dir, 0);
+    let src = macros::expand_macros(&flat);
     let title = extract_braced_macro_arg(&src, "title").map(|t| parse_inlines(&t));
-    let body = extract_environment(&src, "document").unwrap_or(src.clone());
+    let body = extract_environment(&src, "document").unwrap_or_else(|| src.clone());
     Document {
         title,
         blocks: parse_blocks(&body),
     }
+}
+
+const MAX_INPUT_DEPTH: usize = 16;
+
+/// Inline `\input{file}` / `\include{file}` (recursively; each included file is
+/// comment-stripped). A missing file is dropped (graceful degradation).
+fn flatten_inputs(source: &str, base_dir: &Path, depth: usize) -> String {
+    if depth > MAX_INPUT_DEPTH {
+        return source.to_string();
+    }
+    let s: Vec<char> = source.chars().collect();
+    let n = s.len();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < n {
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            if name == "input" || name == "include" {
+                let (arg, after2) = read_braced(&s, after);
+                if let Some(content) = read_included(base_dir, arg.trim()) {
+                    out.push_str(&flatten_inputs(
+                        &strip_comments(&content),
+                        base_dir,
+                        depth + 1,
+                    ));
+                }
+                i = after2;
+                continue;
+            }
+            out.extend(&s[i..after]);
+            i = after;
+            continue;
+        }
+        out.push(s[i]);
+        i += 1;
+    }
+    out
+}
+
+/// Read an included file (`name` or `name.tex`) relative to `base_dir`.
+fn read_included(base_dir: &Path, name: &str) -> Option<String> {
+    if name.is_empty() {
+        return None;
+    }
+    let candidates: Vec<String> = if name.ends_with(".tex") {
+        vec![name.to_string()]
+    } else {
+        vec![name.to_string(), format!("{name}.tex")]
+    };
+    for cand in candidates {
+        if let Ok(content) = std::fs::read_to_string(base_dir.join(&cand)) {
+            return Some(content);
+        }
+    }
+    None
 }
 
 /// Remove TeX line comments (`%` to end of line), preserving escaped `\%`.
@@ -559,6 +623,31 @@ end\end{document}",
                 inlines: vec![Inline::Text("A quoted line.".into())]
             }]
         );
+    }
+
+    #[test]
+    fn input_flattening_inlines_files() {
+        use std::fs;
+        let dir = std::env::temp_dir().join(format!("t2w_input_{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        fs::write(dir.join("sec.tex"), r"\section{Included}Body from file.").unwrap();
+        // \input{sec} (no .tex) is resolved to sec.tex, recursively comment-stripped
+        let main = r"\begin{document}Before.\input{sec}\end{document}";
+        let doc = parse_document_in(main, &dir);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(doc.blocks.iter().any(|b| matches!(
+            b, Block::Heading { inlines, .. } if inlines == &vec![Inline::Text("Included".into())]
+        )));
+        assert!(doc.plain_text().contains("Body from file."));
+    }
+
+    #[test]
+    fn missing_input_is_dropped_gracefully() {
+        let doc = parse_document_in(
+            r"\begin{document}Kept.\input{does_not_exist}\end{document}",
+            Path::new("/nonexistent-dir-xyz"),
+        );
+        assert_eq!(doc.plain_text().trim(), "Kept.");
     }
 
     #[test]
