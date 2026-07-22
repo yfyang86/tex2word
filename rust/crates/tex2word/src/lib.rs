@@ -8,21 +8,32 @@
 
 pub use tex2word_ir as ir;
 
+pub mod crossref;
+
 use std::fs;
 use std::io;
 use std::path::Path;
 
-/// The result of a conversion: the `.docx` bytes and the parsed IR.
+pub use crossref::Warning;
+
+/// The result of a conversion: the `.docx` bytes, the parsed IR, and any
+/// non-fatal warnings (e.g. unresolved cross-references).
 pub struct Conversion {
     pub docx: Vec<u8>,
     pub document: ir::Document,
+    pub warnings: Vec<Warning>,
 }
 
-/// Convert LaTeX source to a `.docx` byte buffer (+ the IR).
+/// Convert LaTeX source to a `.docx` byte buffer (+ the IR + warnings).
 pub fn convert_source(source: &str) -> Conversion {
-    let document = tex2word_frontend::parse_document(source);
+    let mut document = tex2word_frontend::parse_document(source);
+    let warnings = crossref::resolve(&mut document);
     let docx = tex2word_backend::to_docx(&document, Path::new("."));
-    Conversion { docx, document }
+    Conversion {
+        docx,
+        document,
+        warnings,
+    }
 }
 
 /// Convert a `.tex` file to a `.docx` on disk. Returns the output path used.
@@ -33,7 +44,11 @@ pub fn convert_file(input: &Path, output: Option<&Path>) -> io::Result<std::path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let document = tex2word_frontend::parse_document_in(&source, base);
+    let mut document = tex2word_frontend::parse_document_in(&source, base);
+    let warnings = crossref::resolve(&mut document);
+    for w in &warnings {
+        eprintln!("warning: {}: {}", w.context, w.message);
+    }
     let docx = tex2word_backend::to_docx(&document, base);
     let out = match output {
         Some(p) => p.to_path_buf(),

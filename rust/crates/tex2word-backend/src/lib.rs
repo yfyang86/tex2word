@@ -1,5 +1,6 @@
 //! OOXML back-end: assemble the IR [`Document`] into a `.docx` byte buffer.
 
+mod fields;
 mod image;
 mod ooxml;
 mod zip;

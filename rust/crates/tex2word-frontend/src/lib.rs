@@ -270,9 +270,12 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                     "equation" | "equation*" | "displaymath" | "align" | "align*" | "gather"
                     | "gather*" | "multline" | "multline*" | "eqnarray" | "eqnarray*" => {
                         let (latex, label) = extract_label(&body);
+                        // starred forms and displaymath are unnumbered
+                        let numbered = !env.ends_with('*') && env != "displaymath";
                         blocks.push(Block::MathBlock {
                             latex: latex.trim().to_string(),
                             label,
+                            numbered,
                         });
                     }
                     // center/flushleft/flushright: descend, keep the content
@@ -296,6 +299,7 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                 blocks.push(Block::MathBlock {
                     latex: latex.trim().to_string(),
                     label,
+                    numbered: false, // \[ … \] is unnumbered
                 });
                 i = after2;
                 continue;
@@ -1835,7 +1839,7 @@ See \ref{sec:intro} and Fig.~\autoref{fig:a} on page \pageref{fig:a}, eq.~\eqref
     fn display_math_and_equation_become_mathblocks() {
         let doc = conv(r"\begin{document}\[ a^2 + b^2 = c^2 \]\end{document}");
         assert!(matches!(&doc.blocks[0],
-            Block::MathBlock { latex, label: None } if latex.contains("a^2")));
+            Block::MathBlock { latex, label: None, .. } if latex.contains("a^2")));
         // stray \label right after \end{figure} still binds to the float
         let doc2 = conv(
             r"\begin{document}\begin{figure}\includegraphics{p.png}\end{figure}\label{fig:z}\end{document}",

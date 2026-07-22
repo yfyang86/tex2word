@@ -2,15 +2,21 @@
 //!
 //! Emits `word/document.xml` (paragraphs, headings, styled runs, lists via
 //! `numbering.xml`, quotes, structured OMML math via the `tex2word-math` crate,
-//! `w:tbl` tables with spans/merges, and figure/table floats with numbered
-//! captions and embedded images) plus the package parts (`[Content_Types].xml`,
-//! relationships, `styles.xml`, `numbering.xml`, `word/media/*`). Live fields
-//! (SEQ/REF) and cross-references are later milestones.
+//! `w:tbl` tables with spans/merges, figure/table floats with live `SEQ`-field
+//! captions and embedded images, and cross-references as live `REF`/`PAGEREF`
+//! fields with bookmarks + `HYPERLINK` fields) plus the package parts
+//! (`[Content_Types].xml`, relationships, `styles.xml`, `numbering.xml`,
+//! `word/media/*`). Numbered sections, TOC, and multi-column are Sprint 2.
 
+use std::collections::HashMap;
 use std::path::Path;
 
-use tex2word_ir::{Block, Document, EmphasisKind, Float, FloatKind, Inline, Table, TableAlign};
+use tex2word_ir::{
+    Block, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, RefKind, RefStyle, Table,
+    TableAlign,
+};
 
+use crate::fields::{self, Bookmarks};
 use crate::image;
 
 const W_NS: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -87,16 +93,27 @@ impl<'a> MediaRegistry<'a> {
     }
 }
 
-/// Mutable render state: caption counters, the media registry, drawing ids.
+/// Mutable render state: media, drawing/bookmark ids, and the resolved label map
+/// from the cross-reference pass. Figure/table numbers are live `SEQ` fields, so
+/// no static counters are kept.
 struct Ctx<'a> {
-    figure: u32,
-    table: u32,
     drawing_id: u32,
     media: MediaRegistry<'a>,
+    bookmarks: Bookmarks,
+    /// Resolved `\label` → bookmark/counter map (from the cross-reference pass).
+    labels: &'a HashMap<String, LabelInfo>,
+}
+
+impl Ctx<'_> {
+    /// The sanitized bookmark for a `\label` key, if it was resolved.
+    fn bookmark_of(&self, label: &Option<String>) -> Option<String> {
+        let key = label.as_ref()?;
+        self.labels.get(key).map(|i| i.bookmark.clone())
+    }
 }
 
 /// Escape XML text content / attribute values.
-fn escape(s: &str) -> String {
+pub(crate) fn escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
@@ -104,6 +121,21 @@ fn escape(s: &str) -> String {
             '<' => out.push_str("&lt;"),
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Escape XML *text content* only (`&`/`<`/`>`); quotes stay literal. Used for
+/// field-code `instrText`, where `HYPERLINK "url"` must keep its quotes.
+pub(crate) fn escape_text(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
             _ => out.push(c),
         }
     }
@@ -195,16 +227,17 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, ctx: &mut Ctx, out: &mut Str
             Inline::Math(m) => render_math(m, out),
             Inline::LineBreak => out.push_str("<w:r><w:br/></w:r>"),
             Inline::Image { path, options } => render_image(path, options, ctx, out),
-            Inline::Ref { key, bookmark, .. } => {
-                // Placeholder run until the fields pass wires REF/PAGEREF.
-                render_run(bookmark.as_deref().unwrap_or(key), rp, out);
-            }
-            Inline::Link { inlines, .. } => {
-                // Underlined text until real w:hyperlink lands (next iteration).
-                let mut rp2 = rp;
-                rp2.underline = true;
-                render_inlines(inlines, rp2, ctx, out);
-            }
+            Inline::Ref {
+                key,
+                kind,
+                style,
+                bookmark,
+            } => render_ref(key, *kind, *style, bookmark, rp, out),
+            Inline::Link {
+                inlines,
+                url,
+                anchor,
+            } => render_link(inlines, url, anchor, rp, ctx, out),
         }
     }
 }
@@ -253,6 +286,55 @@ fn emit_drawing(rid: &str, id: u32, cx: u64, cy: u64, out: &mut String) {
     ));
 }
 
+/// Render a cross-reference to a live `REF`/`PAGEREF` field (or the raw key if it
+/// never resolved). `\eqref`/equation refs are parenthesized; section and
+/// list-item refs use `\r` (the target's paragraph number). Cleveref-style type
+/// prefixes are a Sprint-2 refinement.
+fn render_ref(
+    key: &str,
+    kind: RefKind,
+    _style: RefStyle,
+    bookmark: &Option<String>,
+    rp: RunProps,
+    out: &mut String,
+) {
+    let Some(bm) = bookmark else {
+        render_run(key, rp, out); // unresolved -> literal key
+        return;
+    };
+    match kind {
+        RefKind::Page => fields::pageref_field(bm, out),
+        RefKind::Equation => {
+            render_run("(", rp, out);
+            fields::ref_field(bm, false, out);
+            render_run(")", rp, out);
+        }
+        RefKind::Section | RefKind::ListItem => fields::ref_field(bm, true, out),
+        _ => fields::ref_field(bm, false, out),
+    }
+}
+
+/// Render a hyperlink as a `HYPERLINK` field (`\l "anchor"` internal, or a URL),
+/// with underlined children — no relationship part needed.
+fn render_link(
+    inlines: &[Inline],
+    url: &str,
+    anchor: &Option<String>,
+    rp: RunProps,
+    ctx: &mut Ctx,
+    out: &mut String,
+) {
+    let instr = match anchor {
+        Some(a) => format!("HYPERLINK \\l \"{}\"", a.replace('"', "")),
+        None => format!("HYPERLINK \"{}\"", url.replace('"', "")),
+    };
+    fields::field_open(&instr, out);
+    let mut rp2 = rp;
+    rp2.underline = true;
+    render_inlines(inlines, rp2, ctx, out);
+    fields::field_close(out);
+}
+
 fn render_paragraph(style: Option<&str>, inlines: &[Inline], ctx: &mut Ctx, out: &mut String) {
     render_paragraph_jc(style, None, inlines, ctx, out);
 }
@@ -298,16 +380,56 @@ fn render_list_item(inlines: &[Inline], num_id: u32, ctx: &mut Ctx, out: &mut St
 
 fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
     match block {
-        Block::Heading { level, inlines, .. } => {
+        Block::Heading {
+            level,
+            inlines,
+            label,
+        } => {
             let style = format!("Heading{}", level.clamp(&1, &9));
-            render_paragraph(Some(&style), inlines, ctx, out);
+            match ctx.bookmark_of(label) {
+                // labelled heading: bookmark its text so REF \r can cite its number
+                Some(name) => {
+                    out.push_str(&format!(
+                        "<w:p><w:pPr><w:pStyle w:val=\"{style}\"/></w:pPr>"
+                    ));
+                    let id = ctx.bookmarks.start(&name, out);
+                    render_inlines(inlines, RunProps::default(), ctx, out);
+                    ctx.bookmarks.end(id, out);
+                    out.push_str("</w:p>");
+                }
+                None => render_paragraph(Some(&style), inlines, ctx, out),
+            }
         }
         Block::Paragraph { inlines } => render_paragraph(None, inlines, ctx, out),
-        Block::MathBlock { latex, .. } => {
-            // A display equation: its own centered paragraph of OMML.
-            out.push_str("<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr>");
-            render_math(latex, out);
-            out.push_str("</w:p>");
+        Block::MathBlock {
+            latex,
+            label,
+            numbered,
+        } => {
+            // Numbered equations carry a right-tabbed live "(SEQ Equation)" number
+            // in a bookmark (so \eqref points at it); plain \[…\] stays centered.
+            if *numbered || label.is_some() {
+                out.push_str(
+                    "<w:p><w:pPr><w:tabs><w:tab w:val=\"right\" w:pos=\"9360\"/></w:tabs></w:pPr>",
+                );
+                render_math(latex, out);
+                out.push_str("<w:r><w:tab/></w:r>");
+                render_run("(", RunProps::default(), out);
+                match ctx.bookmark_of(label) {
+                    Some(name) => {
+                        let id = ctx.bookmarks.start(&name, out);
+                        fields::seq_field("Equation", out);
+                        ctx.bookmarks.end(id, out);
+                    }
+                    None => fields::seq_field("Equation", out),
+                }
+                render_run(")", RunProps::default(), out);
+                out.push_str("</w:p>");
+            } else {
+                out.push_str("<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr>");
+                render_math(latex, out);
+                out.push_str("</w:p>");
+            }
         }
         Block::List { ordered, items } => {
             let num_id = if *ordered { 2 } else { 1 };
@@ -343,24 +465,30 @@ fn render_float(float: &Float, ctx: &mut Ctx, out: &mut String) {
         }
     }
     if let Some(cap) = &float.caption {
-        let (prefix, num) = match float.kind {
-            FloatKind::Figure => {
-                ctx.figure += 1;
-                ("Figure", ctx.figure)
-            }
-            FloatKind::Table => {
-                ctx.table += 1;
-                ("Table", ctx.table)
-            }
+        let counter = match float.kind {
+            FloatKind::Figure => "Figure",
+            FloatKind::Table => "Table",
         };
         out.push_str("<w:p><w:pPr><w:pStyle w:val=\"Caption\"/>");
         if float.centered {
             out.push_str("<w:jc w:val=\"center\"/>");
         }
         out.push_str("</w:pPr>");
-        out.push_str(&format!(
-            "<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">{prefix} {num}: </w:t></w:r>"
-        ));
+        let bold = RunProps {
+            bold: true,
+            ..Default::default()
+        };
+        render_run(&format!("{counter} "), bold, out);
+        // the number: a live SEQ field, wrapped in the float's bookmark if labelled
+        match ctx.bookmark_of(&float.label) {
+            Some(name) => {
+                let id = ctx.bookmarks.start(&name, out);
+                fields::seq_field(counter, out);
+                ctx.bookmarks.end(id, out);
+            }
+            None => fields::seq_field(counter, out),
+        }
+        render_run(": ", bold, out);
         render_inlines(cap, RunProps::default(), ctx, out);
         out.push_str("</w:p>");
     }
@@ -469,10 +597,10 @@ pub fn document_xml(doc: &Document) -> String {
 /// against `base_dir`).
 pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
     let mut ctx = Ctx {
-        figure: 0,
-        table: 0,
         drawing_id: 0,
         media: MediaRegistry::new(base_dir),
+        bookmarks: Bookmarks::default(),
+        labels: &doc.labels,
     };
     let mut body = String::new();
     if let Some(title) = &doc.title {
@@ -791,10 +919,11 @@ mod tests {
             ..Default::default()
         };
         let xml = document_xml(&doc);
-        // independent Figure / Table counters
-        assert!(xml.contains("Figure 1: "));
-        assert!(xml.contains("Figure 2: "));
-        assert!(xml.contains("Table 1: "));
+        // live SEQ fields (Word keeps Figure/Table series independent by name)
+        assert_eq!(xml.matches("SEQ Figure \\* ARABIC").count(), 2);
+        assert_eq!(xml.matches("SEQ Table \\* ARABIC").count(), 1);
+        assert!(xml.contains(">Figure </w:t>")); // the "Figure " prefix run
+        assert!(xml.contains(">Table </w:t>"));
         // image placeholder + caption style + centered content
         assert!(xml.contains("[image: a.png]"));
         assert!(xml.contains("w:pStyle w:val=\"Caption\""));

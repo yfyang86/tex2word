@@ -96,9 +96,12 @@ pub enum Block {
     /// A body paragraph.
     Paragraph { inlines: Vec<Inline> },
     /// A display-math equation (`\[ … \]` / `equation`), a numberable target.
+    /// `numbered` is true for the auto-numbered environments (`equation`,
+    /// `align`, …) and false for `\[ … \]` / starred forms.
     MathBlock {
         latex: String,
         label: Option<String>,
+        numbered: bool,
     },
     /// An `itemize` (unordered) / `enumerate` (ordered) list; each item is an
     /// inline run (multi-block items are a later milestone).

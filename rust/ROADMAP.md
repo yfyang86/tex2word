@@ -120,11 +120,20 @@ Each phase is validated against the Python output on the corpus + UATs.
     PICTURE shapes with correct EMU sizes, the table read as 4×3.
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
   numbering, `transforms/crossref.py`, the multi-column section machinery.
-  Planned across two sprints — see [`PHASE4_PLAN.md`](PHASE4_PLAN.md): **Sprint 1**
-  = bookmarks + complex fields + the cross-reference pass (`\label`/`\ref` family
-  → live `REF`/`PAGEREF`, captions → live `SEQ`); **Sprint 2** = numbered sections
-  + refs, `\tableofcontents`/`\listof*` TOC fields, cleveref/autoref prefixes, and
-  multi-column section layout.
+  Planned across two sprints — see [`PHASE4_PLAN.md`](PHASE4_PLAN.md).
+  - ✅ **Sprint 1 — bookmarks, complex fields, cross-references.** IR gained
+    `Ref`/`Link`/`RefKind`/`RefStyle`, labels on headings/floats, `MathBlock`, and
+    `Document.labels`. The `crossref` pass (in the pipeline crate) collects labels
+    → sanitized bookmarks → `SEQ` counters, rewrites `Ref`s to bookmarks (generic
+    refs inherit the target kind), turns `\nameref` into an internal hyperlink,
+    and warns on unresolved refs. Back-end `fields.rs` emits complex fields
+    (`fldChar`/`instrText`) + bookmarks: captions and equations are live `SEQ`
+    numbers in bookmarks; `\ref`/`\eqref`/`\pageref`/`\autoref` → `REF`/`PAGEREF`
+    (`\r` for sections); `\href`/`\url`/`\hyperref`/`\nameref` → `HYPERLINK`
+    fields. UAT: a labelled figure/table/equation + the ref family + links opens
+    in python-docx with correct field codes and paired bookmarks.
+  - ⏳ **Sprint 2** = numbered sections + refs, `\tableofcontents`/`\listof*` TOC
+    fields, cleveref/autoref type prefixes, and multi-column section layout.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,
   round-trip manifest + `.docx`→LaTeX, coverage report, OOXML validator.
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
