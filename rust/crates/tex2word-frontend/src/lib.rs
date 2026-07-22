@@ -1,11 +1,13 @@
 //! LaTeX front-end: parse LaTeX source into the tex2word [`Document`] IR.
 //!
-//! This is the **vertical-slice** parser — a hand-rolled recursive scan (no
-//! external LaTeX library) covering the common structural and inline core:
-//! `\title`, sectioning, paragraphs (blank-line separated), `\textbf`/`\emph`/
-//! `\textit`/`\texttt`/`\underline`/`\textrm`, escaped literals, `\\` breaks and
-//! inline `$…$` math. The Python front-end is far broader; the roadmap tracks
-//! what still needs porting (macro expansion, environments, display math, …).
+//! A hand-rolled recursive scan (no external LaTeX library). Pipeline:
+//! `strip_comments` → `\input`/`\include` flatten → macro expansion → parse.
+//! Coverage so far (Phase 1): `\title`, sectioning, paragraphs, the
+//! `itemize`/`enumerate`/`quote` environments, `\textbf`/`\emph`/`\textit`/
+//! `\texttt`/`\underline`/`\textsc`/`\textsuperscript`/`\textsubscript`, escaped
+//! literals, dashes/smart-quotes/`~`, a batch of text symbol macros, `\\` breaks
+//! and inline `$…$` math. The roadmap tracks what still needs porting (accents,
+//! a proper tokenizer, display math, …).
 
 use std::path::Path;
 
@@ -359,7 +361,8 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
             '\\' => {
                 let (name, after) = read_command_name(&s, i);
                 match name.as_str() {
-                    "textbf" | "emph" | "textit" | "texttt" | "underline" | "textrm" => {
+                    "textbf" | "emph" | "textit" | "texttt" | "underline" | "textrm" | "textsc"
+                    | "textsuperscript" | "textsubscript" | "textnormal" => {
                         flush_text!();
                         let (arg, after2) = read_braced(&s, after);
                         let inner = parse_inlines(&arg);
@@ -368,7 +371,7 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                                 kind,
                                 inlines: inner,
                             }),
-                            None => out.extend(inner), // \textrm -> transparent passthrough
+                            None => out.extend(inner), // \textrm/\textnormal -> passthrough
                         }
                         i = after2;
                     }
@@ -390,11 +393,51 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                         text.push('…');
                         i = after;
                     }
-                    // unknown macro: drop it (transparent), skip a following {arg}
                     _ => {
-                        let (_, after2) = read_braced(&s, after);
-                        i = after2;
+                        if let Some(sym) = text_symbol(&name) {
+                            text.push_str(sym);
+                            i = after;
+                        } else {
+                            // unknown macro: drop it, skip a following {arg}
+                            let (_, after2) = read_braced(&s, after);
+                            i = after2;
+                        }
                     }
+                }
+            }
+            '~' => {
+                text.push('\u{00A0}'); // non-breaking space
+                i += 1;
+            }
+            '-' => {
+                // -- -> en dash, --- -> em dash, otherwise literal hyphen(s)
+                let mut k = i;
+                while k < n && s[k] == '-' {
+                    k += 1;
+                }
+                match k - i {
+                    3 => text.push('\u{2014}'),
+                    2 => text.push('\u{2013}'),
+                    run => (0..run).for_each(|_| text.push('-')),
+                }
+                i = k;
+            }
+            '`' => {
+                if i + 1 < n && s[i + 1] == '`' {
+                    text.push('\u{201C}'); // ``  -> left double quote
+                    i += 2;
+                } else {
+                    text.push('\u{2018}'); // `   -> left single quote
+                    i += 1;
+                }
+            }
+            '\'' => {
+                if i + 1 < n && s[i + 1] == '\'' {
+                    text.push('\u{201D}'); // ''  -> right double quote
+                    i += 2;
+                } else {
+                    text.push('\u{2019}'); // '   -> right single quote / apostrophe
+                    i += 1;
                 }
             }
             '\n' | '\t' | '\r' => {
@@ -419,8 +462,46 @@ fn emphasis_kind(name: &str) -> Option<EmphasisKind> {
         "emph" | "textit" => Some(EmphasisKind::Italic),
         "texttt" => Some(EmphasisKind::Typewriter),
         "underline" => Some(EmphasisKind::Underline),
-        _ => None, // textrm: no emphasis
+        "textsc" => Some(EmphasisKind::SmallCaps),
+        "textsuperscript" => Some(EmphasisKind::Superscript),
+        "textsubscript" => Some(EmphasisKind::Subscript),
+        _ => None, // textrm/textnormal: no emphasis
     }
+}
+
+/// Text-mode symbol macros -> their Unicode text (no argument).
+fn text_symbol(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "S" => "§",
+        "P" => "¶",
+        "dag" | "dagger" | "textdagger" => "†",
+        "ddag" | "ddagger" | "textdaggerdbl" => "‡",
+        "copyright" | "textcopyright" => "©",
+        "textregistered" => "®",
+        "texttrademark" => "™",
+        "pounds" | "textsterling" => "£",
+        "texteuro" => "€",
+        "textcent" => "¢",
+        "textyen" => "¥",
+        "textbullet" => "•",
+        "textdegree" | "degree" => "°",
+        "textpm" => "±",
+        "texttimes" => "×",
+        "textdiv" => "÷",
+        "textellipsis" => "…",
+        "textquotedblleft" => "\u{201C}",
+        "textquotedblright" => "\u{201D}",
+        "textquoteleft" => "\u{2018}",
+        "textquoteright" => "\u{2019}",
+        "textendash" => "\u{2013}",
+        "textemdash" => "\u{2014}",
+        "LaTeX" | "LaTeXe" => "LaTeX",
+        "TeX" => "TeX",
+        // spacing commands -> a space, or nothing for the negative/discretionary ones
+        "," | ";" | ":" | " " | "quad" | "qquad" | "enspace" | "thinspace" => " ",
+        "!" | "@" | "/" | "-" => "",
+        _ => return None,
+    })
 }
 
 /// From a `\` at `i`, read the command name; returns (name, index-after).
@@ -665,6 +746,52 @@ end\end{document}",
             Inline::Emphasis { kind: EmphasisKind::Bold, inlines }
                 if inlines == &vec![Inline::Text("tex2word".into())]
         )));
+    }
+
+    #[test]
+    fn small_caps_super_sub_and_symbols() {
+        let doc = conv(
+            r"\begin{document}\textsc{Acme} x\textsuperscript{2} H\textsubscript{2}O \S \copyright\end{document}",
+        );
+        let Block::Paragraph { inlines } = &doc.blocks[0] else {
+            panic!("expected paragraph");
+        };
+        assert!(inlines.iter().any(|i| matches!(
+            i,
+            Inline::Emphasis {
+                kind: EmphasisKind::SmallCaps,
+                ..
+            }
+        )));
+        assert!(inlines.iter().any(|i| matches!(
+            i,
+            Inline::Emphasis {
+                kind: EmphasisKind::Superscript,
+                ..
+            }
+        )));
+        assert!(inlines.iter().any(|i| matches!(
+            i,
+            Inline::Emphasis {
+                kind: EmphasisKind::Subscript,
+                ..
+            }
+        )));
+        let t = doc.plain_text();
+        assert!(t.contains('§') && t.contains('©'));
+    }
+
+    #[test]
+    fn dashes_quotes_and_nbsp() {
+        let doc = conv(r"\begin{document}pages 1--5, dash---here, ``q'' and Fig.~1\end{document}");
+        let t = doc.plain_text();
+        assert!(t.contains('\u{2013}'), "en dash"); // 1--5
+        assert!(t.contains('\u{2014}'), "em dash"); // ---
+        assert!(
+            t.contains('\u{201C}') && t.contains('\u{201D}'),
+            "curly quotes"
+        );
+        assert!(t.contains('\u{00A0}'), "nbsp from ~");
     }
 
     #[test]

@@ -12,6 +12,9 @@ pub enum EmphasisKind {
     Italic,
     Typewriter,
     Underline,
+    SmallCaps,
+    Superscript,
+    Subscript,
 }
 
 /// Inline-level content (the leaves of a paragraph/heading).

@@ -58,8 +58,12 @@ Each phase is validated against the Python output on the corpus + UATs.
     expanded before parsing.
   - ✅ `\input`/`\include` flattening: recursive, comment-stripped, resolved
     against the input file's directory; missing files dropped gracefully.
-  - ⏳ Next: more inline macros + symbols (accents, `\textsc`, quotes, dashes,
-    `~`), then a proper tokenizer and preamble/metadata handling.
+  - ✅ Inline richness: `\textsc`/`\textsuperscript`/`\textsubscript` (small caps,
+    super/subscript runs), `--`/`---` dashes, `` `` ``/`''` smart quotes, `~`
+    non-breaking space, and a batch of text symbol macros (`\S`/`\dag`/
+    `\copyright`/`\LaTeX`/spacing/…).
+  - ⏳ Next: accents (`\'e`, `\"o`, `\c c`, … via a precomposed-char table), then
+    a proper tokenizer and preamble/metadata (`\author`/`\date`) handling.
 - **Phase 2 — math (OMML).** The big one: port `mathml/latex_math.py` (LaTeX math
   AST) + `mathml/omml.py` (AST → OMML) + `symbols.py`. Fractions, scripts, roots,
   n-ary ops, matrices/aligned, delimiters, hundreds of symbols.

@@ -31,11 +31,24 @@ struct RunProps {
     italic: bool,
     tt: bool,
     underline: bool,
+    smallcaps: bool,
+    superscript: bool,
+    subscript: bool,
 }
 
 impl RunProps {
+    fn is_plain(&self) -> bool {
+        !(self.bold
+            || self.italic
+            || self.tt
+            || self.underline
+            || self.smallcaps
+            || self.superscript
+            || self.subscript)
+    }
+
     fn rpr(&self) -> String {
-        if !(self.bold || self.italic || self.tt || self.underline) {
+        if self.is_plain() {
             return String::new();
         }
         let mut s = String::from("<w:rPr>");
@@ -45,11 +58,19 @@ impl RunProps {
         if self.italic {
             s.push_str("<w:i/>");
         }
+        if self.smallcaps {
+            s.push_str("<w:smallCaps/>");
+        }
         if self.underline {
             s.push_str("<w:u w:val=\"single\"/>");
         }
         if self.tt {
             s.push_str("<w:rFonts w:ascii=\"Consolas\" w:hAnsi=\"Consolas\" w:cs=\"Consolas\"/>");
+        }
+        if self.superscript {
+            s.push_str("<w:vertAlign w:val=\"superscript\"/>");
+        } else if self.subscript {
+            s.push_str("<w:vertAlign w:val=\"subscript\"/>");
         }
         s.push_str("</w:rPr>");
         s
@@ -83,6 +104,9 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, out: &mut String) {
                     EmphasisKind::Italic => rp2.italic = true,
                     EmphasisKind::Typewriter => rp2.tt = true,
                     EmphasisKind::Underline => rp2.underline = true,
+                    EmphasisKind::SmallCaps => rp2.smallcaps = true,
+                    EmphasisKind::Superscript => rp2.superscript = true,
+                    EmphasisKind::Subscript => rp2.subscript = true,
                 }
                 render_inlines(inlines, rp2, out);
             }
@@ -259,5 +283,27 @@ mod tests {
         assert!(xml.contains("w:pStyle w:val=\"Title\""));
         assert!(xml.contains("<w:b/>"));
         assert!(xml.contains("<m:oMath>"));
+    }
+
+    #[test]
+    fn small_caps_and_superscript_render() {
+        let doc = Document {
+            title: None,
+            blocks: vec![Block::Paragraph {
+                inlines: vec![
+                    Inline::Emphasis {
+                        kind: EmphasisKind::SmallCaps,
+                        inlines: vec![Inline::Text("a".into())],
+                    },
+                    Inline::Emphasis {
+                        kind: EmphasisKind::Superscript,
+                        inlines: vec![Inline::Text("2".into())],
+                    },
+                ],
+            }],
+        };
+        let xml = document_xml(&doc);
+        assert!(xml.contains("<w:smallCaps/>"));
+        assert!(xml.contains("<w:vertAlign w:val=\"superscript\"/>"));
     }
 }
