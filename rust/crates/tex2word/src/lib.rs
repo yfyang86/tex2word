@@ -21,7 +21,7 @@ pub struct Conversion {
 /// Convert LaTeX source to a `.docx` byte buffer (+ the IR).
 pub fn convert_source(source: &str) -> Conversion {
     let document = tex2word_frontend::parse_document(source);
-    let docx = tex2word_backend::to_docx(&document);
+    let docx = tex2word_backend::to_docx(&document, Path::new("."));
     Conversion { docx, document }
 }
 
@@ -34,7 +34,7 @@ pub fn convert_file(input: &Path, output: Option<&Path>) -> io::Result<std::path
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
     let document = tex2word_frontend::parse_document_in(&source, base);
-    let docx = tex2word_backend::to_docx(&document);
+    let docx = tex2word_backend::to_docx(&document, base);
     let out = match output {
         Some(p) => p.to_path_buf(),
         None => input.with_extension("docx"),

@@ -1,18 +1,24 @@
 //! OOXML back-end: assemble the IR [`Document`] into a `.docx` byte buffer.
 
+mod image;
 mod ooxml;
 mod zip;
+
+use std::path::Path;
 
 use tex2word_ir::Document;
 use zip::Entry;
 
 /// Convert an IR document into a `.docx` (an OPC ZIP of the WordprocessingML
-/// parts). The output is deterministic for a given input.
-pub fn to_docx(doc: &Document) -> Vec<u8> {
-    let entries = vec![
+/// parts). `\includegraphics` images are read relative to `base_dir` and
+/// embedded as `word/media/*` parts. The output is deterministic for a given
+/// input.
+pub fn to_docx(doc: &Document, base_dir: &Path) -> Vec<u8> {
+    let pkg = ooxml::build_package(doc, base_dir);
+    let mut entries = vec![
         Entry {
             name: "[Content_Types].xml".into(),
-            data: ooxml::CONTENT_TYPES_XML.as_bytes().to_vec(),
+            data: pkg.content_types_xml.into_bytes(),
         },
         Entry {
             name: "_rels/.rels".into(),
@@ -20,11 +26,11 @@ pub fn to_docx(doc: &Document) -> Vec<u8> {
         },
         Entry {
             name: "word/document.xml".into(),
-            data: ooxml::document_xml(doc).into_bytes(),
+            data: pkg.document_xml.into_bytes(),
         },
         Entry {
             name: "word/_rels/document.xml.rels".into(),
-            data: ooxml::DOC_RELS_XML.as_bytes().to_vec(),
+            data: pkg.doc_rels_xml.into_bytes(),
         },
         Entry {
             name: "word/styles.xml".into(),
@@ -35,6 +41,12 @@ pub fn to_docx(doc: &Document) -> Vec<u8> {
             data: ooxml::NUMBERING_XML.as_bytes().to_vec(),
         },
     ];
+    for m in pkg.media {
+        entries.push(Entry {
+            name: m.part_name,
+            data: m.data,
+        });
+    }
     zip::build(&entries)
 }
 
@@ -42,6 +54,42 @@ pub fn to_docx(doc: &Document) -> Vec<u8> {
 mod tests {
     use super::*;
     use tex2word_ir::{Block, Inline};
+
+    #[test]
+    fn includegraphics_embeds_media_rel_and_drawing() {
+        use std::fs;
+        // A 7x3 PNG header (signature + IHDR dims); enough for probing.
+        let png: &[u8] = &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, b'I', b'H',
+            b'D', b'R', 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x03, 0x08, 0x06, 0x00, 0x00,
+            0x00,
+        ];
+        let dir = std::env::temp_dir().join(format!("t2w_img_{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        fs::write(dir.join("pic.png"), png).unwrap();
+
+        let doc = Document {
+            blocks: vec![Block::Paragraph {
+                inlines: vec![Inline::Image {
+                    path: "pic.png".into(),
+                    options: "width=2in".into(),
+                }],
+            }],
+            ..Default::default()
+        };
+        let bytes = to_docx(&doc, &dir);
+        let _ = fs::remove_dir_all(&dir);
+        let text = String::from_utf8_lossy(&bytes);
+        // media part embedded, relationship + content type declared, drawing emitted
+        assert!(text.contains("word/media/image1.png"));
+        assert!(text.contains("r:embed=\"rId3\""));
+        assert!(text.contains("<w:drawing>"));
+        assert!(text.contains("Extension=\"png\" ContentType=\"image/png\""));
+        assert!(text.contains("Target=\"media/image1.png\""));
+        // width=2in -> 1828800 EMU (aspect keeps cy = cx * 3/7)
+        assert!(text.contains("cx=\"1828800\""));
+        assert!(!text.contains("[image:")); // no placeholder fallback
+    }
 
     #[test]
     fn docx_is_a_zip_with_document_part() {
@@ -52,7 +100,7 @@ mod tests {
             }],
             ..Default::default()
         };
-        let bytes = to_docx(&doc);
+        let bytes = to_docx(&doc, Path::new("."));
         assert_eq!(&bytes[..2], b"PK");
         // the raw document.xml text is present (STORE = no compression)
         let text = String::from_utf8_lossy(&bytes);

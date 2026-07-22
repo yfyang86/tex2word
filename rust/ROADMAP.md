@@ -105,10 +105,19 @@ Each phase is validated against the Python output on the corpus + UATs.
     counters, `Caption` style). `\centering` centers the content (paragraphs and
     the wrapped `tabular`); `[htbp]` placement and `\label`/`\captionsetup` are
     dropped. `\includegraphics[opts]{path}` → `Inline::Image` (path + raw opts).
-  - ⏳ Next: `\includegraphics` **binary embedding** — read PNG/JPEG bytes, add a
-    `word/media/*` part + image relationship + a `w:drawing` (EMU-sized from the
-    image header and the `width=` option); PDF/TikZ raster is a later step. For
-    now images render as a `[image: path]` placeholder.
+  - ✅ Image embedding: `\includegraphics` reads the file (relative to the input's
+    directory), detects PNG/JPEG/GIF from magic bytes, reads intrinsic pixel size
+    from the header, and emits an inline `w:drawing` (`pic:pic`/`a:blip`) plus a
+    `word/media/imageN.*` part, an image relationship, and the content-type
+    default. Size from the graphicx option (`width=`/`height=`/`scale=`, with
+    `\textwidth` fractions and `cm`/`mm`/`in`/`pt`/`bp`/`px` units; aspect ratio
+    preserved). Missing/unsupported files (PDF, EPS, TikZ) fall back to a
+    `[image: path]` placeholder — raster conversion of those is a later step.
+  - **Phase 3 complete.** UAT: a document with macros, accents, lists, inline +
+    display math (`\sum`/`\frac`/`\sqrt`/`pmatrix`), a captioned figure, an inline
+    image, and a booktabs table with `\multicolumn`/`\multirow` converts to a
+    valid `.docx` that `python-docx` opens — both images recognised as embedded
+    PICTURE shapes with correct EMU sizes, the table read as 4×3.
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
   numbering, `transforms/crossref.py`, the multi-column section machinery.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,

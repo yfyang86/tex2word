@@ -1,22 +1,99 @@
 //! OOXML (WordprocessingML) generation: IR -> the XML parts of a `.docx`.
 //!
 //! Emits `word/document.xml` (paragraphs, headings, styled runs, lists via
-//! `numbering.xml`, quotes, and structured OMML math via the `tex2word-math`
-//! crate) plus the fixed package parts (`[Content_Types].xml`, relationships,
-//! `styles.xml`, `numbering.xml`). Tables, figures and live fields are later
-//! milestones.
+//! `numbering.xml`, quotes, structured OMML math via the `tex2word-math` crate,
+//! `w:tbl` tables with spans/merges, and figure/table floats with numbered
+//! captions and embedded images) plus the package parts (`[Content_Types].xml`,
+//! relationships, `styles.xml`, `numbering.xml`, `word/media/*`). Live fields
+//! (SEQ/REF) and cross-references are later milestones.
+
+use std::path::Path;
 
 use tex2word_ir::{Block, Document, EmphasisKind, Float, FloatKind, Inline, Table, TableAlign};
 
-/// Running caption numbers (Figure N / Table N) during a render pass.
-#[derive(Default)]
-struct Counters {
-    figure: u32,
-    table: u32,
-}
+use crate::image;
 
 const W_NS: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const M_NS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+const R_NS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const WP_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
+const A_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
+const PIC_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/picture";
+
+/// One embedded media part (an image file) destined for `word/media/`.
+pub struct MediaPart {
+    pub part_name: String,
+    pub data: Vec<u8>,
+}
+
+/// The rendered package parts that depend on the document body.
+pub struct Package {
+    pub document_xml: String,
+    pub content_types_xml: String,
+    pub doc_rels_xml: String,
+    pub media: Vec<MediaPart>,
+}
+
+/// A resolved, embeddable image and its relationship/part identity.
+struct Media {
+    part_name: String, // word/media/image1.png
+    target: String,    // media/image1.png (relative to word/_rels)
+    ext: String,       // png | jpeg | gif
+    rid: String,       // rId3, rId4, …
+    data: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+/// Reads and de-duplicates `\includegraphics` files, assigning each a media
+/// part name and relationship id. Files that are missing or not a supported
+/// raster image are skipped (the caller emits a text placeholder instead).
+struct MediaRegistry<'a> {
+    base_dir: &'a Path,
+    items: Vec<Media>,
+    seen: Vec<(String, usize)>,
+}
+
+impl<'a> MediaRegistry<'a> {
+    fn new(base_dir: &'a Path) -> Self {
+        Self {
+            base_dir,
+            items: Vec::new(),
+            seen: Vec::new(),
+        }
+    }
+
+    /// Resolve an image path to a media index, reading + probing it on first use.
+    fn resolve(&mut self, path: &str) -> Option<usize> {
+        if let Some(&(_, idx)) = self.seen.iter().find(|(p, _)| p == path) {
+            return Some(idx);
+        }
+        let data = std::fs::read(self.base_dir.join(path)).ok()?;
+        let probed = image::probe(&data)?;
+        let n = self.items.len() + 1;
+        let ext = probed.ext.to_string();
+        let idx = self.items.len();
+        self.items.push(Media {
+            part_name: format!("word/media/image{n}.{ext}"),
+            target: format!("media/image{n}.{ext}"),
+            rid: format!("rId{}", n + 2), // rId1/rId2 = styles/numbering
+            ext,
+            data,
+            width: probed.width,
+            height: probed.height,
+        });
+        self.seen.push((path.to_string(), idx));
+        Some(idx)
+    }
+}
+
+/// Mutable render state: caption counters, the media registry, drawing ids.
+struct Ctx<'a> {
+    figure: u32,
+    table: u32,
+    drawing_id: u32,
+    media: MediaRegistry<'a>,
+}
 
 /// Escape XML text content / attribute values.
 fn escape(s: &str) -> String {
@@ -98,7 +175,7 @@ fn render_math(latex: &str, out: &mut String) {
     out.push_str(&tex2word_math::to_omath(latex));
 }
 
-fn render_inlines(inlines: &[Inline], rp: RunProps, out: &mut String) {
+fn render_inlines(inlines: &[Inline], rp: RunProps, ctx: &mut Ctx, out: &mut String) {
     for inl in inlines {
         match inl {
             Inline::Text(t) => render_run(t, rp, out),
@@ -113,22 +190,61 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, out: &mut String) {
                     EmphasisKind::Superscript => rp2.superscript = true,
                     EmphasisKind::Subscript => rp2.subscript = true,
                 }
-                render_inlines(inlines, rp2, out);
+                render_inlines(inlines, rp2, ctx, out);
             }
             Inline::Math(m) => render_math(m, out),
             Inline::LineBreak => out.push_str("<w:r><w:br/></w:r>"),
-            Inline::Image { path, .. } => {
-                // Placeholder until binary embedding lands (see roadmap Phase 3).
-                out.push_str("<w:r><w:rPr><w:i/></w:rPr><w:t xml:space=\"preserve\">");
-                out.push_str(&escape(&format!("[image: {path}]")));
-                out.push_str("</w:t></w:r>");
-            }
+            Inline::Image { path, options } => render_image(path, options, ctx, out),
         }
     }
 }
 
-fn render_paragraph(style: Option<&str>, inlines: &[Inline], out: &mut String) {
-    render_paragraph_jc(style, None, inlines, out);
+/// Render an `\includegraphics` as an embedded `w:drawing`, or a `[image: …]`
+/// text placeholder if the file is missing or an unsupported format.
+fn render_image(path: &str, options: &str, ctx: &mut Ctx, out: &mut String) {
+    if let Some(idx) = ctx.media.resolve(path) {
+        let (rid, w, h) = {
+            let m = &ctx.media.items[idx];
+            (m.rid.clone(), m.width, m.height)
+        };
+        let (cx, cy) = image::extent(options, w, h);
+        ctx.drawing_id += 1;
+        emit_drawing(&rid, ctx.drawing_id, cx, cy, out);
+    } else {
+        out.push_str("<w:r><w:rPr><w:i/></w:rPr><w:t xml:space=\"preserve\">");
+        out.push_str(&escape(&format!("[image: {path}]")));
+        out.push_str("</w:t></w:r>");
+    }
+}
+
+/// Emit an inline picture drawing referencing embed relationship `rid`, sized
+/// `cx`×`cy` EMU. Relies on the `wp`/`a`/`pic`/`r` namespaces declared on the
+/// document root.
+fn emit_drawing(rid: &str, id: u32, cx: u64, cy: u64, out: &mut String) {
+    out.push_str(&format!(
+        concat!(
+            "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">",
+            "<wp:extent cx=\"{cx}\" cy=\"{cy}\"/>",
+            "<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>",
+            "<wp:docPr id=\"{id}\" name=\"Picture {id}\"/>",
+            "<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>",
+            "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">",
+            "<pic:pic><pic:nvPicPr><pic:cNvPr id=\"{id}\" name=\"Picture {id}\"/>",
+            "<pic:cNvPicPr/></pic:nvPicPr>",
+            "<pic:blipFill><a:blip r:embed=\"{rid}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>",
+            "<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm>",
+            "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr>",
+            "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
+        ),
+        cx = cx,
+        cy = cy,
+        id = id,
+        rid = rid
+    ));
+}
+
+fn render_paragraph(style: Option<&str>, inlines: &[Inline], ctx: &mut Ctx, out: &mut String) {
+    render_paragraph_jc(style, None, inlines, ctx, out);
 }
 
 /// Like [`render_paragraph`] but with an optional `w:jc` justification.
@@ -136,6 +252,7 @@ fn render_paragraph_jc(
     style: Option<&str>,
     jc: Option<&str>,
     inlines: &[Inline],
+    ctx: &mut Ctx,
     out: &mut String,
 ) {
     out.push_str("<w:p>");
@@ -153,69 +270,71 @@ fn render_paragraph_jc(
         }
         out.push_str("</w:pPr>");
     }
-    render_inlines(inlines, RunProps::default(), out);
+    render_inlines(inlines, RunProps::default(), ctx, out);
     out.push_str("</w:p>");
 }
 
 /// One list item -> a numbered/bulleted paragraph (numId 1 = bullet, 2 = decimal).
-fn render_list_item(inlines: &[Inline], num_id: u32, out: &mut String) {
+fn render_list_item(inlines: &[Inline], num_id: u32, ctx: &mut Ctx, out: &mut String) {
     out.push_str(
         "<w:p><w:pPr><w:pStyle w:val=\"ListParagraph\"/>\
          <w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"",
     );
     out.push_str(&num_id.to_string());
     out.push_str("\"/></w:numPr></w:pPr>");
-    render_inlines(inlines, RunProps::default(), out);
+    render_inlines(inlines, RunProps::default(), ctx, out);
     out.push_str("</w:p>");
 }
 
-fn render_block(block: &Block, counters: &mut Counters, out: &mut String) {
+fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
     match block {
         Block::Heading { level, inlines } => {
             let style = format!("Heading{}", level.clamp(&1, &9));
-            render_paragraph(Some(&style), inlines, out);
+            render_paragraph(Some(&style), inlines, ctx, out);
         }
-        Block::Paragraph { inlines } => render_paragraph(None, inlines, out),
+        Block::Paragraph { inlines } => render_paragraph(None, inlines, ctx, out),
         Block::List { ordered, items } => {
             let num_id = if *ordered { 2 } else { 1 };
             for item in items {
-                render_list_item(item, num_id, out);
+                render_list_item(item, num_id, ctx, out);
             }
         }
         Block::Quote(blocks) => {
             for b in blocks {
                 match b {
-                    Block::Paragraph { inlines } => render_paragraph(Some("Quote"), inlines, out),
-                    other => render_block(other, counters, out),
+                    Block::Paragraph { inlines } => {
+                        render_paragraph(Some("Quote"), inlines, ctx, out)
+                    }
+                    other => render_block(other, ctx, out),
                 }
             }
         }
-        Block::Table(table) => render_table(table, false, out),
-        Block::Float(float) => render_float(float, counters, out),
+        Block::Table(table) => render_table(table, false, ctx, out),
+        Block::Float(float) => render_float(float, ctx, out),
     }
 }
 
 /// Render a `figure`/`table` float: its content (centered if requested) followed
 /// by a numbered caption paragraph.
-fn render_float(float: &Float, counters: &mut Counters, out: &mut String) {
+fn render_float(float: &Float, ctx: &mut Ctx, out: &mut String) {
     for b in &float.content {
         match b {
             Block::Paragraph { inlines } => {
-                render_paragraph_jc(None, float.centered.then_some("center"), inlines, out);
+                render_paragraph_jc(None, float.centered.then_some("center"), inlines, ctx, out);
             }
-            Block::Table(table) => render_table(table, float.centered, out),
-            other => render_block(other, counters, out),
+            Block::Table(table) => render_table(table, float.centered, ctx, out),
+            other => render_block(other, ctx, out),
         }
     }
     if let Some(cap) = &float.caption {
         let (prefix, num) = match float.kind {
             FloatKind::Figure => {
-                counters.figure += 1;
-                ("Figure", counters.figure)
+                ctx.figure += 1;
+                ("Figure", ctx.figure)
             }
             FloatKind::Table => {
-                counters.table += 1;
-                ("Table", counters.table)
+                ctx.table += 1;
+                ("Table", ctx.table)
             }
         };
         out.push_str("<w:p><w:pPr><w:pStyle w:val=\"Caption\"/>");
@@ -226,7 +345,7 @@ fn render_float(float: &Float, counters: &mut Counters, out: &mut String) {
         out.push_str(&format!(
             "<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">{prefix} {num}: </w:t></w:r>"
         ));
-        render_inlines(cap, RunProps::default(), out);
+        render_inlines(cap, RunProps::default(), ctx, out);
         out.push_str("</w:p>");
     }
 }
@@ -243,7 +362,7 @@ fn jc_val(align: TableAlign) -> &'static str {
 /// Render a [`Table`] to a WordprocessingML `w:tbl` (single-line borders; header
 /// rows repeat across pages; `\multicolumn` -> `w:gridSpan`; `center` -> the
 /// table is centered on the page).
-fn render_table(table: &Table, center: bool, out: &mut String) {
+fn render_table(table: &Table, center: bool, ctx: &mut Ctx, out: &mut String) {
     // Grid column count: the widest row after expanding colspans.
     let ncols = table
         .rows
@@ -309,7 +428,7 @@ fn render_table(table: &Table, center: bool, out: &mut String) {
             out.push_str("<w:p><w:pPr><w:jc w:val=\"");
             out.push_str(jc_val(cell.align));
             out.push_str("\"/></w:pPr>");
-            render_inlines(&cell.inlines, RunProps::default(), out);
+            render_inlines(&cell.inlines, RunProps::default(), ctx, out);
             out.push_str("</w:p></w:tc>");
             gridcol += span;
         }
@@ -321,59 +440,128 @@ fn render_table(table: &Table, center: bool, out: &mut String) {
     out.push_str("<w:p/>");
 }
 
-/// Render the IR document to `word/document.xml`.
+/// Render the IR document to `word/document.xml` (images fall back to text
+/// placeholders since no base directory is given). Used by unit tests; the
+/// package builder [`build_package`] is the real entry point.
+#[cfg(test)]
 pub fn document_xml(doc: &Document) -> String {
+    build_package(doc, Path::new(".")).document_xml
+}
+
+/// Render the body-dependent package parts: `word/document.xml`, the content
+/// types, the document relationships, and any embedded media (images resolved
+/// against `base_dir`).
+pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
+    let mut ctx = Ctx {
+        figure: 0,
+        table: 0,
+        drawing_id: 0,
+        media: MediaRegistry::new(base_dir),
+    };
     let mut body = String::new();
     if let Some(title) = &doc.title {
-        render_paragraph(Some("Title"), title, &mut body);
+        render_paragraph(Some("Title"), title, &mut ctx, &mut body);
     }
     for author in &doc.authors {
-        render_paragraph(Some("Subtitle"), author, &mut body);
+        render_paragraph(Some("Subtitle"), author, &mut ctx, &mut body);
     }
     if let Some(date) = &doc.date {
-        render_paragraph(Some("Subtitle"), date, &mut body);
+        render_paragraph(Some("Subtitle"), date, &mut ctx, &mut body);
     }
-    let mut counters = Counters::default();
     for block in &doc.blocks {
-        render_block(block, &mut counters, &mut body);
+        render_block(block, &mut ctx, &mut body);
     }
-    format!(
+    let document_xml = format!(
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
-            "<w:document xmlns:w=\"{w}\" xmlns:m=\"{m}\"><w:body>{body}",
+            "<w:document xmlns:w=\"{w}\" xmlns:m=\"{m}\" xmlns:r=\"{r}\" ",
+            "xmlns:wp=\"{wp}\" xmlns:a=\"{a}\" xmlns:pic=\"{pic}\"><w:body>{body}",
             "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/>",
             "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" ",
             "w:header=\"720\" w:footer=\"720\"/></w:sectPr></w:body></w:document>"
         ),
         w = W_NS,
         m = M_NS,
+        r = R_NS,
+        wp = WP_NS,
+        a = A_NS,
+        pic = PIC_NS,
         body = body
-    )
+    );
+
+    // Collect image relationships, content-type defaults, and media parts.
+    let mut image_rels = String::new();
+    let mut exts: Vec<String> = Vec::new();
+    let mut media: Vec<MediaPart> = Vec::new();
+    for m in &ctx.media.items {
+        image_rels.push_str(&format!(
+            "<Relationship Id=\"{}\" Type=\"{R_NS}/image\" Target=\"{}\"/>",
+            m.rid, m.target
+        ));
+        if !exts.iter().any(|e| e == &m.ext) {
+            exts.push(m.ext.clone());
+        }
+        media.push(MediaPart {
+            part_name: m.part_name.clone(),
+            data: m.data.clone(),
+        });
+    }
+
+    Package {
+        document_xml,
+        content_types_xml: content_types_xml(&exts),
+        doc_rels_xml: doc_rels_xml(&image_rels),
+        media,
+    }
 }
 
-pub const CONTENT_TYPES_XML: &str = concat!(
-    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
-    "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">",
-    "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>",
-    "<Default Extension=\"xml\" ContentType=\"application/xml\"/>",
-    "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>",
-    "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/>",
-    "<Override PartName=\"/word/numbering.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml\"/>",
-    "</Types>"
-);
+/// The `[Content_Types].xml` part, with a `Default` for each embedded image ext.
+fn content_types_xml(image_exts: &[String]) -> String {
+    let mut s = String::from(concat!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
+        "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">",
+        "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>",
+        "<Default Extension=\"xml\" ContentType=\"application/xml\"/>",
+    ));
+    for ext in image_exts {
+        let ct = match ext.as_str() {
+            "png" => "image/png",
+            "jpeg" | "jpg" => "image/jpeg",
+            "gif" => "image/gif",
+            _ => continue,
+        };
+        s.push_str(&format!(
+            "<Default Extension=\"{ext}\" ContentType=\"{ct}\"/>"
+        ));
+    }
+    s.push_str(concat!(
+        "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>",
+        "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/>",
+        "<Override PartName=\"/word/numbering.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml\"/>",
+        "</Types>"
+    ));
+    s
+}
+
+/// The `word/_rels/document.xml.rels` part: styles + numbering + image rels.
+fn doc_rels_xml(image_rels: &str) -> String {
+    format!(
+        concat!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
+            "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">",
+            "<Relationship Id=\"rId1\" Type=\"{r}/styles\" Target=\"styles.xml\"/>",
+            "<Relationship Id=\"rId2\" Type=\"{r}/numbering\" Target=\"numbering.xml\"/>",
+            "{image_rels}</Relationships>"
+        ),
+        r = R_NS,
+        image_rels = image_rels
+    )
+}
 
 pub const ROOT_RELS_XML: &str = concat!(
     "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
     "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">",
     "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>",
-    "</Relationships>"
-);
-
-pub const DOC_RELS_XML: &str = concat!(
-    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
-    "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">",
-    "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>",
-    "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering\" Target=\"numbering.xml\"/>",
     "</Relationships>"
 );
 
