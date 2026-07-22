@@ -9,6 +9,8 @@ const SRC: &str = r"\documentclass{article}
 \maketitle
 \section{Introduction}
 This is \textbf{bold} and \emph{italic} text with math $E = mc^2$.
+\begin{itemize}\item alpha \item beta\end{itemize}
+\begin{quote}A set-off quotation.\end{quote}
 \subsection{Details}
 A second paragraph.\end{document}";
 
@@ -46,6 +48,11 @@ fn converts_latex_to_docx_bytes() {
         "<w:i/>",    // italic run
         "<m:oMath>", // inline math
         "E = mc^2",
+        "word/numbering.xml",     // list numbering part
+        "<w:numId w:val=\"1\"/>", // a bullet list item
+        "alpha",
+        "w:pStyle w:val=\"Quote\"", // the quote style
+        "A set-off quotation.",
     ] {
         assert!(text.contains(needle), "missing {needle:?} in .docx");
     }

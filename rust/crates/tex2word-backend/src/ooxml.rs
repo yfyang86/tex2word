@@ -103,6 +103,42 @@ fn render_paragraph(style: Option<&str>, inlines: &[Inline], out: &mut String) {
     out.push_str("</w:p>");
 }
 
+/// One list item -> a numbered/bulleted paragraph (numId 1 = bullet, 2 = decimal).
+fn render_list_item(inlines: &[Inline], num_id: u32, out: &mut String) {
+    out.push_str(
+        "<w:p><w:pPr><w:pStyle w:val=\"ListParagraph\"/>\
+         <w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"",
+    );
+    out.push_str(&num_id.to_string());
+    out.push_str("\"/></w:numPr></w:pPr>");
+    render_inlines(inlines, RunProps::default(), out);
+    out.push_str("</w:p>");
+}
+
+fn render_block(block: &Block, out: &mut String) {
+    match block {
+        Block::Heading { level, inlines } => {
+            let style = format!("Heading{}", level.clamp(&1, &9));
+            render_paragraph(Some(&style), inlines, out);
+        }
+        Block::Paragraph { inlines } => render_paragraph(None, inlines, out),
+        Block::List { ordered, items } => {
+            let num_id = if *ordered { 2 } else { 1 };
+            for item in items {
+                render_list_item(item, num_id, out);
+            }
+        }
+        Block::Quote(blocks) => {
+            for b in blocks {
+                match b {
+                    Block::Paragraph { inlines } => render_paragraph(Some("Quote"), inlines, out),
+                    other => render_block(other, out),
+                }
+            }
+        }
+    }
+}
+
 /// Render the IR document to `word/document.xml`.
 pub fn document_xml(doc: &Document) -> String {
     let mut body = String::new();
@@ -110,13 +146,7 @@ pub fn document_xml(doc: &Document) -> String {
         render_paragraph(Some("Title"), title, &mut body);
     }
     for block in &doc.blocks {
-        match block {
-            Block::Heading { level, inlines } => {
-                let style = format!("Heading{}", level.clamp(&1, &9));
-                render_paragraph(Some(&style), inlines, &mut body);
-            }
-            Block::Paragraph { inlines } => render_paragraph(None, inlines, &mut body),
-        }
+        render_block(block, &mut body);
     }
     format!(
         concat!(
@@ -139,6 +169,7 @@ pub const CONTENT_TYPES_XML: &str = concat!(
     "<Default Extension=\"xml\" ContentType=\"application/xml\"/>",
     "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>",
     "<Override PartName=\"/word/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"/>",
+    "<Override PartName=\"/word/numbering.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml\"/>",
     "</Types>"
 );
 
@@ -153,7 +184,23 @@ pub const DOC_RELS_XML: &str = concat!(
     "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
     "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">",
     "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>",
+    "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering\" Target=\"numbering.xml\"/>",
     "</Relationships>"
+);
+
+/// Numbering definitions: abstractNum 0 = bullet (numId 1), 1 = decimal (numId 2).
+pub const NUMBERING_XML: &str = concat!(
+    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
+    "<w:numbering xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">",
+    "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/>",
+    "<w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{2022}\"/><w:lvlJc w:val=\"left\"/>",
+    "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
+    "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/>",
+    "<w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:lvlJc w:val=\"left\"/>",
+    "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
+    "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>",
+    "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>",
+    "</w:numbering>"
 );
 
 /// Minimal styles: Normal + Title + Heading1..3 (mapped to Word's built-ins).
@@ -172,6 +219,15 @@ pub fn styles_xml() -> String {
              <w:rPr><w:b/><w:sz w:val=\"{sz}\"/></w:rPr></w:style>"
         ));
     }
+    // ListParagraph (list items) and Quote (set-off, italic + indented).
+    s.push_str(concat!(
+        "<w:style w:type=\"paragraph\" w:styleId=\"ListParagraph\">",
+        "<w:name w:val=\"List Paragraph\"/><w:basedOn w:val=\"Normal\"/></w:style>",
+        "<w:style w:type=\"paragraph\" w:styleId=\"Quote\"><w:name w:val=\"Quote\"/>",
+        "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
+        "<w:pPr><w:ind w:left=\"720\" w:right=\"720\"/></w:pPr>",
+        "<w:rPr><w:i/></w:rPr></w:style>",
+    ));
     s.push_str("</w:styles>");
     s
 }

@@ -39,6 +39,14 @@ pub enum Block {
     Heading { level: u8, inlines: Vec<Inline> },
     /// A body paragraph.
     Paragraph { inlines: Vec<Inline> },
+    /// An `itemize` (unordered) / `enumerate` (ordered) list; each item is an
+    /// inline run (multi-block items are a later milestone).
+    List {
+        ordered: bool,
+        items: Vec<Vec<Inline>>,
+    },
+    /// A `quote`/`quotation` set-off block.
+    Quote(Vec<Block>),
 }
 
 /// A whole document: an optional title plus a sequence of blocks.
@@ -57,14 +65,29 @@ impl Document {
             out.push('\n');
         }
         for b in &self.blocks {
-            match b {
-                Block::Heading { inlines, .. } | Block::Paragraph { inlines } => {
-                    push_inline_text(inlines, &mut out);
-                    out.push('\n');
-                }
-            }
+            push_block_text(b, &mut out);
         }
         out
+    }
+}
+
+fn push_block_text(b: &Block, out: &mut String) {
+    match b {
+        Block::Heading { inlines, .. } | Block::Paragraph { inlines } => {
+            push_inline_text(inlines, out);
+            out.push('\n');
+        }
+        Block::List { items, .. } => {
+            for item in items {
+                push_inline_text(item, out);
+                out.push('\n');
+            }
+        }
+        Block::Quote(blocks) => {
+            for b in blocks {
+                push_block_text(b, out);
+            }
+        }
     }
 }
 

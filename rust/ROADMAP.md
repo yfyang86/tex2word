@@ -48,9 +48,13 @@ Each phase is validated against the Python output on the corpus + UATs.
 
 - **Phase 0 — slice (done).** IR, minimal parser, OOXML writer, ZIP, CLI, CI.
 - **Phase 1 — front-end core.** Macro expansion (`\newcommand`/`\def`), preamble
-  handling, comment/`\input` flattening, environments (`itemize`/`enumerate`,
-  `quote`), more inline macros, robust tokenizer. Port `frontend/macros.py`,
-  `preprocess.py`, and the structural half of `parser.py`.
+  handling, comment/`\input` flattening, environments, more inline macros, robust
+  tokenizer. Port `frontend/macros.py`, `preprocess.py`, and the structural half
+  of `parser.py`.
+  - ✅ Environments: `itemize`/`enumerate` (real Word numbering via
+    `numbering.xml`) and `quote`/`quotation` (nesting-aware `\begin…\end`).
+  - ⏳ Next: macro expansion (`\newcommand`/`\def`), `\input` flattening, then
+    more inline macros + a proper tokenizer.
 - **Phase 2 — math (OMML).** The big one: port `mathml/latex_math.py` (LaTeX math
   AST) + `mathml/omml.py` (AST → OMML) + `symbols.py`. Fractions, scripts, roots,
   n-ary ops, matrices/aligned, delimiters, hundreds of symbols.

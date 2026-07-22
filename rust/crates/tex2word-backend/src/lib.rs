@@ -30,6 +30,10 @@ pub fn to_docx(doc: &Document) -> Vec<u8> {
             name: "word/styles.xml".into(),
             data: ooxml::styles_xml().into_bytes(),
         },
+        Entry {
+            name: "word/numbering.xml".into(),
+            data: ooxml::NUMBERING_XML.as_bytes().to_vec(),
+        },
     ];
     zip::build(&entries)
 }

@@ -114,6 +114,29 @@ fn parse_blocks(body: &str) -> Vec<Block> {
         }
         if c == '\\' {
             let (name, after) = read_command_name(&s, i);
+            if name == "begin" {
+                let (env, after_env) = read_braced(&s, after);
+                let (body, after_body) = read_env_body(&s, after_env, &env);
+                flush_paragraph(&mut blocks, &mut para);
+                match env.as_str() {
+                    "itemize" | "enumerate" => {
+                        blocks.push(parse_list(&body, env == "enumerate"));
+                    }
+                    "quote" | "quotation" => {
+                        blocks.push(Block::Quote(parse_blocks(&body)));
+                    }
+                    // unknown environment: descend transparently (keep content)
+                    _ => blocks.extend(parse_blocks(&body)),
+                }
+                i = after_body;
+                continue;
+            }
+            if name == "end" {
+                // a stray \end{…}: consume its name and ignore
+                let (_, after2) = read_braced(&s, after);
+                i = after2;
+                continue;
+            }
             if let Some(level) = section_level(&name) {
                 flush_paragraph(&mut blocks, &mut para);
                 let (arg, after2) = read_braced(&s, after);
@@ -147,6 +170,94 @@ fn flush_paragraph(blocks: &mut Vec<Block>, para: &mut String) {
     if inlines.iter().any(|i| !is_blank_inline(i)) {
         blocks.push(Block::Paragraph { inlines });
     }
+}
+
+/// True if `s[i..]` starts with `pat`.
+fn matches_at(s: &[char], i: usize, pat: &[char]) -> bool {
+    i + pat.len() <= s.len() && s[i..i + pat.len()] == *pat
+}
+
+/// From just after `\begin{env}` (at `i`), read the environment body up to the
+/// matching `\end{env}`, tracking nested `\begin{env}` of the *same* name.
+/// Returns (body, index-after-`\end{env}`).
+fn read_env_body(s: &[char], i: usize, env: &str) -> (String, usize) {
+    let begin_pat: Vec<char> = format!("\\begin{{{env}}}").chars().collect();
+    let end_pat: Vec<char> = format!("\\end{{{env}}}").chars().collect();
+    let start = i;
+    let mut depth = 1;
+    let mut j = i;
+    while j < s.len() {
+        if matches_at(s, j, &begin_pat) {
+            depth += 1;
+            j += begin_pat.len();
+            continue;
+        }
+        if matches_at(s, j, &end_pat) {
+            depth -= 1;
+            if depth == 0 {
+                return (s[start..j].iter().collect(), j + end_pat.len());
+            }
+            j += end_pat.len();
+            continue;
+        }
+        j += 1;
+    }
+    (s[start..].iter().collect(), s.len())
+}
+
+/// Parse an `itemize`/`enumerate` body (split on top-level `\item`).
+fn parse_list(body: &str, ordered: bool) -> Block {
+    let s: Vec<char> = body.chars().collect();
+    let n = s.len();
+    let mut items: Vec<Vec<Inline>> = Vec::new();
+    let mut buf = String::new();
+    let mut started = false;
+    let mut i = 0;
+    while i < n {
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            if name == "item" {
+                if started {
+                    items.push(parse_inlines(buf.trim()));
+                    buf.clear();
+                }
+                started = true;
+                i = skip_optional_bracket(&s, after); // drop \item[label]
+                continue;
+            }
+            if started {
+                buf.extend(&s[i..after]);
+            }
+            i = after;
+            continue;
+        }
+        if started {
+            buf.push(s[i]);
+        }
+        i += 1;
+    }
+    if started {
+        items.push(parse_inlines(buf.trim()));
+    }
+    Block::List { ordered, items }
+}
+
+/// Skip an optional `[ … ]` group (e.g. `\item[label]`); returns index-after.
+fn skip_optional_bracket(s: &[char], i: usize) -> usize {
+    let mut j = i;
+    while j < s.len() && (s[j] == ' ' || s[j] == '\t') {
+        j += 1;
+    }
+    if j < s.len() && s[j] == '[' {
+        while j < s.len() && s[j] != ']' {
+            j += 1;
+        }
+        if j < s.len() {
+            j += 1; // consume ']'
+        }
+        return j;
+    }
+    i
 }
 
 fn is_blank_inline(i: &Inline) -> bool {
@@ -386,5 +497,79 @@ More.\end{document}",
 end\end{document}",
         );
         assert_eq!(doc.plain_text().trim(), "50% & more end");
+    }
+
+    #[test]
+    fn itemize_and_enumerate() {
+        let doc = conv(
+            r"\begin{document}\begin{itemize}\item first \item second\end{itemize}
+\begin{enumerate}\item one \item two\end{enumerate}\end{document}",
+        );
+        assert_eq!(
+            doc.blocks,
+            vec![
+                Block::List {
+                    ordered: false,
+                    items: vec![
+                        vec![Inline::Text("first".into())],
+                        vec![Inline::Text("second".into())],
+                    ],
+                },
+                Block::List {
+                    ordered: true,
+                    items: vec![
+                        vec![Inline::Text("one".into())],
+                        vec![Inline::Text("two".into())],
+                    ],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn item_optional_label_dropped_and_markup_kept() {
+        let doc = conv(
+            r"\begin{document}\begin{itemize}\item[a)] with \textbf{bold}\end{itemize}\end{document}",
+        );
+        let Block::List { items, .. } = &doc.blocks[0] else {
+            panic!("expected list");
+        };
+        assert_eq!(items[0][0], Inline::Text("with ".into()));
+        assert!(matches!(
+            &items[0][1],
+            Inline::Emphasis {
+                kind: EmphasisKind::Bold,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn quote_environment_holds_blocks() {
+        let doc = conv(r"\begin{document}\begin{quote}A quoted line.\end{quote}\end{document}");
+        let Block::Quote(blocks) = &doc.blocks[0] else {
+            panic!("expected quote");
+        };
+        assert_eq!(
+            blocks,
+            &vec![Block::Paragraph {
+                inlines: vec![Inline::Text("A quoted line.".into())]
+            }]
+        );
+    }
+
+    #[test]
+    fn nested_same_name_environment_matches_correctly() {
+        let doc = conv(
+            r"\begin{document}\begin{itemize}\item outer\begin{itemize}\item inner\end{itemize}\end{itemize}after\end{document}",
+        );
+        // the inner \end{itemize} must not close the outer list early
+        assert!(matches!(doc.blocks[0], Block::List { .. }));
+        assert_eq!(
+            doc.blocks.last(),
+            Some(&Block::Paragraph {
+                inlines: vec![Inline::Text("after".into())]
+            })
+        );
     }
 }
