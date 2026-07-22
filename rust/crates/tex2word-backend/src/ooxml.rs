@@ -195,6 +195,16 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, ctx: &mut Ctx, out: &mut Str
             Inline::Math(m) => render_math(m, out),
             Inline::LineBreak => out.push_str("<w:r><w:br/></w:r>"),
             Inline::Image { path, options } => render_image(path, options, ctx, out),
+            Inline::Ref { key, bookmark, .. } => {
+                // Placeholder run until the fields pass wires REF/PAGEREF.
+                render_run(bookmark.as_deref().unwrap_or(key), rp, out);
+            }
+            Inline::Link { inlines, .. } => {
+                // Underlined text until real w:hyperlink lands (next iteration).
+                let mut rp2 = rp;
+                rp2.underline = true;
+                render_inlines(inlines, rp2, ctx, out);
+            }
         }
     }
 }
@@ -288,11 +298,17 @@ fn render_list_item(inlines: &[Inline], num_id: u32, ctx: &mut Ctx, out: &mut St
 
 fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
     match block {
-        Block::Heading { level, inlines } => {
+        Block::Heading { level, inlines, .. } => {
             let style = format!("Heading{}", level.clamp(&1, &9));
             render_paragraph(Some(&style), inlines, ctx, out);
         }
         Block::Paragraph { inlines } => render_paragraph(None, inlines, ctx, out),
+        Block::MathBlock { latex, .. } => {
+            // A display equation: its own centered paragraph of OMML.
+            out.push_str("<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr>");
+            render_math(latex, out);
+            out.push_str("</w:p>");
+        }
         Block::List { ordered, items } => {
             let num_id = if *ordered { 2 } else { 1 };
             for item in items {
@@ -760,6 +776,7 @@ mod tests {
                 }],
                 caption: Some(vec![Inline::Text(format!("Cap {n}"))]),
                 centered: true,
+                label: None,
             })
         };
         let tbl = Block::Float(Float {
@@ -767,6 +784,7 @@ mod tests {
             content: vec![],
             caption: Some(vec![Inline::Text("T".into())]),
             centered: false,
+            label: None,
         });
         let doc = Document {
             blocks: vec![fig("a"), tbl, fig("b")],

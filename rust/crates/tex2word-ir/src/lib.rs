@@ -5,6 +5,8 @@
 //! initial faithful *subset* used by the vertical slice; it grows module by
 //! module as the port proceeds (see `rust/ROADMAP.md`).
 
+use std::collections::HashMap;
+
 /// Character-level emphasis applied to a run of inlines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmphasisKind {
@@ -38,15 +40,66 @@ pub enum Inline {
     /// Binary embedding is a later milestone — for now it renders as a labelled
     /// placeholder.
     Image { path: String, options: String },
+    /// A cross-reference (`\ref`/`\eqref`/`\cref`/`\pageref`/…). `bookmark` is
+    /// filled in by the cross-reference pass; the back-end then emits a live
+    /// `REF`/`PAGEREF` field. `style` selects a cleveref-style type prefix.
+    Ref {
+        key: String,
+        kind: RefKind,
+        style: RefStyle,
+        bookmark: Option<String>,
+    },
+    /// A hyperlink: an external `url`, or an internal `anchor` bookmark
+    /// (`\hyperref[label]{…}`, resolved to a sanitized bookmark by the pass).
+    Link {
+        inlines: Vec<Inline>,
+        url: String,
+        anchor: Option<String>,
+    },
+}
+
+/// What a cross-reference points at (drives the counter + cleveref prefix).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RefKind {
+    #[default]
+    Generic,
+    Equation,
+    Figure,
+    Table,
+    Section,
+    Theorem,
+    Page,
+    Name,
+    ListItem,
+}
+
+/// The cleveref-style prefix a reference carries: `Plain` (bare number, `\ref`),
+/// `Abbrev` (`fig. N`, `\cref`), `Full` (`Figure N`, `\Cref`/`\autoref`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RefStyle {
+    #[default]
+    Plain,
+    Abbrev,
+    Full,
 }
 
 /// Block-level content.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block {
-    /// `level` 1..=3 maps to Word `Heading1`..`Heading3`.
-    Heading { level: u8, inlines: Vec<Inline> },
+    /// `level` 1..=3 maps to Word `Heading1`..`Heading3`. `label` is a `\label`
+    /// target attached to the heading (for `\ref`/`\nameref`).
+    Heading {
+        level: u8,
+        inlines: Vec<Inline>,
+        label: Option<String>,
+    },
     /// A body paragraph.
     Paragraph { inlines: Vec<Inline> },
+    /// A display-math equation (`\[ … \]` / `equation`), a numberable target.
+    MathBlock {
+        latex: String,
+        label: Option<String>,
+    },
     /// An `itemize` (unordered) / `enumerate` (ordered) list; each item is an
     /// inline run (multi-block items are a later milestone).
     List {
@@ -71,6 +124,8 @@ pub struct Float {
     pub caption: Option<Vec<Inline>>,
     /// `\centering` was present.
     pub centered: bool,
+    /// A `\label{…}` target (for `\ref`/`\autoref` to the float's number).
+    pub label: Option<String>,
 }
 
 /// Which caption series a float belongs to.
@@ -115,6 +170,18 @@ pub struct Table {
     pub colspec: Vec<TableAlign>,
 }
 
+/// A resolved `\label`: its Word bookmark, counter series, and display name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabelInfo {
+    pub kind: RefKind,
+    /// Word `SEQ` counter name (e.g. `Figure`, `Table`, `Equation`).
+    pub counter_name: String,
+    /// Sanitized Word bookmark the number lives in.
+    pub bookmark: String,
+    /// The target's title/caption text (for `\nameref`).
+    pub name: Option<String>,
+}
+
 /// A whole document: title/author/date metadata plus a sequence of blocks.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Document {
@@ -123,6 +190,9 @@ pub struct Document {
     pub authors: Vec<Vec<Inline>>,
     pub date: Option<Vec<Inline>>,
     pub blocks: Vec<Block>,
+    /// `\label` → resolved bookmark/counter, populated by the cross-reference
+    /// pass (empty until then).
+    pub labels: HashMap<String, LabelInfo>,
 }
 
 impl Document {
@@ -153,6 +223,10 @@ fn push_block_text(b: &Block, out: &mut String) {
     match b {
         Block::Heading { inlines, .. } | Block::Paragraph { inlines } => {
             push_inline_text(inlines, out);
+            out.push('\n');
+        }
+        Block::MathBlock { latex, .. } => {
+            out.push_str(latex);
             out.push('\n');
         }
         Block::List { items, .. } => {
@@ -197,6 +271,11 @@ fn push_inline_text(inlines: &[Inline], out: &mut String) {
             Inline::Math(m) => out.push_str(m),
             Inline::LineBreak => out.push(' '),
             Inline::Image { .. } => {}
+            Inline::Ref { key, bookmark, .. } => {
+                // Cached display text is unknown pre-render; use the target name.
+                out.push_str(bookmark.as_deref().unwrap_or(key));
+            }
+            Inline::Link { inlines, .. } => push_inline_text(inlines, out),
         }
     }
 }

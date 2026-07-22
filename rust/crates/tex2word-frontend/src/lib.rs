@@ -13,7 +13,8 @@
 use std::path::Path;
 
 use tex2word_ir::{
-    Block, Document, EmphasisKind, Float, FloatKind, Inline, Table, TableAlign, TableCell, TableRow,
+    Block, Document, EmphasisKind, Float, FloatKind, Inline, RefKind, RefStyle, Table, TableAlign,
+    TableCell, TableRow,
 };
 
 mod macros;
@@ -50,6 +51,7 @@ pub fn parse_document_in(source: &str, base_dir: &Path) -> Document {
         authors,
         date,
         blocks: parse_blocks(&body),
+        labels: std::collections::HashMap::new(),
     }
 }
 
@@ -264,6 +266,15 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                     "table" | "table*" => {
                         blocks.push(parse_float(&body, FloatKind::Table));
                     }
+                    // display-math environments -> a numberable MathBlock
+                    "equation" | "equation*" | "displaymath" | "align" | "align*" | "gather"
+                    | "gather*" | "multline" | "multline*" | "eqnarray" | "eqnarray*" => {
+                        let (latex, label) = extract_label(&body);
+                        blocks.push(Block::MathBlock {
+                            latex: latex.trim().to_string(),
+                            label,
+                        });
+                    }
                     // center/flushleft/flushright: descend, keep the content
                     // unknown environment: descend transparently (keep content)
                     _ => blocks.extend(parse_blocks(&body)),
@@ -278,11 +289,13 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                 continue;
             }
             if name == "[" {
-                // display math \[ … \] -> its own paragraph of math
+                // display math \[ … \] -> a numberable MathBlock
                 flush_paragraph(&mut blocks, &mut para);
                 let (math, after2) = read_display_math(&s, after);
-                blocks.push(Block::Paragraph {
-                    inlines: vec![Inline::Math(math.trim().to_string())],
+                let (latex, label) = extract_label(&math);
+                blocks.push(Block::MathBlock {
+                    latex: latex.trim().to_string(),
+                    label,
                 });
                 i = after2;
                 continue;
@@ -293,12 +306,23 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                 blocks.push(Block::Heading {
                     level,
                     inlines: parse_inlines(&arg),
+                    label: None,
                 });
                 i = after2;
                 continue;
             }
             if name == "maketitle" {
                 i = after;
+                continue;
+            }
+            if name == "label" {
+                // \label between blocks -> attach to the last labelable target.
+                let (key, after2) = read_braced(&s, after);
+                if para.trim().is_empty() {
+                    para.clear();
+                    attach_label(&mut blocks, key.trim().to_string());
+                }
+                i = after2;
                 continue;
             }
             // inline command: keep the command token in the paragraph buffer so
@@ -312,6 +336,43 @@ fn parse_blocks(body: &str) -> Vec<Block> {
     }
     flush_paragraph(&mut blocks, &mut para);
     blocks
+}
+
+/// Attach a `\label` key to the most recently emitted labelable block.
+fn attach_label(blocks: &mut [Block], key: String) {
+    if key.is_empty() {
+        return;
+    }
+    match blocks.last_mut() {
+        Some(Block::Heading { label, .. } | Block::MathBlock { label, .. }) if label.is_none() => {
+            *label = Some(key)
+        }
+        Some(Block::Float(f)) if f.label.is_none() => f.label = Some(key),
+        _ => {}
+    }
+}
+
+/// Split the first `\label{key}` out of a math body: returns (body-without-label,
+/// the key). Used for `\[ … \label … \]` and the equation environments.
+fn extract_label(body: &str) -> (String, Option<String>) {
+    let s: Vec<char> = body.chars().collect();
+    let n = s.len();
+    let mut i = 0;
+    while i < n {
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            if name == "label" {
+                let (key, after2) = read_braced(&s, after);
+                let mut rest: String = s[..i].iter().collect();
+                rest.extend(&s[after2..]);
+                return (rest, Some(key.trim().to_string()).filter(|k| !k.is_empty()));
+            }
+            i = after;
+            continue;
+        }
+        i += 1;
+    }
+    (body.to_string(), None)
 }
 
 fn flush_paragraph(blocks: &mut Vec<Block>, para: &mut String) {
@@ -675,6 +736,7 @@ fn parse_float(body: &str, kind: FloatKind) -> Block {
     let n = s.len();
     let mut centered = false;
     let mut caption: Option<Vec<Inline>> = None;
+    let mut label: Option<String> = None;
     let mut content = String::new();
     let mut i = 0;
     while i < n && s[i].is_whitespace() {
@@ -698,7 +760,18 @@ fn parse_float(body: &str, kind: FloatKind) -> Block {
                     i = after;
                     continue;
                 }
-                "label" | "captionsetup" => {
+                "label" => {
+                    let (key, a1) = read_braced(&s, after);
+                    if label.is_none() {
+                        let k = key.trim();
+                        if !k.is_empty() {
+                            label = Some(k.to_string());
+                        }
+                    }
+                    i = a1.max(after);
+                    continue;
+                }
+                "captionsetup" => {
                     let (_, a1) = read_braced(&s, after);
                     i = a1.max(after);
                     continue;
@@ -718,6 +791,7 @@ fn parse_float(body: &str, kind: FloatKind) -> Block {
         content: parse_blocks(&content),
         caption,
         centered,
+        label,
     })
 }
 
@@ -779,6 +853,53 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                         out.push(Inline::Image {
                             path: path.trim().to_string(),
                             options: options.trim().to_string(),
+                        });
+                        i = a2;
+                    }
+                    // cross-references -> Inline::Ref (bookmark filled by the pass)
+                    "ref" | "eqref" | "pageref" | "autoref" | "cref" | "Cref" | "nameref"
+                    | "Nameref" | "vref" | "labelcref" => {
+                        flush_text!();
+                        let (key, a1) = read_braced(&s, after);
+                        out.push(Inline::Ref {
+                            key: key.trim().to_string(),
+                            kind: ref_kind(&name),
+                            style: ref_style(&name),
+                            bookmark: None,
+                        });
+                        i = a1;
+                    }
+                    // hyperlinks -> Inline::Link (external url, or internal anchor)
+                    "href" => {
+                        flush_text!();
+                        let (url, a1) = read_braced(&s, after);
+                        let (txt, a2) = read_braced(&s, a1);
+                        out.push(Inline::Link {
+                            inlines: parse_inlines(txt.trim()),
+                            url: url.trim().to_string(),
+                            anchor: None,
+                        });
+                        i = a2;
+                    }
+                    "url" => {
+                        flush_text!();
+                        let (url, a1) = read_braced(&s, after);
+                        let u = url.trim().to_string();
+                        out.push(Inline::Link {
+                            inlines: vec![Inline::Text(u.clone())],
+                            url: u,
+                            anchor: None,
+                        });
+                        i = a1;
+                    }
+                    "hyperref" => {
+                        flush_text!();
+                        let (anchor, a1) = read_optional(&s, after);
+                        let (txt, a2) = read_braced(&s, a1);
+                        out.push(Inline::Link {
+                            inlines: parse_inlines(txt.trim()),
+                            url: String::new(),
+                            anchor: Some(anchor.trim().to_string()).filter(|a| !a.is_empty()),
                         });
                         i = a2;
                     }
@@ -866,6 +987,25 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
     }
     flush_text!();
     out
+}
+
+/// The [`RefKind`] a reference macro targets.
+fn ref_kind(name: &str) -> RefKind {
+    match name {
+        "eqref" => RefKind::Equation,
+        "pageref" => RefKind::Page,
+        "nameref" | "Nameref" => RefKind::Name,
+        _ => RefKind::Generic, // \ref/\autoref/\cref/\Cref/\vref/\labelcref
+    }
+}
+
+/// The cleveref-style prefix a reference macro carries.
+fn ref_style(name: &str) -> RefStyle {
+    match name {
+        "cref" => RefStyle::Abbrev,
+        "autoref" | "Cref" | "vref" => RefStyle::Full,
+        _ => RefStyle::Plain, // \ref/\eqref/\pageref/\nameref/\labelcref
+    }
 }
 
 fn emphasis_kind(name: &str) -> Option<EmphasisKind> {
@@ -1219,14 +1359,16 @@ More.\end{document}",
             vec![
                 Block::Heading {
                     level: 1,
-                    inlines: vec![Inline::Text("Intro".into())]
+                    inlines: vec![Inline::Text("Intro".into())],
+                    label: None,
                 },
                 Block::Paragraph {
                     inlines: vec![Inline::Text("Hello world.".into())]
                 },
                 Block::Heading {
                     level: 2,
-                    inlines: vec![Inline::Text("Sub".into())]
+                    inlines: vec![Inline::Text("Sub".into())],
+                    label: None,
                 },
                 Block::Paragraph {
                     inlines: vec![Inline::Text("More.".into())]
@@ -1623,6 +1765,83 @@ a & b \\
                 options: String::new()
             }
         );
+    }
+
+    #[test]
+    fn labels_attach_and_refs_parse() {
+        let doc = conv(
+            r"\begin{document}
+\section{Intro}\label{sec:intro}
+See \ref{sec:intro} and Fig.~\autoref{fig:a} on page \pageref{fig:a}, eq.~\eqref{eq:e}.
+\begin{figure}\includegraphics{p.png}\caption{C}\label{fig:a}\end{figure}
+\begin{equation}\label{eq:e} x = y \end{equation}
+\end{document}",
+        );
+        // heading label attached
+        assert!(matches!(&doc.blocks[0],
+            Block::Heading { label: Some(l), .. } if l == "sec:intro"));
+        // refs parsed with kind/style
+        let para = doc
+            .blocks
+            .iter()
+            .find_map(|b| match b {
+                Block::Paragraph { inlines } => Some(inlines),
+                _ => None,
+            })
+            .unwrap();
+        let refs: Vec<_> = para
+            .iter()
+            .filter_map(|i| match i {
+                Inline::Ref {
+                    key, kind, style, ..
+                } => Some((key.as_str(), *kind, *style)),
+                _ => None,
+            })
+            .collect();
+        assert!(refs.contains(&("sec:intro", RefKind::Generic, RefStyle::Plain)));
+        assert!(refs.contains(&("fig:a", RefKind::Generic, RefStyle::Full))); // \autoref
+        assert!(refs.contains(&("fig:a", RefKind::Page, RefStyle::Plain))); // \pageref
+        assert!(refs.contains(&("eq:e", RefKind::Equation, RefStyle::Plain))); // \eqref
+                                                                               // figure + equation labels attached
+        assert!(doc
+            .blocks
+            .iter()
+            .any(|b| matches!(b, Block::Float(f) if f.label.as_deref()==Some("fig:a"))));
+        assert!(doc.blocks.iter().any(|b| matches!(b,
+            Block::MathBlock { label: Some(l), .. } if l == "eq:e")));
+    }
+
+    #[test]
+    fn hyperlinks_parse() {
+        let doc = conv(
+            r"\begin{document}Visit \href{https://example.com}{our \textbf{site}} or \url{http://x.io}, see \hyperref[sec:a]{that section}.\end{document}",
+        );
+        let Block::Paragraph { inlines } = &doc.blocks[0] else {
+            panic!("expected paragraph");
+        };
+        // external link with markup
+        assert!(inlines.iter().any(|i| matches!(i,
+            Inline::Link { url, anchor: None, .. } if url == "https://example.com")));
+        // \url -> link whose text is the url
+        assert!(inlines.iter().any(|i| matches!(i,
+            Inline::Link { url, inlines, .. }
+                if url == "http://x.io" && inlines == &vec![Inline::Text("http://x.io".into())])));
+        // \hyperref[anchor] -> internal link
+        assert!(inlines.iter().any(|i| matches!(i,
+            Inline::Link { anchor: Some(a), url, .. } if a == "sec:a" && url.is_empty())));
+    }
+
+    #[test]
+    fn display_math_and_equation_become_mathblocks() {
+        let doc = conv(r"\begin{document}\[ a^2 + b^2 = c^2 \]\end{document}");
+        assert!(matches!(&doc.blocks[0],
+            Block::MathBlock { latex, label: None } if latex.contains("a^2")));
+        // stray \label right after \end{figure} still binds to the float
+        let doc2 = conv(
+            r"\begin{document}\begin{figure}\includegraphics{p.png}\end{figure}\label{fig:z}\end{document}",
+        );
+        assert!(doc2.blocks.iter().any(|b| matches!(b,
+            Block::Float(f) if f.label.as_deref() == Some("fig:z"))));
     }
 
     #[test]
