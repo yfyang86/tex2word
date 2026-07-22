@@ -1,9 +1,10 @@
 //! OOXML (WordprocessingML) generation: IR -> the XML parts of a `.docx`.
 //!
-//! The vertical slice emits `word/document.xml` (paragraphs, headings, styled
-//! runs, and minimal `m:oMath` for inline math) plus the fixed package parts
-//! (`[Content_Types].xml`, relationships, `styles.xml`). Structured OMML math,
-//! numbering, tables, figures, live fields, … are later milestones.
+//! Emits `word/document.xml` (paragraphs, headings, styled runs, lists via
+//! `numbering.xml`, quotes, and structured OMML math via the `tex2word-math`
+//! crate) plus the fixed package parts (`[Content_Types].xml`, relationships,
+//! `styles.xml`, `numbering.xml`). Tables, figures and live fields are later
+//! milestones.
 
 use tex2word_ir::{Block, Document, EmphasisKind, Inline};
 
@@ -86,11 +87,8 @@ fn render_run(text: &str, rp: RunProps, out: &mut String) {
 }
 
 fn render_math(latex: &str, out: &mut String) {
-    // Minimal OMML: the literal as a single math run. Structured OMML (fractions,
-    // scripts, matrices) is the big math milestone in the roadmap.
-    out.push_str("<m:oMath><m:r><m:t>");
-    out.push_str(&escape(latex));
-    out.push_str("</m:t></m:r></m:oMath>");
+    // Structured OMML via the math engine (fractions, scripts, roots, symbols…).
+    out.push_str(&tex2word_math::to_omath(latex));
 }
 
 fn render_inlines(inlines: &[Inline], rp: RunProps, out: &mut String) {

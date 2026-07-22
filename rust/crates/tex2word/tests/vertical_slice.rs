@@ -46,10 +46,10 @@ fn converts_latex_to_docx_bytes() {
         "word/styles.xml",
         "Vertical Slice",
         "Introduction",
-        "<w:b/>",    // bold run
-        "<w:i/>",    // italic run
-        "<m:oMath>", // inline math
-        "E = mc^2",
+        "<w:b/>",                 // bold run
+        "<w:i/>",                 // italic run
+        "<m:oMath>",              // inline math
+        "<m:sSup>",               // structured OMML: the c^2 superscript
         "word/numbering.xml",     // list numbering part
         "<w:numId w:val=\"1\"/>", // a bullet list item
         "alpha",

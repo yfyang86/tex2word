@@ -69,9 +69,16 @@ Each phase is validated against the Python output on the corpus + UATs.
     rendered under the title in a centered `Subtitle` style.
   - Phase 1 is functionally complete for the common document core. **Phase 2 (the
     OMML math engine) is next** — the headline differentiator.
-- **Phase 2 — math (OMML).** The big one: port `mathml/latex_math.py` (LaTeX math
-  AST) + `mathml/omml.py` (AST → OMML) + `symbols.py`. Fractions, scripts, roots,
-  n-ary ops, matrices/aligned, delimiters, hundreds of symbols.
+- **Phase 2 — math (OMML).** The big one: `crates/tex2word-math` ports
+  `mathml/latex_math.py` (AST) + `omml.py` (AST → OMML) + `symbols.py`.
+  - ✅ Core: `tex2word-math` crate — recursive-descent LaTeX-math parser + AST +
+    structured OMML for fractions (`m:f`), sub/superscripts (`m:sSup`/`m:sSub`/
+    `m:sSubSup`), roots (`m:rad`, incl. `\sqrt[n]`), Greek + operator/relation/
+    arrow symbol table, and upright function names (`\sin` → `m:nor`). Wired into
+    the back-end (`Inline::Math` now emits structured OMML).
+  - ⏳ Next: n-ary operators (`\sum`/`\int`/`\prod` with limits → `m:nary`),
+    `\left…\right` delimiters (`m:d`), matrices/`aligned` (`m:m`), accents in
+    math, `\text`, and the rest of the symbol tables.
 - **Phase 3 — tables & figures.** `tabular`/`booktabs`, `\multicolumn`/`\multirow`
   (grid/vMerge), captions, `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,

@@ -1,0 +1,9 @@
+[package]
+name = "tex2word-math"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "tex2word math engine: LaTeX math -> OMML (Rust port of mathml/*)"
+
+[dependencies]
