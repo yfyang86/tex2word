@@ -1,0 +1,13 @@
+[package]
+name = "tex2word"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "LaTeX -> Microsoft Word (.docx) converter (Rust port of tex2word)"
+repository.workspace = true
+
+[dependencies]
+tex2word-ir = { path = "../tex2word-ir" }
+tex2word-frontend = { path = "../tex2word-frontend" }
+tex2word-backend = { path = "../tex2word-backend" }

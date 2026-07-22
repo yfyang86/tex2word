@@ -1,0 +1,14 @@
+[package]
+name = "tex2word-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "tex2word command-line interface (Rust port)"
+
+[[bin]]
+name = "tex2word"
+path = "src/main.rs"
+
+[dependencies]
+tex2word = { path = "../tex2word" }

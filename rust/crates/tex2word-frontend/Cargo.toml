@@ -1,0 +1,10 @@
+[package]
+name = "tex2word-frontend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "tex2word LaTeX front-end: LaTeX -> IR (Rust port)"
+
+[dependencies]
+tex2word-ir = { path = "../tex2word-ir" }

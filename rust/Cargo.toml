@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+authors = ["Yifan Yang <yfyang.86@hotmail.com>"]
+repository = "https://github.com/yfyang86/tex2word"
+description = "LaTeX -> Microsoft Word (.docx) converter (Rust port of tex2word)"
+
+[profile.release]
+opt-level = 3
+lto = true

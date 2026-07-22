@@ -1,0 +1,10 @@
+[package]
+name = "tex2word-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "tex2word OOXML back-end: IR -> .docx (Rust port)"
+
+[dependencies]
+tex2word-ir = { path = "../tex2word-ir" }
