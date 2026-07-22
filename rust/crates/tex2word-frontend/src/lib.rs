@@ -14,7 +14,7 @@ use std::path::Path;
 
 use tex2word_ir::{
     BibEntry, Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, RefKind, RefStyle,
-    Table, TableAlign, TableCell, TableRow, TocKind,
+    Table, TableAlign, TableCell, TableRow, Theorem, TocKind,
 };
 
 mod macros;
@@ -242,6 +242,40 @@ fn section_level(name: &str) -> Option<u8> {
     }
 }
 
+/// Map a theorem-like environment to its `(display name, numbered)`, if it is
+/// one. Numbered kinds share a common `Theorem` `SEQ` counter; `proof` is
+/// unnumbered. (`\newtheorem`-declared sharing is a later refinement.)
+fn theorem_kind(env: &str) -> Option<(&'static str, bool)> {
+    Some(match env {
+        "theorem" => ("Theorem", true),
+        "lemma" => ("Lemma", true),
+        "proposition" => ("Proposition", true),
+        "corollary" => ("Corollary", true),
+        "definition" => ("Definition", true),
+        "remark" => ("Remark", true),
+        "example" => ("Example", true),
+        "proof" => ("Proof", false),
+        _ => return None,
+    })
+}
+
+/// Pull a leading `[title]` optional argument off a theorem body.
+fn extract_theorem_title(body: &str) -> (Option<Vec<Inline>>, String) {
+    let s: Vec<char> = body.chars().collect();
+    let mut i = 0;
+    while i < s.len() && s[i].is_whitespace() {
+        i += 1;
+    }
+    let (opt, after) = read_optional(&s, i);
+    if after > i {
+        let title = parse_inlines(opt.trim());
+        let rest: String = s[after..].iter().collect();
+        (Some(title).filter(|t| !t.is_empty()), rest)
+    } else {
+        (None, body.to_string())
+    }
+}
+
 /// Map a table-of-contents macro to its [`TocKind`], if it is one.
 fn toc_kind(name: &str) -> Option<TocKind> {
     match name {
@@ -304,6 +338,19 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                     }
                     "thebibliography" => {
                         blocks.push(parse_bibliography(&body));
+                    }
+                    _ if theorem_kind(&env).is_some() => {
+                        let (kind, numbered) = theorem_kind(&env).unwrap();
+                        // leading [title], then a \label anywhere in the body
+                        let (title, rest) = extract_theorem_title(&body);
+                        let (rest, label) = extract_label(&rest);
+                        blocks.push(Block::Theorem(Theorem {
+                            kind: kind.to_string(),
+                            blocks: parse_blocks(&rest),
+                            title,
+                            label,
+                            counter: numbered.then(|| "Theorem".to_string()),
+                        }));
                     }
                     // display-math environments -> a numberable MathBlock
                     "equation" | "equation*" | "displaymath" | "align" | "align*" | "gather"
@@ -2077,6 +2124,34 @@ Text \citep{a,b} and \citet{c} with a note\footnote{See \ref{sec:x}.}.
             .inlines
             .iter()
             .any(|i| matches!(i, Inline::Text(t) if t.contains("Title A"))));
+    }
+
+    #[test]
+    fn theorem_environments_parse() {
+        let doc = conv(
+            r"\begin{document}
+\begin{theorem}[Pythagoras]\label{thm:pyth}
+For a right triangle, $a^2+b^2=c^2$.
+\end{theorem}
+\begin{proof}
+It follows.
+\end{proof}\end{document}",
+        );
+        let Block::Theorem(t) = &doc.blocks[0] else {
+            panic!("expected theorem, got {:?}", doc.blocks[0]);
+        };
+        assert_eq!(t.kind, "Theorem");
+        assert_eq!(t.counter.as_deref(), Some("Theorem"));
+        assert_eq!(t.label.as_deref(), Some("thm:pyth"));
+        assert_eq!(t.title, Some(vec![Inline::Text("Pythagoras".into())]));
+        assert!(matches!(&t.blocks[0], Block::Paragraph { inlines }
+            if inlines.iter().any(|i| matches!(i, Inline::Math(m) if m.contains("a^2")))));
+        // proof is unnumbered
+        let Block::Theorem(p) = &doc.blocks[1] else {
+            panic!("expected proof");
+        };
+        assert_eq!(p.kind, "Proof");
+        assert_eq!(p.counter, None);
     }
 
     #[test]

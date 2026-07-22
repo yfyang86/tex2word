@@ -146,6 +146,20 @@ pub enum Block {
     TableOfContents(TocKind),
     /// A `thebibliography` — the reference list.
     Bibliography { entries: Vec<BibEntry> },
+    /// A theorem-like environment (`theorem`/`lemma`/`proof`/…).
+    Theorem(Theorem),
+}
+
+/// A theorem-like environment. `kind` is the display name ("Theorem", "Proof");
+/// `counter` is the `SEQ` counter for numbered kinds (`None` = unnumbered, e.g.
+/// `proof`); `title` is the optional `[…]` name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Theorem {
+    pub kind: String,
+    pub blocks: Vec<Block>,
+    pub title: Option<Vec<Inline>>,
+    pub label: Option<String>,
+    pub counter: Option<String>,
 }
 
 /// One `\bibitem[label]{key} …` reference.
@@ -329,6 +343,18 @@ fn push_block_text(b: &Block, out: &mut String) {
             for e in entries {
                 push_inline_text(&e.inlines, out);
                 out.push('\n');
+            }
+        }
+        Block::Theorem(t) => {
+            out.push_str(&t.kind);
+            if let Some(title) = &t.title {
+                out.push_str(" (");
+                push_inline_text(title, out);
+                out.push(')');
+            }
+            out.push_str(". ");
+            for b in &t.blocks {
+                push_block_text(b, out);
             }
         }
     }

@@ -14,7 +14,7 @@ use std::path::Path;
 
 use tex2word_ir::{
     Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, RefKind,
-    RefStyle, Table, TableAlign, TocKind,
+    RefStyle, Table, TableAlign, Theorem, TocKind,
 };
 
 use crate::fields::{self, Bookmarks};
@@ -517,6 +517,66 @@ fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
         Block::Float(float) => render_float(float, ctx, out),
         Block::TableOfContents(kind) => render_toc(*kind, out),
         Block::Bibliography { entries } => render_bibliography(entries, ctx, out),
+        Block::Theorem(theorem) => render_theorem(theorem, ctx, out),
+    }
+}
+
+/// Render a theorem-like environment: a bold "Kind N (Title). " lead-in (with a
+/// live `SEQ Theorem` number in a bookmark when numbered/labelled), then the
+/// body — statement kinds italic, `proof` upright and closed with a ∎. The
+/// lead-in is merged into the first body paragraph so it reads inline.
+fn render_theorem(t: &Theorem, ctx: &mut Ctx, out: &mut String) {
+    let italic_body = matches!(
+        t.kind.as_str(),
+        "Theorem" | "Lemma" | "Proposition" | "Corollary"
+    );
+    let is_proof = t.kind == "Proof";
+    let body_rp = RunProps {
+        italic: italic_body,
+        ..Default::default()
+    };
+    let head_rp = RunProps {
+        bold: !is_proof,
+        italic: is_proof,
+        ..Default::default()
+    };
+
+    out.push_str("<w:p>");
+    // Lead-in: "Proof." (italic) or "Kind [N] [(Title)]." (bold).
+    if is_proof {
+        render_run("Proof. ", head_rp, out);
+    } else {
+        render_run(&t.kind, head_rp, out);
+        if let Some(counter) = &t.counter {
+            render_run(" ", head_rp, out);
+            match ctx.bookmark_of(&t.label) {
+                Some(name) => {
+                    let id = ctx.bookmarks.start(&name, out);
+                    fields::seq_field(counter, out);
+                    ctx.bookmarks.end(id, out);
+                }
+                None => fields::seq_field(counter, out),
+            }
+        }
+        if let Some(title) = &t.title {
+            render_run(" (", head_rp, out);
+            render_inlines(title, head_rp, ctx, out);
+            render_run(")", head_rp, out);
+        }
+        render_run(". ", head_rp, out);
+    }
+    // Merge the first paragraph into the lead-in; render the rest as blocks.
+    let mut rest = t.blocks.as_slice();
+    if let Some((Block::Paragraph { inlines }, tail)) = t.blocks.split_first() {
+        render_inlines(inlines, body_rp, ctx, out);
+        rest = tail;
+    }
+    if is_proof && rest.is_empty() {
+        render_run(" \u{220E}", RunProps::default(), out); // QED on a one-para proof
+    }
+    out.push_str("</w:p>");
+    for b in rest {
+        render_block(b, ctx, out);
     }
 }
 
@@ -1358,6 +1418,52 @@ mod tests {
         // relationship + content type wired
         assert!(pkg.doc_rels_xml.contains("Target=\"footnotes.xml\""));
         assert!(pkg.content_types_xml.contains("/word/footnotes.xml"));
+    }
+
+    #[test]
+    fn theorem_renders_seq_and_proof_qed() {
+        use std::collections::HashMap;
+        let mut labels = HashMap::new();
+        labels.insert(
+            "thm:a".to_string(),
+            LabelInfo {
+                kind: RefKind::Theorem,
+                counter_name: "Theorem".into(),
+                bookmark: "thm_a".into(),
+                name: Some("Pythagoras".into()),
+            },
+        );
+        let thm = Block::Theorem(Theorem {
+            kind: "Theorem".into(),
+            blocks: vec![Block::Paragraph {
+                inlines: vec![Inline::Text("Statement.".into())],
+            }],
+            title: Some(vec![Inline::Text("Pythagoras".into())]),
+            label: Some("thm:a".into()),
+            counter: Some("Theorem".into()),
+        });
+        let proof = Block::Theorem(Theorem {
+            kind: "Proof".into(),
+            blocks: vec![Block::Paragraph {
+                inlines: vec![Inline::Text("Obvious.".into())],
+            }],
+            title: None,
+            label: None,
+            counter: None,
+        });
+        let doc = Document {
+            labels,
+            blocks: vec![thm, proof],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        // numbered theorem: live SEQ Theorem inside its bookmark + the title
+        assert!(xml.contains("SEQ Theorem \\* ARABIC"));
+        assert!(xml.contains("w:name=\"thm_a\""));
+        assert!(xml.contains(">Pythagoras</w:t>"));
+        // proof: italic "Proof. " lead-in + a QED mark, no SEQ
+        assert!(xml.contains(">Proof. </w:t>"));
+        assert!(xml.contains('\u{220E}'));
     }
 
     #[test]

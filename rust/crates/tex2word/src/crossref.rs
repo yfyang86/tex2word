@@ -121,6 +121,15 @@ fn collect(blocks: &[Block], labels: &mut HashMap<String, LabelInfo>) {
                 collect(&f.content, labels); // nested tables/labels
             }
             Block::Quote(bs) => collect(bs, labels),
+            Block::Theorem(t) => {
+                let name = t
+                    .title
+                    .as_ref()
+                    .map(|x| inline_text(x))
+                    .or_else(|| Some(t.kind.clone()));
+                add_label(labels, &t.label, RefKind::Theorem, name);
+                collect(&t.blocks, labels);
+            }
             _ => {}
         }
     }
@@ -170,6 +179,12 @@ fn rewrite_blocks(
                         rewrite_inlines(&mut cell.inlines, labels, warns);
                     }
                 }
+            }
+            Block::Theorem(t) => {
+                if let Some(title) = &mut t.title {
+                    rewrite_inlines(title, labels, warns);
+                }
+                rewrite_blocks(&mut t.blocks, labels, warns);
             }
             _ => {}
         }
