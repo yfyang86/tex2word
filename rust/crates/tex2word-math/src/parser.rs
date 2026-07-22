@@ -49,6 +49,12 @@ pub enum Node {
         top: bool,
         base: Box<Node>,
     },
+    /// A matrix / `aligned` / `cases` grid (rows of cells), optionally wrapped in
+    /// delimiters (`pmatrix` → `()`, `bmatrix` → `[]`, `cases` → `{`).
+    Matrix {
+        rows: Vec<Vec<Node>>,
+        delim: Option<(String, String)>,
+    },
 }
 
 /// Parse a LaTeX math string into a [`Node::Row`].
@@ -182,6 +188,11 @@ impl Parser {
             }
             "left" => self.parse_delim(),
             "right" => Node::Run(String::new()), // stray \right (parse_delim owns it)
+            "begin" => self.parse_environment(),
+            "end" => {
+                let _ = self.read_raw_group(); // stray \end{env}: consume its name
+                Node::Run(String::new())
+            }
             "overline" => Node::Bar {
                 top: true,
                 base: Box::new(self.parse_atom()),
@@ -306,6 +317,88 @@ impl Parser {
         }
     }
 
+    /// Read a balanced `{ … }` group's inner text and advance past it.
+    fn read_raw_group(&mut self) -> String {
+        self.skip_space();
+        if self.peek() != Some('{') {
+            return String::new();
+        }
+        self.i += 1;
+        let start = self.i;
+        let mut depth = 1;
+        while self.i < self.s.len() {
+            match self.s[self.i] {
+                '\\' => {
+                    self.i += 2;
+                    continue;
+                }
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let inner: String = self.s[start..self.i].iter().collect();
+                        self.i += 1;
+                        return inner;
+                    }
+                }
+                _ => {}
+            }
+            self.i += 1;
+        }
+        self.s[start..].iter().collect()
+    }
+
+    fn matches(&self, pat: &[char]) -> bool {
+        self.i + pat.len() <= self.s.len() && self.s[self.i..self.i + pat.len()] == *pat
+    }
+
+    /// Parse `\begin{env} … \end{env}` (the `\begin` is already consumed).
+    fn parse_environment(&mut self) -> Node {
+        let raw = self.read_raw_group();
+        let env = raw.trim().trim_end_matches('*').to_string();
+        // array/alignat carry a column-spec argument we don't need.
+        if env == "array" || env == "alignat" {
+            self.skip_space();
+            if self.peek() == Some('{') {
+                let _ = self.read_raw_group();
+            }
+        }
+        let body = self.read_env_body(&env);
+        Node::Matrix {
+            rows: split_matrix(&body),
+            delim: matrix_delim(&env),
+        }
+    }
+
+    /// Read the body up to the matching `\end{env}` (nesting-aware).
+    fn read_env_body(&mut self, env: &str) -> String {
+        let bpat: Vec<char> = format!("\\begin{{{env}}}").chars().collect();
+        let epat: Vec<char> = format!("\\end{{{env}}}").chars().collect();
+        let start = self.i;
+        let mut depth = 1;
+        while self.i < self.s.len() {
+            if self.matches(&bpat) {
+                depth += 1;
+                self.i += bpat.len();
+                continue;
+            }
+            if self.matches(&epat) {
+                depth -= 1;
+                if depth == 0 {
+                    let inner: String = self.s[start..self.i].iter().collect();
+                    self.i += epat.len();
+                    return inner;
+                }
+                self.i += epat.len();
+                continue;
+            }
+            self.i += 1;
+        }
+        let inner: String = self.s[start..].iter().collect();
+        self.i = self.s.len();
+        inner
+    }
+
     /// Read a delimiter after `\left`/`\right`: a char, a `\cmd`, or `.` (none).
     fn read_delim(&mut self) -> String {
         self.skip_space();
@@ -362,6 +455,87 @@ fn flatten_text(node: &Node) -> String {
         Node::Row(items) => items.iter().map(flatten_text).collect(),
         _ => String::new(),
     }
+}
+
+/// Split a matrix/aligned body into rows (top-level `\\`) of cells (top-level
+/// `&`), parsing each cell as math. Trailing empty rows (from a final `\\`) drop.
+fn split_matrix(body: &str) -> Vec<Vec<Node>> {
+    let s: Vec<char> = body.chars().collect();
+    let n = s.len();
+    let mut rows: Vec<Vec<String>> = vec![vec![String::new()]];
+    let mut depth = 0;
+    let mut i = 0;
+    while i < n {
+        let c = s[i];
+        if c == '\\' {
+            if i + 1 < n && s[i + 1] == '\\' {
+                // row break; skip an optional [spacing] argument
+                let mut j = i + 2;
+                while j < n && matches!(s[j], ' ' | '\n' | '\t' | '\r') {
+                    j += 1;
+                }
+                if j < n && s[j] == '[' {
+                    while j < n && s[j] != ']' {
+                        j += 1;
+                    }
+                    if j < n {
+                        j += 1;
+                    }
+                }
+                rows.push(vec![String::new()]);
+                i = j;
+                continue;
+            }
+            // a command: copy `\` + its name so an `&`/`\\` inside doesn't split
+            let start = i;
+            let mut j = i + 1;
+            if j < n && s[j].is_ascii_alphabetic() {
+                while j < n && s[j].is_ascii_alphabetic() {
+                    j += 1;
+                }
+            } else if j < n {
+                j += 1;
+            }
+            rows.last_mut()
+                .unwrap()
+                .last_mut()
+                .unwrap()
+                .extend(&s[start..j]);
+            i = j;
+            continue;
+        }
+        match c {
+            '{' => {
+                depth += 1;
+                rows.last_mut().unwrap().last_mut().unwrap().push(c);
+            }
+            '}' => {
+                depth -= 1;
+                rows.last_mut().unwrap().last_mut().unwrap().push(c);
+            }
+            '&' if depth == 0 => rows.last_mut().unwrap().push(String::new()),
+            _ => rows.last_mut().unwrap().last_mut().unwrap().push(c),
+        }
+        i += 1;
+    }
+    rows.into_iter()
+        .filter(|row| row.iter().any(|cell| !cell.trim().is_empty()))
+        .map(|row| row.iter().map(|cell| parse(cell.trim())).collect())
+        .collect()
+}
+
+/// Delimiters that wrap a given matrix environment (`None` = bare `m:m`).
+fn matrix_delim(env: &str) -> Option<(String, String)> {
+    let (o, c) = match env {
+        "pmatrix" => ("(", ")"),
+        "bmatrix" => ("[", "]"),
+        "Bmatrix" => ("{", "}"),
+        "vmatrix" => ("|", "|"),
+        "Vmatrix" => ("‖", "‖"),
+        "cases" => ("{", ""),
+        _ => return None, // matrix, smallmatrix, array, aligned, align, gathered…
+    };
+    Some((o.to_string(), c.to_string()))
 }
 
 /// Map a math accent command to its combining character (`m:acc` chr).

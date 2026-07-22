@@ -128,6 +128,32 @@ pub fn render(node: &Node) -> String {
             if *top { "top" } else { "bot" },
             cell(base)
         ),
+        Node::Matrix { rows, delim } => {
+            let ncols = rows.iter().map(Vec::len).max().unwrap_or(0);
+            let mut m = String::from("<m:m>");
+            for row in rows {
+                m.push_str("<m:mr>");
+                for c in 0..ncols {
+                    // pad short rows so every m:mr has ncols cells
+                    let content = row.get(c).map_or_else(
+                        || "<m:r><m:t></m:t></m:r>".to_string(),
+                        cell,
+                    );
+                    m.push_str(&format!("<m:e>{content}</m:e>"));
+                }
+                m.push_str("</m:mr>");
+            }
+            m.push_str("</m:m>");
+            match delim {
+                Some((open, close)) => format!(
+                    "<m:d><m:dPr><m:begChr m:val=\"{}\"/><m:endChr m:val=\"{}\"/></m:dPr><m:e>{}</m:e></m:d>",
+                    escape(open),
+                    escape(close),
+                    m
+                ),
+                None => m,
+            }
+        }
     }
 }
 
@@ -166,6 +192,20 @@ mod tests {
         let int = render(&parse(r"\int_0 f"));
         assert!(int.contains("m:limLoc m:val=\"subSup\""));
         assert!(int.contains("m:supHide m:val=\"1\"")); // no upper limit
+    }
+
+    #[test]
+    fn matrices() {
+        let p = render(&parse(r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}"));
+        assert!(p.contains("<m:m>"));
+        assert!(p.matches("<m:mr>").count() == 2); // two rows
+        assert!(p.matches("<m:e>").count() >= 4); // 2x2 cells (+ the delim m:e)
+        assert!(p.contains("m:begChr m:val=\"(\"") && p.contains("m:endChr m:val=\")\""));
+        // cases: left brace only, ragged rows padded
+        let c = render(&parse(r"\begin{cases} 1 & x>0 \\ 0 \end{cases}"));
+        assert!(c.contains("m:begChr m:val=\"{\"") && c.contains("m:endChr m:val=\"\""));
+        // bare matrix: no delimiter wrapper
+        assert!(!render(&parse(r"\begin{matrix} a \\ b \end{matrix}")).contains("<m:d>"));
     }
 
     #[test]

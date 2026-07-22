@@ -81,8 +81,14 @@ Each phase is validated against the Python output on the corpus + UATs.
   - ✅ Delimiters: `\left<d>…\right<d>` → `m:d` (nesting-aware; `\left.` = none).
   - ✅ Accents: `\hat`/`\tilde`/`\bar`/`\vec`/`\dot`/`\ddot`/`\check`/`\breve`/… →
     `m:acc` (combining char); `\overline`/`\underline` → `m:bar` (top/bot).
-  - ⏳ Next: matrices/`aligned`/`cases`/`pmatrix`/… (`m:m`, with delimiters), then
-    `\text` runs and rounding out the symbol tables — which completes Phase 2.
+  - ✅ Matrices: `matrix`/`pmatrix`/`bmatrix`/`Bmatrix`/`vmatrix`/`Vmatrix`/`cases`/
+    `aligned`/`array`/… → `m:m` (row/cell split on `\\`/`&`, ragged rows padded),
+    wrapped in the right delimiters. `\text`/`\mathrm` → upright runs. Front-end:
+    display math `\[ … \]` → its own math paragraph.
+  - **Phase 2 complete.** UAT (quadratic formula, `e^{iπ}+1=0`, `\sum`/`\int` with
+    limits, a limit, accents, `pmatrix`, `cases`, a norm) converts to well-formed
+    OMML in a valid `.docx`. Optional later polish: column-justified `aligned`,
+    more symbols, `$$…$$` display, numbered equations.
 - **Phase 3 — tables & figures.** `tabular`/`booktabs`, `\multicolumn`/`\multirow`
   (grid/vMerge), captions, `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,

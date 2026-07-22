@@ -265,6 +265,16 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                 i = after2;
                 continue;
             }
+            if name == "[" {
+                // display math \[ … \] -> its own paragraph of math
+                flush_paragraph(&mut blocks, &mut para);
+                let (math, after2) = read_display_math(&s, after);
+                blocks.push(Block::Paragraph {
+                    inlines: vec![Inline::Math(math.trim().to_string())],
+                });
+                i = after2;
+                continue;
+            }
             if let Some(level) = section_level(&name) {
                 flush_paragraph(&mut blocks, &mut para);
                 let (arg, after2) = read_braced(&s, after);
@@ -799,6 +809,18 @@ fn read_braced(s: &[char], i: usize) -> (String, usize) {
 }
 
 /// Read until the next unescaped `stop` char; returns (inner, index-after-stop).
+/// Read display-math content from just after `\[` up to `\]`; (inner, index-after).
+fn read_display_math(s: &[char], from: usize) -> (String, usize) {
+    let mut j = from;
+    while j + 1 < s.len() {
+        if s[j] == '\\' && s[j + 1] == ']' {
+            return (s[from..j].iter().collect(), j + 2);
+        }
+        j += 1;
+    }
+    (s[from..].iter().collect(), s.len())
+}
+
 fn read_until(s: &[char], i: usize, stop: char) -> (String, usize) {
     let mut j = i;
     let start = i;
