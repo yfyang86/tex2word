@@ -141,6 +141,9 @@ pub struct Float {
     pub centered: bool,
     /// A `\label{…}` target (for `\ref`/`\autoref` to the float's number).
     pub label: Option<String>,
+    /// A starred float (`figure*`/`table*`): spans all columns in a two-column
+    /// document (rendered full-width between continuous section breaks).
+    pub spanning: bool,
 }
 
 /// Which caption series a float belongs to.
@@ -208,6 +211,9 @@ pub struct Document {
     /// `\label` → resolved bookmark/counter, populated by the cross-reference
     /// pass (empty until then).
     pub labels: HashMap<String, LabelInfo>,
+    /// Column count for the body (2 for a `twocolumn` document, else 1).
+    /// `0` (the `Default`) is treated as 1 by the back-end.
+    pub columns: usize,
 }
 
 impl Document {

@@ -52,7 +52,33 @@ pub fn parse_document_in(source: &str, base_dir: &Path) -> Document {
         date,
         blocks: parse_blocks(&body),
         labels: std::collections::HashMap::new(),
+        columns: detect_columns(&src),
     }
+}
+
+/// Detect the body column count: `2` for a `twocolumn` document class (or a
+/// preamble `\twocolumn`), else `1`. Mid-document `\onecolumn`/`\twocolumn`
+/// switches are not modeled (a documented limitation).
+fn detect_columns(src: &str) -> usize {
+    if let Some(pos) = src.find("\\documentclass") {
+        let rest = &src[pos + "\\documentclass".len()..];
+        let brace = rest.find('{').unwrap_or(usize::MAX);
+        if let (Some(ob), Some(cb)) = (rest.find('['), rest.find(']')) {
+            if ob < cb && ob < brace {
+                let opts = &rest[ob + 1..cb];
+                if opts.split(',').any(|o| o.trim() == "twocolumn") {
+                    return 2;
+                }
+                if opts.split(',').any(|o| o.trim() == "onecolumn") {
+                    return 1;
+                }
+            }
+        }
+    }
+    if src.contains("\\twocolumn") {
+        return 2;
+    }
+    1
 }
 
 fn is_blank_inlines(v: &[Inline]) -> bool {
@@ -271,10 +297,10 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                         blocks.push(parse_tabular(&body));
                     }
                     "figure" | "figure*" => {
-                        blocks.push(parse_float(&body, FloatKind::Figure));
+                        blocks.push(parse_float(&body, FloatKind::Figure, env.ends_with('*')));
                     }
                     "table" | "table*" => {
-                        blocks.push(parse_float(&body, FloatKind::Table));
+                        blocks.push(parse_float(&body, FloatKind::Table, env.ends_with('*')));
                     }
                     // display-math environments -> a numberable MathBlock
                     "equation" | "equation*" | "displaymath" | "align" | "align*" | "gather"
@@ -758,7 +784,7 @@ fn split_top_level(s: &str, sep: char) -> Vec<String> {
 /// Parse a `figure`/`table` float: pull out `\caption` and `\centering`, drop
 /// `\label`/`\captionsetup`, and parse the remaining content as blocks (so a
 /// nested `tabular` or an `\includegraphics` is handled normally).
-fn parse_float(body: &str, kind: FloatKind) -> Block {
+fn parse_float(body: &str, kind: FloatKind, spanning: bool) -> Block {
     let s: Vec<char> = body.chars().collect();
     let n = s.len();
     let mut centered = false;
@@ -819,6 +845,7 @@ fn parse_float(body: &str, kind: FloatKind) -> Block {
         caption,
         centered,
         label,
+        spanning,
     })
 }
 
@@ -1888,6 +1915,30 @@ See \ref{sec:intro} and Fig.~\autoref{fig:a} on page \pageref{fig:a}, eq.~\eqref
         assert!(matches!(&doc.blocks[4],
             Block::Heading { numbered: false, inlines, .. }
                 if inlines == &vec![Inline::Text("Unnumbered".into())]));
+    }
+
+    #[test]
+    fn twocolumn_class_and_spanning_floats() {
+        let doc = conv(
+            r"\documentclass[twocolumn]{article}\begin{document}
+\begin{figure*}\includegraphics{p.png}\caption{C}\end{figure*}
+\begin{figure}\includegraphics{q.png}\caption{D}\end{figure}\end{document}",
+        );
+        assert_eq!(doc.columns, 2);
+        let spans: Vec<bool> = doc
+            .blocks
+            .iter()
+            .filter_map(|b| match b {
+                Block::Float(f) => Some(f.spanning),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(spans, vec![true, false]); // figure* spans, figure doesn't
+        // a plain article is single-column
+        assert_eq!(
+            conv(r"\documentclass{article}\begin{document}x\end{document}").columns,
+            1
+        );
     }
 
     #[test]

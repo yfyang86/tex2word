@@ -265,6 +265,7 @@ mod tests {
                     caption: Some(vec![Inline::Text("A plot".into())]),
                     centered: false,
                     label: Some("fig:a".into()),
+                    spanning: false,
                 }),
             ],
             ..Default::default()

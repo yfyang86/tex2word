@@ -652,6 +652,39 @@ pub fn document_xml(doc: &Document) -> String {
 /// Render the body-dependent package parts: `word/document.xml`, the content
 /// types, the document relationships, and any embedded media (images resolved
 /// against `base_dir`).
+/// A `w:sectPr` for a column region: `continuous` marks a mid-page section
+/// break; `cols > 1` adds a `w:cols` (a single-column section omits it, the
+/// schema default).
+fn sect_pr(cols: usize, continuous: bool) -> String {
+    let mut s = String::from("<w:sectPr>");
+    if continuous {
+        s.push_str("<w:type w:val=\"continuous\"/>");
+    }
+    s.push_str("<w:pgSz w:w=\"12240\" w:h=\"15840\"/>");
+    s.push_str(
+        "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" \
+         w:header=\"720\" w:footer=\"720\"/>",
+    );
+    if cols > 1 {
+        s.push_str(&format!("<w:cols w:num=\"{cols}\" w:space=\"720\"/>"));
+    }
+    s.push_str("</w:sectPr>");
+    s
+}
+
+/// Between regions of differing column counts, emit an empty paragraph whose
+/// `pPr` carries the *closing* region's continuous `sectPr`. Updates `prev`.
+fn region_break(prev: &mut Option<usize>, cols: usize, body: &mut String) {
+    if let Some(p) = *prev {
+        if p != cols {
+            body.push_str("<w:p><w:pPr>");
+            body.push_str(&sect_pr(p, true));
+            body.push_str("</w:pPr></w:p>");
+        }
+    }
+    *prev = Some(cols);
+}
+
 pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
     let mut ctx = Ctx {
         drawing_id: 0,
@@ -659,27 +692,40 @@ pub fn build_package(doc: &Document, base_dir: &Path) -> Package {
         bookmarks: Bookmarks::default(),
         labels: &doc.labels,
     };
+    // Emit the body as column "regions": the title block and any spanning
+    // `figure*`/`table*` are full-width (1 col); the rest flows in `n` columns.
+    // Continuous section breaks (carrying the closed region's sectPr) separate
+    // regions with differing column counts.
+    let n = doc.columns.max(1);
     let mut body = String::new();
-    if let Some(title) = &doc.title {
-        render_paragraph(Some("Title"), title, &mut ctx, &mut body);
-    }
-    for author in &doc.authors {
-        render_paragraph(Some("Subtitle"), author, &mut ctx, &mut body);
-    }
-    if let Some(date) = &doc.date {
-        render_paragraph(Some("Subtitle"), date, &mut ctx, &mut body);
+    let mut prev: Option<usize> = None;
+    let has_title = doc.title.is_some() || !doc.authors.is_empty() || doc.date.is_some();
+    if has_title {
+        region_break(&mut prev, if n > 1 { 1 } else { n }, &mut body);
+        if let Some(title) = &doc.title {
+            render_paragraph(Some("Title"), title, &mut ctx, &mut body);
+        }
+        for author in &doc.authors {
+            render_paragraph(Some("Subtitle"), author, &mut ctx, &mut body);
+        }
+        if let Some(date) = &doc.date {
+            render_paragraph(Some("Subtitle"), date, &mut ctx, &mut body);
+        }
     }
     for block in &doc.blocks {
+        let spanning = matches!(block, Block::Float(f) if f.spanning);
+        let cols = if n > 1 && spanning { 1 } else { n };
+        region_break(&mut prev, cols, &mut body);
         render_block(block, &mut ctx, &mut body);
     }
+    // The final region's sectPr closes the body.
+    body.push_str(&sect_pr(prev.unwrap_or(n), false));
     let document_xml = format!(
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
             "<w:document xmlns:w=\"{w}\" xmlns:m=\"{m}\" xmlns:r=\"{r}\" ",
             "xmlns:wp=\"{wp}\" xmlns:a=\"{a}\" xmlns:pic=\"{pic}\"><w:body>{body}",
-            "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/>",
-            "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" ",
-            "w:header=\"720\" w:footer=\"720\"/></w:sectPr></w:body></w:document>"
+            "</w:body></w:document>"
         ),
         w = W_NS,
         m = M_NS,
@@ -977,6 +1023,7 @@ mod tests {
                 caption: Some(vec![Inline::Text(format!("Cap {n}"))]),
                 centered: true,
                 label: None,
+                spanning: false,
             })
         };
         let tbl = Block::Float(Float {
@@ -985,6 +1032,7 @@ mod tests {
             caption: Some(vec![Inline::Text("T".into())]),
             centered: false,
             label: None,
+            spanning: false,
         });
         let doc = Document {
             blocks: vec![fig("a"), tbl, fig("b")],
@@ -1054,6 +1102,51 @@ mod tests {
         assert!(xml.contains("REF fig_a \\h"));
         // heading numbering definition exists
         assert!(NUMBERING_XML.contains("w:numId=\"3\""));
+    }
+
+    #[test]
+    fn twocolumn_layout_with_spanning_float() {
+        let doc = Document {
+            columns: 2,
+            blocks: vec![
+                Block::Paragraph {
+                    inlines: vec![Inline::Text("body".into())],
+                },
+                Block::Float(Float {
+                    kind: FloatKind::Figure,
+                    content: vec![],
+                    caption: Some(vec![Inline::Text("C".into())]),
+                    centered: false,
+                    label: None,
+                    spanning: true,
+                }),
+                Block::Paragraph {
+                    inlines: vec![Inline::Text("more".into())],
+                },
+            ],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        // two 2-column regions (before/after the float) + one full-width region
+        assert_eq!(xml.matches("<w:cols w:num=\"2\"").count(), 2);
+        // continuous section breaks bracket the spanning float
+        assert_eq!(xml.matches("<w:type w:val=\"continuous\"/>").count(), 2);
+        // 2 continuous-break sectPrs + the final body sectPr
+        assert_eq!(xml.matches("<w:sectPr>").count(), 3);
+    }
+
+    #[test]
+    fn single_column_has_no_cols_element() {
+        let doc = Document {
+            columns: 1,
+            blocks: vec![Block::Paragraph {
+                inlines: vec![Inline::Text("x".into())],
+            }],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        assert!(!xml.contains("<w:cols"));
+        assert_eq!(xml.matches("<w:sectPr>").count(), 1); // just the final one
     }
 
     #[test]

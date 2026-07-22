@@ -132,8 +132,20 @@ Each phase is validated against the Python output on the corpus + UATs.
     (`\r` for sections); `\href`/`\url`/`\hyperref`/`\nameref` → `HYPERLINK`
     fields. UAT: a labelled figure/table/equation + the ref family + links opens
     in python-docx with correct field codes and paired bookmarks.
-  - ⏳ **Sprint 2** = numbered sections + refs, `\tableofcontents`/`\listof*` TOC
-    fields, cleveref/autoref type prefixes, and multi-column section layout.
+  - ✅ **Sprint 2 — numbered sections, TOC, cleveref, multi-column.** Numbered
+    heading output (`1`, `1.1`, `1.1.1` via a multilevel `numId`; `\section*`
+    stays unnumbered) so `REF \r` cites real section numbers; `\tableofcontents`/
+    `\listoffigures`/`\listoftables` → heading + live `TOC` field; cleveref/autoref
+    type prefixes (`fig. `/`Figure `, `sec. `/`Section `, …) precede the `REF`
+    field. Multi-column: `[twocolumn]` (or a preamble `\twocolumn`) sets a
+    2-column body; `figure*`/`table*` are full-width, bracketed by continuous
+    section breaks (`w:cols`), with the title full-width above. Mid-document
+    `\onecolumn`/`\twocolumn` switches remain unmodeled (documented limitation).
+  - **Phase 4 complete.** UAT: a `twocolumn` paper with title/TOC, numbered
+    sections, math, a labelled equation/figure*/table, the full `\ref` family +
+    `\href`/`\nameref`, and a list converts to a valid `.docx` that python-docx
+    opens — with `w:cols`, continuous breaks around the spanning float, and live
+    `TOC`/`SEQ`/`REF`/`PAGEREF`/`HYPERLINK` field codes, no Phase 1–3 regression.
 - **Phase 5 — parity layer.** Reference-doc templates, bibliography/citations,
   round-trip manifest + `.docx`→LaTeX, coverage report, OOXML validator.
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
