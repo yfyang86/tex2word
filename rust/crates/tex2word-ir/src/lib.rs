@@ -52,10 +52,13 @@ pub enum Block {
     Quote(Vec<Block>),
 }
 
-/// A whole document: an optional title plus a sequence of blocks.
+/// A whole document: title/author/date metadata plus a sequence of blocks.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Document {
     pub title: Option<Vec<Inline>>,
+    /// One entry per author (split on `\and`).
+    pub authors: Vec<Vec<Inline>>,
+    pub date: Option<Vec<Inline>>,
     pub blocks: Vec<Block>,
 }
 
@@ -63,9 +66,18 @@ impl Document {
     /// Concatenated plain text of the whole document (useful for tests/telemetry).
     pub fn plain_text(&self) -> String {
         let mut out = String::new();
-        if let Some(t) = &self.title {
-            push_inline_text(t, &mut out);
+        let line = |inlines: &[Inline], out: &mut String| {
+            push_inline_text(inlines, out);
             out.push('\n');
+        };
+        if let Some(t) = &self.title {
+            line(t, &mut out);
+        }
+        for a in &self.authors {
+            line(a, &mut out);
+        }
+        if let Some(d) = &self.date {
+            line(d, &mut out);
         }
         for b in &self.blocks {
             push_block_text(b, &mut out);
@@ -122,6 +134,7 @@ mod tests {
                     },
                 ],
             }],
+            ..Default::default()
         };
         assert_eq!(doc.plain_text(), "Title\na b\n");
     }

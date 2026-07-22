@@ -169,6 +169,12 @@ pub fn document_xml(doc: &Document) -> String {
     if let Some(title) = &doc.title {
         render_paragraph(Some("Title"), title, &mut body);
     }
+    for author in &doc.authors {
+        render_paragraph(Some("Subtitle"), author, &mut body);
+    }
+    if let Some(date) = &doc.date {
+        render_paragraph(Some("Subtitle"), date, &mut body);
+    }
     for block in &doc.blocks {
         render_block(block, &mut body);
     }
@@ -234,7 +240,10 @@ pub fn styles_xml() -> String {
         "<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">",
         "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>",
         "<w:style w:type=\"paragraph\" w:styleId=\"Title\"><w:name w:val=\"Title\"/>",
-        "<w:rPr><w:b/><w:sz w:val=\"56\"/></w:rPr></w:style>",
+        "<w:pPr><w:jc w:val=\"center\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"56\"/></w:rPr></w:style>",
+        "<w:style w:type=\"paragraph\" w:styleId=\"Subtitle\"><w:name w:val=\"Subtitle\"/>",
+        "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
+        "<w:pPr><w:jc w:val=\"center\"/></w:pPr><w:rPr><w:sz w:val=\"28\"/></w:rPr></w:style>",
     ));
     for (id, sz) in [("Heading1", 36), ("Heading2", 30), ("Heading3", 26)] {
         s.push_str(&format!(
@@ -278,6 +287,7 @@ mod tests {
                     Inline::Math("x".into()),
                 ],
             }],
+            ..Default::default()
         };
         let xml = document_xml(&doc);
         assert!(xml.contains("w:pStyle w:val=\"Title\""));
@@ -301,6 +311,7 @@ mod tests {
                     },
                 ],
             }],
+            ..Default::default()
         };
         let xml = document_xml(&doc);
         assert!(xml.contains("<w:smallCaps/>"));

@@ -50,6 +50,7 @@ mod tests {
             blocks: vec![Block::Paragraph {
                 inlines: vec![Inline::Text("hello".into())],
             }],
+            ..Default::default()
         };
         let bytes = to_docx(&doc);
         assert_eq!(&bytes[..2], b"PK");

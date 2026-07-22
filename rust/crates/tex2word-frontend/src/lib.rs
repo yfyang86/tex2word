@@ -27,12 +27,70 @@ pub fn parse_document_in(source: &str, base_dir: &Path) -> Document {
     // strip comments, flatten \input/\include, then expand macros, then parse.
     let flat = flatten_inputs(&strip_comments(source), base_dir, 0);
     let src = macros::expand_macros(&flat);
-    let title = extract_braced_macro_arg(&src, "title").map(|t| parse_inlines(&t));
+    let title = extract_braced_macro_arg(&src, "title")
+        .map(|t| parse_inlines(t.trim()))
+        .filter(|v| !is_blank_inlines(v));
+    let authors: Vec<Vec<Inline>> = extract_braced_macro_arg(&src, "author")
+        .map(|a| {
+            split_and(&a)
+                .iter()
+                .map(|x| parse_inlines(x.trim()))
+                .filter(|v| !is_blank_inlines(v))
+                .collect()
+        })
+        .unwrap_or_default();
+    let date = extract_braced_macro_arg(&src, "date")
+        .map(|d| parse_inlines(d.trim()))
+        .filter(|v| !is_blank_inlines(v));
     let body = extract_environment(&src, "document").unwrap_or_else(|| src.clone());
     Document {
         title,
+        authors,
+        date,
         blocks: parse_blocks(&body),
     }
+}
+
+fn is_blank_inlines(v: &[Inline]) -> bool {
+    v.iter().all(is_blank_inline)
+}
+
+/// Split an `\author{…}` argument on top-level `\and` into per-author strings.
+fn split_and(arg: &str) -> Vec<String> {
+    let s: Vec<char> = arg.chars().collect();
+    let mut parts: Vec<String> = Vec::new();
+    let mut buf = String::new();
+    let mut depth = 0;
+    let mut i = 0;
+    while i < s.len() {
+        match s[i] {
+            '{' => {
+                depth += 1;
+                buf.push('{');
+                i += 1;
+            }
+            '}' => {
+                depth -= 1;
+                buf.push('}');
+                i += 1;
+            }
+            '\\' if depth == 0 => {
+                let (name, after) = read_command_name(&s, i);
+                if name == "and" {
+                    parts.push(std::mem::take(&mut buf));
+                } else {
+                    buf.extend(&s[i..after]);
+                }
+                i = after;
+            }
+            c => {
+                buf.push(c);
+                i += 1;
+            }
+        }
+    }
+    parts.push(buf);
+    parts
 }
 
 const MAX_INPUT_DEPTH: usize = 16;
@@ -908,6 +966,27 @@ end\end{document}",
             Path::new("/nonexistent-dir-xyz"),
         );
         assert_eq!(doc.plain_text().trim(), "Kept.");
+    }
+
+    #[test]
+    fn author_and_date_metadata() {
+        let doc = conv(
+            r"\title{T}\author{Ada Lovelace \and Alan Turing}\date{1936}
+\begin{document}\maketitle Body.\end{document}",
+        );
+        assert_eq!(doc.authors.len(), 2);
+        assert_eq!(doc.authors[0], vec![Inline::Text("Ada Lovelace".into())]);
+        assert_eq!(doc.authors[1], vec![Inline::Text("Alan Turing".into())]);
+        assert_eq!(doc.date, Some(vec![Inline::Text("1936".into())]));
+        // \maketitle does not leak, body still parses
+        assert!(doc.plain_text().contains("Body."));
+    }
+
+    #[test]
+    fn empty_date_is_none() {
+        let doc = conv(r"\title{T}\date{}\begin{document}x\end{document}");
+        assert_eq!(doc.date, None);
+        assert!(doc.authors.is_empty());
     }
 
     #[test]

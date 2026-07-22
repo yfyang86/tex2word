@@ -5,6 +5,8 @@ use tex2word::ir::{Block, Inline};
 
 const SRC: &str = r"\documentclass{article}
 \title{Vertical Slice}
+\author{Ada Lovelace}
+\date{1843}
 \begin{document}
 \maketitle
 \section{Introduction}
@@ -53,6 +55,9 @@ fn converts_latex_to_docx_bytes() {
         "alpha",
         "w:pStyle w:val=\"Quote\"", // the quote style
         "A set-off quotation.",
+        "w:pStyle w:val=\"Subtitle\"", // author/date subtitle style
+        "Ada Lovelace",
+        "1843",
     ] {
         assert!(text.contains(needle), "missing {needle:?} in .docx");
     }

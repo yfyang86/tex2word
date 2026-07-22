@@ -65,8 +65,10 @@ Each phase is validated against the Python output on the corpus + UATs.
   - ✅ Accents: `\'e`/`` \`a ``/`\^o`/`\"u`/`\~n`/`\=o`/`\.z`/`\c c`/`\v s`/`\u a`/
     `\H o`/`\r a`/`\k e` → precomposed Unicode (unknown combos fall back to the
     base letter), plus special letters `\o`/`\ss`/`\ae`/`\oe`/`\aa`/`\l`/….
-  - ⏳ Next: preamble metadata (`\author`/`\date` → IR), then a proper tokenizer.
-    That closes out Phase 1; **Phase 2 (the OMML math engine) is next.**
+  - ✅ Preamble metadata: `\title`/`\author` (split on `\and`)/`\date` → IR,
+    rendered under the title in a centered `Subtitle` style.
+  - Phase 1 is functionally complete for the common document core. **Phase 2 (the
+    OMML math engine) is next** — the headline differentiator.
 - **Phase 2 — math (OMML).** The big one: port `mathml/latex_math.py` (LaTeX math
   AST) + `mathml/omml.py` (AST → OMML) + `symbols.py`. Fractions, scripts, roots,
   n-ary ops, matrices/aligned, delimiters, hundreds of symbols.
