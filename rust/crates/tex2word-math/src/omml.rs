@@ -118,6 +118,16 @@ pub fn render(node: &Node) -> String {
             escape(close),
             cell(body)
         ),
+        Node::Accent { chr, base } => format!(
+            "<m:acc><m:accPr><m:chr m:val=\"{}\"/></m:accPr><m:e>{}</m:e></m:acc>",
+            escape(&chr.to_string()),
+            cell(base)
+        ),
+        Node::Bar { top, base } => format!(
+            "<m:bar><m:barPr><m:pos m:val=\"{}\"/></m:barPr><m:e>{}</m:e></m:bar>",
+            if *top { "top" } else { "bot" },
+            cell(base)
+        ),
     }
 }
 
@@ -156,6 +166,17 @@ mod tests {
         let int = render(&parse(r"\int_0 f"));
         assert!(int.contains("m:limLoc m:val=\"subSup\""));
         assert!(int.contains("m:supHide m:val=\"1\"")); // no upper limit
+    }
+
+    #[test]
+    fn accents_and_bars() {
+        let hat = render(&parse(r"\hat{x}"));
+        assert!(hat.contains("<m:acc>") && hat.contains("m:chr m:val=\"\u{0302}\""));
+        assert!(render(&parse(r"\vec{v}")).contains("m:chr m:val=\"\u{20D7}\""));
+        assert!(render(&parse(r"\bar{y}")).contains("m:chr m:val=\"\u{0304}\""));
+        let over = render(&parse(r"\overline{AB}"));
+        assert!(over.contains("<m:bar>") && over.contains("m:pos m:val=\"top\""));
+        assert!(render(&parse(r"\underline{z}")).contains("m:pos m:val=\"bot\""));
     }
 
     #[test]

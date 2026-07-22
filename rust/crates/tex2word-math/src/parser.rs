@@ -39,6 +39,16 @@ pub enum Node {
         close: String,
         body: Box<Node>,
     },
+    /// A math accent (`\hat`/`\vec`/`\tilde`/…): a combining char over the base.
+    Accent {
+        chr: char,
+        base: Box<Node>,
+    },
+    /// An over/under bar (`\overline`/`\underline`).
+    Bar {
+        top: bool,
+        base: Box<Node>,
+    },
 }
 
 /// Parse a LaTeX math string into a [`Node::Row`].
@@ -172,8 +182,21 @@ impl Parser {
             }
             "left" => self.parse_delim(),
             "right" => Node::Run(String::new()), // stray \right (parse_delim owns it)
+            "overline" => Node::Bar {
+                top: true,
+                base: Box::new(self.parse_atom()),
+            },
+            "underline" => Node::Bar {
+                top: false,
+                base: Box::new(self.parse_atom()),
+            },
             _ => {
-                if let Some((op, over_under)) = symbols::nary(&name) {
+                if let Some(chr) = math_accent(&name) {
+                    Node::Accent {
+                        chr,
+                        base: Box::new(self.parse_atom()),
+                    }
+                } else if let Some((op, over_under)) = symbols::nary(&name) {
                     let (sub, sup) = self.parse_nary_limits();
                     let body = self.parse_operand();
                     Node::Nary {
@@ -339,6 +362,25 @@ fn flatten_text(node: &Node) -> String {
         Node::Row(items) => items.iter().map(flatten_text).collect(),
         _ => String::new(),
     }
+}
+
+/// Map a math accent command to its combining character (`m:acc` chr).
+fn math_accent(name: &str) -> Option<char> {
+    Some(match name {
+        "hat" | "widehat" => '\u{0302}',
+        "tilde" | "widetilde" => '\u{0303}',
+        "bar" => '\u{0304}',
+        "vec" | "overrightarrow" => '\u{20D7}',
+        "dot" => '\u{0307}',
+        "ddot" => '\u{0308}',
+        "dddot" => '\u{20DB}',
+        "check" => '\u{030C}',
+        "breve" => '\u{0306}',
+        "acute" => '\u{0301}',
+        "grave" => '\u{0300}',
+        "mathring" => '\u{030A}',
+        _ => return None,
+    })
 }
 
 /// Map a `\left`/`\right` delimiter command name to its glyph.

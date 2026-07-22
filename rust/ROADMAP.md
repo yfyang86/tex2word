@@ -79,8 +79,10 @@ Each phase is validated against the Python output on the corpus + UATs.
   - ✅ N-ary operators: `\sum`/`\prod`/`\int`/`\oint`/`\bigcup`/… with `_`/`^`
     limits → `m:nary` (limits above/below for sums, as scripts for integrals).
   - ✅ Delimiters: `\left<d>…\right<d>` → `m:d` (nesting-aware; `\left.` = none).
-  - ⏳ Next: matrices/`aligned`/`cases` (`m:m`), accents in math
-    (`\hat`/`\bar`/`\vec`/`\tilde` → `m:acc`), `\text` runs, and more symbols.
+  - ✅ Accents: `\hat`/`\tilde`/`\bar`/`\vec`/`\dot`/`\ddot`/`\check`/`\breve`/… →
+    `m:acc` (combining char); `\overline`/`\underline` → `m:bar` (top/bot).
+  - ⏳ Next: matrices/`aligned`/`cases`/`pmatrix`/… (`m:m`, with delimiters), then
+    `\text` runs and rounding out the symbol tables — which completes Phase 2.
 - **Phase 3 — tables & figures.** `tabular`/`booktabs`, `\multicolumn`/`\multirow`
   (grid/vMerge), captions, `\includegraphics` (PNG/JPEG embed; PDF/TikZ raster).
 - **Phase 4 — live fields & cross-refs.** `SEQ`/`REF`/`PAGEREF` fields, bookmarks,
