@@ -14,3 +14,5 @@ tex2word-backend = { path = "../tex2word-backend" }
 
 [dev-dependencies]
 tex2word-validate = { path = "../tex2word-validate" }
+tex2word-latex = { path = "../tex2word-latex" }
+tex2word-frontend = { path = "../tex2word-frontend" }
