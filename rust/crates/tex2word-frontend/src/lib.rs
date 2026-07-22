@@ -25,6 +25,178 @@ pub fn parse_document(source: &str) -> Document {
     parse_document_in(source, Path::new("."))
 }
 
+/// Parse a document and also report the macros it could not handle (dropped
+/// from the output). The macro list is a best-effort scan of the expanded body
+/// outside math, useful for a conversion report; `parse_document`/`_in` discard
+/// it.
+pub fn parse_document_reporting(source: &str, base_dir: &Path) -> (Document, Vec<String>) {
+    let flat = flatten_inputs(&strip_comments(source), base_dir, 0);
+    let expanded = macros::expand_macros(&flat);
+    let body = extract_environment(&expanded, "document").unwrap_or_else(|| expanded.clone());
+    let unsupported = scan_unsupported(&body);
+    (parse_document_in(source, base_dir), unsupported)
+}
+
+/// Scan macro-expanded body text (outside math) for control *words* the
+/// front-end does not handle — the ones silently dropped during parsing.
+fn scan_unsupported(body: &str) -> Vec<String> {
+    let stripped = strip_math_spans(body);
+    let s: Vec<char> = stripped.chars().collect();
+    let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut i = 0;
+    while i < s.len() {
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            if !name.is_empty()
+                && name.chars().all(|c| c.is_ascii_alphabetic())
+                && !is_supported_macro(&name)
+            {
+                set.insert(name);
+            }
+            i = after.max(i + 1);
+        } else {
+            i += 1;
+        }
+    }
+    set.into_iter().collect()
+}
+
+/// Blank out `$…$`, `\[…\]`, and the math environments so their macros (handled
+/// by the math engine) aren't flagged as unsupported.
+fn strip_math_spans(body: &str) -> String {
+    let s: Vec<char> = body.chars().collect();
+    let n = s.len();
+    let mut out = String::with_capacity(n);
+    let mut i = 0;
+    while i < n {
+        if s[i] == '$' {
+            let (_, after) = read_until(&s, i + 1, '$');
+            i = after;
+            continue;
+        }
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            if name == "[" {
+                let (_, a2) = read_display_math(&s, after);
+                i = a2;
+                continue;
+            }
+            if name == "begin" {
+                let (env, after_env) = read_braced(&s, after);
+                if is_math_env(&env) {
+                    let (_, a2) = read_env_body(&s, after_env, &env);
+                    i = a2;
+                    continue;
+                }
+            }
+            out.extend(&s[i..after]);
+            i = after;
+            continue;
+        }
+        out.push(s[i]);
+        i += 1;
+    }
+    out
+}
+
+fn is_math_env(env: &str) -> bool {
+    matches!(
+        env,
+        "equation"
+            | "equation*"
+            | "displaymath"
+            | "align"
+            | "align*"
+            | "gather"
+            | "gather*"
+            | "multline"
+            | "multline*"
+            | "eqnarray"
+            | "eqnarray*"
+    )
+}
+
+/// Whether the front-end handles a control word (so it should not be reported).
+fn is_supported_macro(name: &str) -> bool {
+    if emphasis_kind(name).is_some()
+        || text_symbol(name).is_some()
+        || cite_mode(name).is_some()
+        || section_level(name).is_some()
+        || toc_kind(name).is_some()
+        || theorem_kind(name).is_some()
+    {
+        return true;
+    }
+    // structural / inline macros handled directly by the parser
+    const STRUCT: &[&str] = &[
+        "documentclass",
+        "usepackage",
+        "title",
+        "author",
+        "date",
+        "and",
+        "maketitle",
+        "begin",
+        "end",
+        "item",
+        "label",
+        "caption",
+        "centering",
+        "captionsetup",
+        "includegraphics",
+        "href",
+        "url",
+        "hyperref",
+        "footnote",
+        "thanks",
+        "ref",
+        "eqref",
+        "pageref",
+        "autoref",
+        "cref",
+        "Cref",
+        "nameref",
+        "Nameref",
+        "vref",
+        "labelcref",
+        "textrm",
+        "textnormal",
+        "textbackslash",
+        "ldots",
+        "dots",
+        "newline",
+        "bibitem",
+        "multicolumn",
+        "multirow",
+        "hline",
+        "cline",
+        "toprule",
+        "midrule",
+        "bottomrule",
+        "cmidrule",
+        "input",
+        "include",
+        "newcommand",
+        "renewcommand",
+        "providecommand",
+        "def",
+        "twocolumn",
+        "onecolumn",
+        "noalign",
+        "addlinespace",
+        "tabularnewline",
+        // length macros (appear inside graphicx/box options, not standalone)
+        "textwidth",
+        "linewidth",
+        "columnwidth",
+        "textheight",
+        "hsize",
+        "height",
+        "width",
+    ];
+    STRUCT.contains(&name)
+}
+
 /// Parse a LaTeX document, resolving `\input`/`\include` files against `base_dir`.
 pub fn parse_document_in(source: &str, base_dir: &Path) -> Document {
     // strip comments, flatten \input/\include, then expand macros, then parse.
@@ -2152,6 +2324,35 @@ It follows.
         };
         assert_eq!(p.kind, "Proof");
         assert_eq!(p.counter, None);
+    }
+
+    #[test]
+    fn report_flags_only_unsupported_macros() {
+        let (_, unsupported) = parse_document_reporting(
+            r"\documentclass{article}\begin{document}
+Handled: \textbf{b} \section{S} \cite{k} \includegraphics[width=0.5\textwidth]{p}.
+Dropped: \foobar{x} \colorbox{r}{y}.
+Math is exempt: $\alpha$ \[ \gamma \] \begin{equation}\delta\end{equation}.
+\end{document}",
+            Path::new("."),
+        );
+        assert!(unsupported.contains(&"foobar".to_string()));
+        assert!(unsupported.contains(&"colorbox".to_string()));
+        // handled macros, length units, and math macros are not flagged
+        for ok in [
+            "textbf",
+            "section",
+            "cite",
+            "textwidth",
+            "alpha",
+            "gamma",
+            "delta",
+        ] {
+            assert!(
+                !unsupported.contains(&ok.to_string()),
+                "{ok} wrongly flagged"
+            );
+        }
     }
 
     #[test]

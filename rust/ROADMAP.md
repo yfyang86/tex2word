@@ -161,7 +161,16 @@ Each phase is validated against the Python output on the corpus + UATs.
     "References" heading + bookmarked, hanging-indent entries. UAT: a doc with
     `\citep`/`\citet`/`\citenum` + two footnotes + `thebibliography` opens in
     python-docx with a real footnotes part and clickable citations.
-  - ⏳ **Sprint 2** = structural OOXML validator + conversion report + theorems.
+  - ✅ **Sprint 2 — validator, theorems, report.** A zero-dep `tex2word-validate`
+    crate (STORE zip reader + checks: required parts, XML well-formedness,
+    content-type coverage, relationship-target resolution, `rPr`/`pPr`/`tblPr`/
+    `trPr`/`tcPr` child-order, and field/bookmark pairing) wired into CI and a
+    `tex2word validate <docx>` CLI — it caught a real `tblPr` order bug on first
+    run. Theorem-like environments (`theorem`/`lemma`/`proof`/…) render numbered
+    (live `SEQ Theorem`, `\cref`-able) with italic statements and a proof QED.
+    A conversion report scans the expanded body (outside math) for unhandled
+    macros and folds them, with the cross-reference warnings, into
+    `Conversion.warnings`; `tex2word convert --strict` fails on any warning.
   - ⏳ **Sprint 3** = IR→LaTeX round-trip writer + reference-doc templates.
     (Full CSL/BibTeX/Zotero, endnotes/index, and `.docx`→LaTeX stay out of scope.)
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;

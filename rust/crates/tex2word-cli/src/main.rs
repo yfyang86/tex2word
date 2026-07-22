@@ -14,7 +14,7 @@ fn usage() -> String {
     "tex2word (Rust) — LaTeX -> Word (.docx)\n\
      \n\
      USAGE:\n    \
-     tex2word convert <input.tex> [-o <output.docx>]\n    \
+     tex2word convert <input.tex> [-o <output.docx>] [--strict]\n    \
      tex2word validate <file.docx>\n"
         .to_string()
 }
@@ -47,20 +47,37 @@ fn run(args: &[String]) -> Result<String, String> {
 fn run_convert<'a>(it: impl Iterator<Item = &'a String>) -> Result<String, String> {
     let mut input: Option<PathBuf> = None;
     let mut output: Option<PathBuf> = None;
+    let mut strict = false;
     let mut it = it;
     while let Some(a) = it.next() {
         match a.as_str() {
             "-o" | "--output" => {
                 output = Some(PathBuf::from(it.next().ok_or("-o requires a path")?));
             }
+            "--strict" => strict = true,
             _ if a.starts_with('-') => return Err(format!("unknown flag '{a}'")),
             _ => input = Some(PathBuf::from(a)),
         }
     }
     let input = input.ok_or("no input .tex file given")?;
-    let out = tex2word::convert_file(&input, output.as_deref())
+    let (out, warnings) = tex2word::convert_file(&input, output.as_deref())
         .map_err(|e| format!("{}: {e}", input.display()))?;
-    Ok(format!("wrote {}", out.display()))
+    for w in &warnings {
+        eprintln!("warning: {}: {}", w.context, w.message);
+    }
+    if strict && !warnings.is_empty() {
+        return Err(format!(
+            "{}: {} warning(s) with --strict",
+            input.display(),
+            warnings.len()
+        ));
+    }
+    let note = if warnings.is_empty() {
+        String::new()
+    } else {
+        format!(" ({} warning(s))", warnings.len())
+    };
+    Ok(format!("wrote {}{note}", out.display()))
 }
 
 fn run_validate<'a>(mut it: impl Iterator<Item = &'a String>) -> Result<String, String> {

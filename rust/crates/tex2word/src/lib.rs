@@ -26,8 +26,10 @@ pub struct Conversion {
 
 /// Convert LaTeX source to a `.docx` byte buffer (+ the IR + warnings).
 pub fn convert_source(source: &str) -> Conversion {
-    let mut document = tex2word_frontend::parse_document(source);
-    let warnings = crossref::resolve(&mut document);
+    let (mut document, unsupported) =
+        tex2word_frontend::parse_document_reporting(source, Path::new("."));
+    let mut warnings = crossref::resolve(&mut document);
+    warnings.extend(unsupported_warnings(&unsupported));
     let docx = tex2word_backend::to_docx(&document, Path::new("."));
     Conversion {
         docx,
@@ -36,24 +38,37 @@ pub fn convert_source(source: &str) -> Conversion {
     }
 }
 
-/// Convert a `.tex` file to a `.docx` on disk. Returns the output path used.
-/// `\input`/`\include` files are resolved relative to the input file's directory.
-pub fn convert_file(input: &Path, output: Option<&Path>) -> io::Result<std::path::PathBuf> {
+/// Map unsupported-macro names to warnings.
+fn unsupported_warnings(macros: &[String]) -> Vec<Warning> {
+    macros
+        .iter()
+        .map(|m| Warning {
+            context: "unsupported".into(),
+            message: format!("macro '\\{m}' is not supported (dropped)"),
+        })
+        .collect()
+}
+
+/// Convert a `.tex` file to a `.docx` on disk. Returns the output path used and
+/// any conversion warnings. `\input`/`\include` files are resolved relative to
+/// the input file's directory.
+pub fn convert_file(
+    input: &Path,
+    output: Option<&Path>,
+) -> io::Result<(std::path::PathBuf, Vec<Warning>)> {
     let source = fs::read_to_string(input)?;
     let base = input
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let mut document = tex2word_frontend::parse_document_in(&source, base);
-    let warnings = crossref::resolve(&mut document);
-    for w in &warnings {
-        eprintln!("warning: {}: {}", w.context, w.message);
-    }
+    let (mut document, unsupported) = tex2word_frontend::parse_document_reporting(&source, base);
+    let mut warnings = crossref::resolve(&mut document);
+    warnings.extend(unsupported_warnings(&unsupported));
     let docx = tex2word_backend::to_docx(&document, base);
     let out = match output {
         Some(p) => p.to_path_buf(),
         None => input.with_extension("docx"),
     };
     fs::write(&out, &docx)?;
-    Ok(out)
+    Ok((out, warnings))
 }
