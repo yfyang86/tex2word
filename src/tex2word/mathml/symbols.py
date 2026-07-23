@@ -36,6 +36,10 @@ SYMBOLS: dict[str, str] = {
     "triangleq": "≜", "coloneqq": "≔", "eqqcolon": "≕", "approxeq": "≊",
     "sqsubseteq": "⊑", "sqsupseteq": "⊒", "vdash": "⊢", "dashv": "⊣",
     "lhd": "⊲", "rhd": "⊳", "unlhd": "⊴", "unrhd": "⊵",
+    "vartriangleleft": "⊲", "vartriangleright": "⊳",
+    "trianglelefteq": "⊴", "trianglerighteq": "⊵",
+    "ntrianglelefteq": "⋬", "ntrianglerighteq": "⋭",
+    "nmid": "∤", "nparallel": "∦", "smallsetminus": "∖",
     # binary operators
     "times": "×", "div": "÷", "pm": "±", "mp": "∓",
     "cdot": "⋅", "ast": "∗", "star": "⋆", "circ": "∘",
