@@ -55,6 +55,27 @@ def test_uat_bundle_present():
     assert not missing, f"missing UAT entry files: {missing}"
 
 
+def test_cheatsheet_tikz_boxes_recover_content():
+    """The TikZ "cheatsheet" idiom (\\node{minipage …} content boxes + a
+    \\node[fancytitle]{Title}) must have its content recovered, not dropped as
+    an empty graphics placeholder — even without a TeX engine to compile TikZ."""
+    result = _convert("bundle/cheetsheet.tex")
+    d = _document_xml(result)
+    # math formulas from inside the boxes are now native OMML (was 0)
+    assert d.count("<m:oMath>") > 50
+    # the picture titles became headings, not lost
+    assert "Heating Problem" in d and "Mixing Problem" in d
+    # no tikzpicture placeholders left
+    assert not any(m.construct == "tikzpicture" for m in result.report.warnings)
+
+
+def _document_xml(result):
+    import zipfile
+    from io import BytesIO
+
+    return zipfile.ZipFile(BytesIO(result.docx)).read("word/document.xml").decode()
+
+
 def test_oxmathproblems_exam_class_renders_as_lists():
     """The exam-class problem sheet renders as nested numbered lists — not the
     old garbage where exam's \\part collided with \\part sectioning ("Part I D")

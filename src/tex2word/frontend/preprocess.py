@@ -232,6 +232,67 @@ def _rewrite_exam_class(source: str, base_dir: str) -> str:
     return _EXAM_ITEM_RE.sub(r"\\item ", source)
 
 
+# TikZ drawing primitives — if any of these appear, the picture is a real
+# diagram (leave it for the image/compile path, not text recovery).
+_TIKZ_DRAW_RE = re.compile(
+    r"\\(draw|fill|filldraw|path|clip|shade|shadedraw|pgf|coordinate|foreach|pic)\b"
+)
+# a \tikzstyle{name} = [ ... ] declaration (produces no content)
+_TIKZSTYLE_RE = re.compile(r"\\tikzstyle\s*\{[^}]*\}\s*=\s*\[[^\]]*\]", re.DOTALL)
+
+
+def _extract_tikz_nodes(body: str) -> list[tuple[str, str]]:
+    """Return each ``\\node[style] … {content}``'s (style, content)."""
+    nodes: list[tuple[str, str]] = []
+    for m in re.finditer(r"\\node\b", body):
+        i = m.end()
+        while i < len(body) and body[i] in " \t\n\r":
+            i += 1
+        style = ""
+        if i < len(body) and body[i] == "[":
+            style, i = _read_balanced(body, i, "[", "]")
+        brace = body.find("{", i)
+        if brace == -1:
+            continue
+        content, _ = _read_balanced(body, brace, "{", "}")
+        nodes.append((style, content))
+    return nodes
+
+
+def _recover_tikz_boxes(source: str) -> str:
+    """Recover content from the "cheatsheet" TikZ idiom — a ``tikzpicture`` that
+    is just ``\\node{…minipage…}`` content boxes plus a ``\\node[fancytitle]{Title}``,
+    with no drawing. Without a TeX engine these otherwise become empty graphics
+    placeholders, losing all the content. A `title`-styled node becomes a
+    ``\\subsection*``; the rest is emitted inline. Pictures with real drawing
+    primitives are left untouched (the image/compile path handles them).
+    """
+
+    def repl(match: re.Match[str]) -> str:
+        body = match.group(1)
+        if _TIKZ_DRAW_RE.search(body):
+            return match.group(0)
+        # only the content-box idiom (a minipage or a title node)
+        if "\\begin{minipage}" not in body and not re.search(r"title", body, re.I):
+            return match.group(0)
+        nodes = _extract_tikz_nodes(body)
+        if not nodes:
+            return match.group(0)
+        out: list[str] = []
+        for style, content in nodes:
+            if re.search(r"title", style, re.I):
+                title = content.strip()
+                if title:
+                    out.append("\n\n\\subsection*{" + title + "}\n")
+            else:
+                out.append(content)
+        return "\n".join(out) + "\n"
+
+    return re.sub(
+        r"\\begin\{tikzpicture\}(.*?)\\end\{tikzpicture\}", repl, source, flags=re.DOTALL
+    )
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
@@ -240,6 +301,8 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(source), base_dir)
     source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
+    source = _TIKZSTYLE_RE.sub("", source)  # drop \tikzstyle{…}=[…] declarations
+    source = _recover_tikz_boxes(source)  # cheatsheet content-box tikz -> text
     source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}
     source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
     source = inline_listing_files(source, base_dir)
