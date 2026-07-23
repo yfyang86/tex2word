@@ -1,0 +1,61 @@
+\documentclass{article}
+\usepackage[letterpaper,portrait,margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+\pagestyle{fancy}
+\fancyhf{} %Clear the header and footer (don't use the default plain page style).
+\renewcommand{\footrulewidth}{0.4pt}
+\lhead{CLASS -- \textbf{Assignment Name}} %Print text on the left side of the header.
+\rhead{Author Name} %Print text on the right side of the header.
+\rfoot{Page \thepage \ of \pageref{LastPage}} %Print the page on the right side of the footer.
+%Optional: Can print text in the center of the header with \chead{}.
+%\chead{Center test}
+
+\title{\vspace*{-1cm} CLASS NAME \\* \textbf{Assignment Name}}
+\author{Author Name \\* \\* \textit{Collaborators: Names}}
+\date{Due date, or some other relevant date}
+
+%Define commands
+\newtheorem*{claim}{Claim}
+
+\theoremstyle{definition}
+\newtheorem*{example}{Example}
+
+\theoremstyle{plain}
+\newtheorem*{lemma}{Lemma}
+
+\newtheorem*{remark}{Remark}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{fancy}
+
+%Reminder: Remove the * at the end for automatic numbering.
+\section*{Problem 13.3 of A\&A}
+\subsection*{Part a)}
+\begin{claim}
+\(\sqrt{2}\) is irrational.
+\end{claim}
+\begin{proof}
+Suppose that \(\sqrt{2}\) were rational. There there exist some non-zero integers \(p\) and \(q\) such that \[\sqrt{2} = \frac{p}{q}.\] Without loss of generality, we can assume that this fraction is simplified so that \(p\) and \(q\) have no common divisors. Then,
+\begin{align*}
+    \sqrt{2}q &= p \\
+    2q^{2} &= p^{2}.
+\end{align*}
+This implies (by the fundamental theorem of arithmetic) that 2 divides \(p^{2}\) and, hence, 2 divides \(p.\) Therefore, \(p = 2r\) for some (non-zero) integer \(r.\) Therefore,
+\begin{align*}
+    2q^{2} &= p^{2} \\
+    2q^{2} &= (2r)^{2} \\
+    2q^{2} &= 4r^{2} \\
+    q^{2} &= 2r^{2}.
+\end{align*}
+From this, we conclude that 2 divides \(q^{2}\) and, hence, 2 divides \(q.\) This is a contradiction as we assumed \(p\) and \(q\) were written so that they share no common divisors (other than the trivial divisor 1, of course). Therefore, \(\sqrt{2}\) is not a rational number.
+\end{proof}
+
+\subsection*{Part b)}
+To prove the claim of the problem, note that...
+\end{document}

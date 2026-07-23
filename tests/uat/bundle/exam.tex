@@ -1,0 +1,133 @@
+\documentclass[12pt]{article}
+%Include relevant packages here.
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{fancybox}
+\usepackage{enumerate}
+
+%Create command to generate bold horizontal lines, which is used
+%in generating the main title.
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\pagestyle{plain} \textheight 8.5in \topmargin -1cm \leftmargin 0cm
+\textwidth 16.5cm      %Define the textwidth,
+\hsize \textwidth      %Make hsize same as textwidth.
+\advance \hsize by -\marginparwidth
+\oddsidemargin -4mm    
+\evensidemargin
+\oddsidemargin 
+\setlength\parindent{0cm}
+\advance\hoffset by 5mm %Correct a residual shift to the left.
+\linespread{1.2}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TITLE PAGE STARTS HERE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{titlepage}
+
+\begin{center}
+
+%Write your university name here.
+\textsc{\large University of Genius}
+
+\bigskip
+
+%Course name and exam information here.
+\HRule 
+{ \Large \bfseries ORF 363/COS 323\\Final Exam, Fall 2020  }
+
+\HRule 
+\bigskip
+
+%Date of exam.
+\textsc{\large December 9, 2020, 10AM EST - December 11, 2020, 10AM EST}\\
+
+%Write some additional information, if needed.
+\textrm{(The exam may be due later if you have an extension. See below.)}
+
+\bigskip
+
+\noindent
+\begin{minipage}{0.4\textwidth}
+\begin{flushleft} \large
+\emph{Instructor:}\\
+  John Smith \\
+\emph{Co-Instructor:}\\
+ Joan Smith
+\end{flushleft}
+\end{minipage}%
+\begin{minipage}{0.4\textwidth}
+\begin{flushright} \large
+\emph{TAs:} \\
+Alice, Bob, Charlie, Diana
+\end{flushright}
+\end{minipage}
+
+\end{center}
+
+\bigskip
+
+\begin{center}
+\ovalbox{\large \begin{minipage}{0.99\textwidth}
+\begin{center}
+Please read the exam rules below before you start.
+\end{center}
+\end{minipage}
+}
+\end{center}
+\bigskip 
+
+\begin{enumerate}
+\item The exam is to be submitted as a single PDF file. You are free to write your solutions on paper or on a tablet, or to type them up. Only the latest version submitted before your deadline will be graded.
+
+\item Please remember to write your name on the first page of your solutions. Right next to it, please write out and sign the following pledge: \textit{``I pledge my honor that I have not violated the honor code during this examination.''}
+
+\item No collaboration allowed. 
+
+\item You can only ask clarification questions.
+
+\item You can only use Google for problems with MATLAB/software.
+
+\item You can use all lecture/review videos, instructor's notes, precept notes, live-notes, psets/previous exam solutions, and reference books of the course.
+
+\item If you have another exam during this time please see Lecture 15 Slide 37 for instructions on getting additional time.
+
+\end{enumerate}
+\end{titlepage}
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% PROBLEMS START HERE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+{\bf Problem 1:} Consider the optimization problem
+\begin{equation}\label{p3}
+	\begin{aligned}
+		\min \quad & f(x)\\
+		\textrm{s.t.} \quad & x \in \Omega,
+	\end{aligned}
+\end{equation}
+where $f: \mathbb{R}^n \rightarrow \mathbb{R}$ and $\Omega \subseteq \mathbb{R}^n$. Classify the following statement as ``true'' or ``false'' by giving a proof or a counterexample: If $f$ is quasiconvex and $\Omega$ is a convex set, then every {\bf strict} local minimum of (\ref{p3}) is a {\bf strict} global minimum of (\ref{p3}).
+
+\newpage
+
+{\bf Problem 2:} You are programming software for the Mars rover. The rover will need to minimize and maximize functions to locate the tops of hills and bottoms of valleys. There is only room for one optimization algorithm in the rover's memory and you must decide between gradient descent and Newton's method. Consider the following function (of a single variable $x \in \mathbb{R}$) which may resemble a martian valley:
+\[ f(x) = \sqrt{x^2 + 1}.\]
+
+\begin{enumerate}[(a)]
+	\item Prove that $f$ is strictly convex and has a strict global minimum.
+	
+	\item Consider gradient descent with step size $1$, i.e. 
+	\[N(x) = x - f'(x). \]
+	For which initializations $x_0$ does this method converge, oscillate and diverge? (Hint: Use a Lyapunov function.)
+	
+	\item Consider Newton's method with step size $1$, i.e. 
+	\[N(x) = x - \frac{f'(x)}{f''(x)}. \]
+	For which initializations $x_0$ does this method converge, oscillate and diverge? (Hint: You can run a numerical experiment to get a clue.)
+\end{enumerate}
+
+\end{document}

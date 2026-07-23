@@ -1,0 +1,45 @@
+\documentclass{amsart}
+\usepackage{amssymb,amsmath,amsthm,graphicx}
+
+%Define new commands for nice formatting here.
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\title{Course supplementary note \\ Gaussian Quadrature}
+
+\author{Your Name}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\subsection{Legendre Polynomials}
+Let $P_k(x)$ be the degree $k$ Legendre polynomial. The Legendre polynomials
+are an orthogonal family of polynomials on $[-1,1]$ that obey the orthogonality
+relation
+$$
+\int_{-1}^1 P_j(x) P_k(x) dx = 0,
+$$
+for $j \not = k$. The first few Legendre polynomials are
+$$
+P_0(x) = 1, \qquad P_1(x) = x, \qquad \text{and} \qquad P_2(x) = \frac{3 x^2 - 1}{2}.  
+$$
+The Legendre polynomials obey the recurrence relation
+$$
+(k+1) P_{k+1}(x) = (2 k + 1) x P_k(x) - k P_{k-1}(x),
+$$
+the differential equation
+$$
+(1 - x^2) P_k''(x) - 2 x P_k'(x) + k(k+1) P_k(x) = 0,
+$$
+for $k \ge 1$.
+
+\subsection{Roots} 
+More content goes here.
+
+\begin{remark}
+Can write remarks as well.
+\end{remark}
+
+\end{document}

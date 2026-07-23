@@ -1,0 +1,68 @@
+\documentclass[11pt]{article}
+
+%Include packages here.
+\usepackage{graphicx}
+\usepackage{amssymb}
+
+%Customize the document appearance.
+\setlength{\topmargin}{0pt}
+\setlength{\textwidth}{6in}
+\setlength{\textheight}{9in}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+\setlength{\oddsidemargin}{0.25in}
+
+%Create a draft notice command to signal when the scribe notes are not finished.
+\newcommand{\draftnotice}
+{
+    \vbox to 0.25in
+    {
+        \noindent
+        \raisebox{0.6in}[0in][0in]{\makebox[\textwidth][r]{\it DRAFT VERSION}}
+    }
+    \vspace{-.25in}\vspace{-\baselineskip}
+}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BODY OF HEADER INFO STARTS HERE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%Show draft notice initially. Remove or comment out when finished.
+\draftnotice
+
+\begin{center}
+\bf\large
+MATH 101: Introduction to Calculus %Supply a title here.
+\end{center}
+
+\noindent
+Lecturer: John Smith %Replace with lecturer/speaker name.
+\hfill
+Lecture 1 %Replace with relevant lecture number.
+\\
+Scribe: James Smith %Replace with scribe name.
+\hfill
+January 1, 2021 %Replace with relevant date(s).
+
+\noindent
+\rule{\textwidth}{1pt}
+
+\medskip
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BODY OF SCRIBE NOTES STARTS HERE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Choose a section header}
+
+Write here.
+
+\section{Another section header}
+
+Write more here.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BODY OF SCRIBE NOTES ENDS HERE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
