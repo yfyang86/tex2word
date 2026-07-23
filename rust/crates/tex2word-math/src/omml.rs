@@ -128,6 +128,24 @@ pub fn render(node: &Node) -> String {
             if *top { "top" } else { "bot" },
             cell(base)
         ),
+        Node::Styled { sty, text } => {
+            if text.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "<m:r><m:rPr><m:sty m:val=\"{}\"/></m:rPr><m:t xml:space=\"preserve\">{}</m:t></m:r>",
+                    sty,
+                    escape(text)
+                )
+            }
+        }
+        Node::Binom(num, den) => format!(
+            "<m:d><m:dPr><m:begChr m:val=\"(\"/><m:endChr m:val=\")\"/></m:dPr><m:e>\
+             <m:f><m:fPr><m:type m:val=\"noBar\"/></m:fPr><m:num>{}</m:num><m:den>{}</m:den></m:f>\
+             </m:e></m:d>",
+            cell(num),
+            cell(den)
+        ),
         Node::Matrix { rows, delim } => {
             let ncols = rows.iter().map(Vec::len).max().unwrap_or(0);
             let mut m = String::from("<m:m>");
@@ -174,6 +192,23 @@ mod tests {
     #[test]
     fn function_is_upright() {
         assert!(render(&parse(r"\sin")).contains("<m:nor/>"));
+    }
+
+    #[test]
+    fn font_alphabets_binom_and_mod() {
+        // blackboard-bold with a "hole" letter (ℝ from Letterlike Symbols)
+        assert!(render(&parse(r"\mathbb{R}")).contains("ℝ"));
+        assert!(render(&parse(r"\mathbb{Z}")).contains("ℤ"));
+        assert!(render(&parse(r"\mathcal{L}")).contains("ℒ"));
+        assert!(render(&parse(r"\mathfrak{g}")).contains("𝔤"));
+        // \mathbf -> bold styled run
+        let bf = render(&parse(r"\mathbf{v}"));
+        assert!(bf.contains("m:sty m:val=\"b\"") && bf.contains(">v</m:t>"));
+        // \binom -> parens + no-bar fraction
+        let b = render(&parse(r"\binom{n}{k}"));
+        assert!(b.contains("m:type m:val=\"noBar\"") && b.contains("m:begChr m:val=\"(\""));
+        // \pmod
+        assert!(render(&parse(r"\pmod{n}")).contains("mod"));
     }
 
     #[test]

@@ -55,6 +55,15 @@ pub enum Node {
         rows: Vec<Vec<Node>>,
         delim: Option<(String, String)>,
     },
+    /// A styled run: an OMML `m:sty` value (`b`/`i`/`bi`/`p`) over literal text.
+    /// `\mathbf` → `b`; `\mathit` → `i`.
+    Styled {
+        sty: &'static str,
+        text: String,
+    },
+    /// A binomial coefficient (`\binom{n}{k}`): parentheses over a bar-less
+    /// fraction.
+    Binom(Box<Node>, Box<Node>),
 }
 
 /// Parse a LaTeX math string into a [`Node::Row`].
@@ -182,10 +191,32 @@ impl Parser {
                     Node::Sqrt(Box::new(self.parse_atom()))
                 }
             }
-            "mathrm" | "mathbf" | "text" | "operatorname" | "mathsf" | "mathtt" => {
-                // upright content (styling nuances are a later milestone)
+            "mathrm" | "text" | "operatorname" | "mathsf" | "mathtt" => {
+                // upright content (font nuances beyond upright are not modelled)
                 Node::Upright(flatten_text(&self.parse_atom()))
             }
+            "mathbf" | "boldsymbol" | "bm" => Node::Styled {
+                sty: "b",
+                text: flatten_text(&self.parse_atom()),
+            },
+            "mathit" => Node::Run(flatten_text(&self.parse_atom())), // italic = default
+            // script/blackboard/fraktur alphabets -> Unicode math-alphanumerics
+            "mathbb" | "mathcal" | "mathscr" | "mathfrak" => {
+                Node::Run(symbols::alphabet(&name, &flatten_text(&self.parse_atom())))
+            }
+            "binom" | "dbinom" | "tbinom" => {
+                let n = self.parse_atom();
+                let k = self.parse_atom();
+                Node::Binom(Box::new(n), Box::new(k))
+            }
+            "pmod" => Node::Row(vec![
+                Node::Run(" (".into()),
+                Node::Upright("mod".into()),
+                Node::Run(" ".into()),
+                self.parse_atom(),
+                Node::Run(")".into()),
+            ]),
+            "bmod" => Node::Upright("mod".into()),
             "left" => self.parse_delim(),
             "right" => Node::Run(String::new()), // stray \right (parse_delim owns it)
             "begin" => self.parse_environment(),

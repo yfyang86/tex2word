@@ -226,3 +226,48 @@ pub fn function_name(name: &str) -> Option<&'static str> {
         _ => return None,
     })
 }
+
+/// Map ASCII letters/digits to a Unicode math-alphanumeric style
+/// (`\mathbb`/`\mathcal`/`\mathscr`/`\mathfrak`), leaving other characters as-is.
+/// Blackboard-bold and Fraktur have "holes" filled from the Letterlike Symbols
+/// block (ℂ ℍ ℕ ℙ ℚ ℝ ℤ, ℭ ℌ ℑ ℜ ℨ), so uppercase is looked up in an explicit
+/// table; lowercase/digits use plane arithmetic.
+pub fn alphabet(style: &str, s: &str) -> String {
+    s.chars()
+        .map(|c| alpha_char(style, c).unwrap_or(c))
+        .collect()
+}
+
+fn nth(table: &str, i: usize) -> Option<char> {
+    table.chars().nth(i)
+}
+
+fn alpha_char(style: &str, c: char) -> Option<char> {
+    let upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let idx = upper.find(c); // ASCII table -> byte index == char index
+    match style {
+        "mathbb" => {
+            if let Some(i) = idx {
+                return nth("𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ", i);
+            }
+            if c.is_ascii_lowercase() {
+                return char::from_u32(0x1D552 + (c as u32 - 'a' as u32));
+            }
+            if c.is_ascii_digit() {
+                return char::from_u32(0x1D7D8 + (c as u32 - '0' as u32));
+            }
+            None
+        }
+        "mathcal" | "mathscr" => idx.and_then(|i| nth("𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵", i)),
+        "mathfrak" => {
+            if let Some(i) = idx {
+                return nth("𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓𝔔ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ", i);
+            }
+            if c.is_ascii_lowercase() {
+                return char::from_u32(0x1D51E + (c as u32 - 'a' as u32));
+            }
+            None
+        }
+        _ => None,
+    }
+}
