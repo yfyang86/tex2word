@@ -14,7 +14,7 @@ fn usage() -> String {
     "tex2word (Rust) — LaTeX -> Word (.docx)\n\
      \n\
      USAGE:\n    \
-     tex2word convert <input.tex> [-o <output.docx>] [--strict] [--page letter|a4|legal]\n    \
+     tex2word convert <input.tex> [-o <output.docx>] [--strict] [--report] [--page letter|a4|legal]\n    \
      tex2word latex <input.tex> [-o <output.tex>]   (IR round-trip .tex)\n    \
      tex2word validate <file.docx>\n"
         .to_string()
@@ -50,6 +50,7 @@ fn run_convert<'a>(it: impl Iterator<Item = &'a String>) -> Result<String, Strin
     let mut input: Option<PathBuf> = None;
     let mut output: Option<PathBuf> = None;
     let mut strict = false;
+    let mut show_report = false;
     let mut page = PageGeometry::default();
     let mut it = it;
     while let Some(a) = it.next() {
@@ -58,6 +59,7 @@ fn run_convert<'a>(it: impl Iterator<Item = &'a String>) -> Result<String, Strin
                 output = Some(PathBuf::from(it.next().ok_or("-o requires a path")?));
             }
             "--strict" => strict = true,
+            "--report" => show_report = true,
             "--page" => {
                 let name = it.next().ok_or("--page requires a preset")?;
                 page = PageGeometry::preset(name)
@@ -68,8 +70,11 @@ fn run_convert<'a>(it: impl Iterator<Item = &'a String>) -> Result<String, Strin
         }
     }
     let input = input.ok_or("no input .tex file given")?;
-    let (out, warnings) = tex2word::convert_file(&input, output.as_deref(), &page)
+    let (out, warnings, coverage) = tex2word::convert_file(&input, output.as_deref(), &page)
         .map_err(|e| format!("{}: {e}", input.display()))?;
+    if show_report {
+        eprint!("{}", coverage.summary());
+    }
     for w in &warnings {
         eprintln!("warning: {}: {}", w.context, w.message);
     }
