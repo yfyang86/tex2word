@@ -1,0 +1,55 @@
+"""UAT bundle harness — the ProblemSet / bundle / oxmathproblems / resume UATs.
+
+Each is a real-world document with a custom document class (and, for
+ProblemSet, `\\input`ed fragments + an image). The bar (per the PRD) is: no hard
+abort, no *errors* logged (warnings are acceptable graceful degradation, e.g.
+`tikzpicture kept as a graphics placeholder` when no TeX engine is present), and
+structurally valid OOXML. Content quality beyond that is not asserted here.
+"""
+
+from __future__ import annotations
+
+import os
+
+import pytest
+
+from tex2word import convert_source
+from tex2word.validate import validate_docx
+
+UAT = os.path.join(os.path.dirname(__file__), "uat")
+
+# Entry-point documents (not the `\input`ed fragments or the .cls files).
+ENTRIES = [
+    "ProblemSet/main.tex",
+    "bundle/ams-article.tex",
+    "bundle/cheetsheet.tex",
+    "bundle/cheetsheet-colored.tex",
+    "bundle/exam.tex",
+    "bundle/homework.tex",
+    "bundle/scribe1.tex",
+    "bundle/sribe2.tex",
+    "oxmathproblems/oxmathproblems.tex",
+    "resume/resume.tex",
+]
+
+
+def _convert(rel):
+    path = os.path.join(UAT, rel)
+    with open(path, encoding="utf-8") as fh:
+        src = fh.read()
+    return convert_source(src, base_dir=os.path.dirname(path))
+
+
+@pytest.mark.parametrize("rel", ENTRIES, ids=[r.replace("/", ":") for r in ENTRIES])
+def test_uat_bundle_converts_cleanly(rel):
+    result = _convert(rel)
+    # 1. no hard errors (warnings — unknown envs, un-compilable TikZ — are OK)
+    assert result.report.errors == [], result.report.errors
+    # 2. structurally valid OOXML/OPC
+    problems = validate_docx(result.docx)
+    assert problems == [], problems
+
+
+def test_uat_bundle_present():
+    missing = [e for e in ENTRIES if not os.path.exists(os.path.join(UAT, e))]
+    assert not missing, f"missing UAT entry files: {missing}"
