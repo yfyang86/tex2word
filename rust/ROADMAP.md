@@ -206,8 +206,20 @@ Each phase is validated against the Python output on the corpus + UATs.
     while the fields stay live. Math: `\mathbb`/`\mathcal`/`\mathscr`/`\mathfrak`
     → Unicode math-alphanumerics (holes ℂℝℤ… handled), `\mathbf` → bold styled
     run, `\binom` → parens over a no-bar fraction, `\pmod`/`\bmod`.
-  - ⏳ **Sprint 2** = a differential harness (Rust vs Python parity report over
-    the corpus/UATs), then flip Rust to default and deprecate the Python tree.
+  - ✅ **Sprint 2 (harness + fidelity).** A CI-gated corpus harness
+    (`crates/tex2word/tests/corpus_parity.rs`) runs the Python project's own
+    fixtures + arXiv UATs through the Rust converter — all 7 produce
+    validator-clean, python-docx-openable `.docx`. The parity report
+    ([`PHASE6_PARITY.md`](PHASE6_PARITY.md)) drove the fidelity fixes (colour/box/
+    verb/`\paragraph`/spacing macros + the two-arg-macro brace bug), shrinking
+    the dropped-macro list to genuine out-of-scope features (BibTeX
+    `\bibliography`, algorithmic envs, `\appendix`, longtable `\endhead`). A live
+    two-converter diff isn't run here (Python's `pylatexenc` won't build offline).
+  - ⏳ **Cutover (awaiting go-ahead).** Flipping the published default to Rust and
+    deprecating the Python tree is an outward-facing governance decision (it
+    affects the PyPI package + users) — left for the maintainer to greenlight,
+    then: merge `rust` → default, point docs at the Rust CLI, mark Python
+    deprecated (kept one release as the reference oracle).
 
 ## Testing strategy
 
