@@ -53,3 +53,25 @@ def test_uat_bundle_converts_cleanly(rel):
 def test_uat_bundle_present():
     missing = [e for e in ENTRIES if not os.path.exists(os.path.join(UAT, e))]
     assert not missing, f"missing UAT entry files: {missing}"
+
+
+def test_oxmathproblems_exam_class_renders_as_lists():
+    """The exam-class problem sheet renders as nested numbered lists — not the
+    old garbage where exam's \\part collided with \\part sectioning ("Part I D")
+    and \\subpart/\\begin leaked as literal text."""
+    import re
+    import zipfile
+    from io import BytesIO
+
+    result = _convert("oxmathproblems/oxmathproblems.tex")
+    d = zipfile.ZipFile(BytesIO(result.docx)).read("word/document.xml").decode()
+    # no "Part N" sectioning garbage, no leaked exam markers
+    assert ">Part " not in d
+    assert "subpart" not in d and ">\\begin" not in d
+    # questions/parts/subparts became real list items
+    assert d.count("<w:numPr>") >= 15
+    # actual question content survived
+    text = " ".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", d))
+    assert "linearly independent" in text
+    # the pmatrix (\cr rows) has its cells
+    assert re.search(r"<m:t[^>]*>a</m:t>", d) and re.search(r"<m:t[^>]*>b</m:t>", d)

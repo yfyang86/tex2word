@@ -192,6 +192,46 @@ def _normalize_begin_star(source: str) -> str:
     )
 
 
+# exam document class: question/part markers (with an optional [points] arg) and
+# the questions/parts/subparts environments. \miquestion is a common alias
+# (oxmathproblems.cls: \newcommand{\miquestion}[1][]{\question}).
+_EXAM_ITEM_RE = re.compile(r"\\(?:miquestion|question|subpart|part)\b\s*(?:\[[^\]]*\])?")
+_EXAM_ENVS = ("questions", "parts", "subparts")
+
+
+def _uses_exam_class(source: str, base_dir: str) -> bool:
+    """True if the document is (directly or via a local ``.cls``) the exam class."""
+    if re.search(r"\\documentclass(?:\[[^\]]*\])?\{exam\}", source):
+        return True
+    m = re.search(r"\\documentclass(?:\[[^\]]*\])?\{([^}]+)\}", source)
+    if not m:
+        return False
+    path = os.path.join(base_dir, m.group(1).strip() + ".cls")
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            content = fh.read()
+    except OSError:
+        return False
+    return bool(re.search(r"\\LoadClass(?:WithOptions)?(?:\[[^\]]*\])?\{exam\}", content))
+
+
+def _rewrite_exam_class(source: str, base_dir: str) -> str:
+    """Rewrite the ``exam`` class's structure into nested ``enumerate``/``\\item``.
+
+    ``questions``/``parts``/``subparts`` → ``enumerate``; ``\\question``/
+    ``\\miquestion``/``\\part``/``\\subpart`` (dropping any ``[points]``) →
+    ``\\item``. This renders the sheet as nested numbered lists and, crucially,
+    stops exam's ``\\part`` (a subpart) from being mistaken for standard LaTeX
+    ``\\part`` sectioning (which produced garbage like "Part I D").
+    """
+    if not _uses_exam_class(source, base_dir):
+        return source
+    for env in _EXAM_ENVS:
+        source = re.sub(r"\\begin\{" + env + r"\}", r"\\begin{enumerate}", source)
+        source = re.sub(r"\\end\{" + env + r"\}", r"\\end{enumerate}", source)
+    return _EXAM_ITEM_RE.sub(r"\\item ", source)
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
@@ -199,6 +239,7 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(source), base_dir)
+    source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
     source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}
     source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
     source = inline_listing_files(source, base_dir)
