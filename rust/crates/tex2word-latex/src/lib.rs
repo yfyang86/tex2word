@@ -75,13 +75,34 @@ fn block(b: &Block, o: &mut String) {
                 o.push('\n');
             }
         }
-        Block::List { ordered, items } => {
-            let env = if *ordered { "enumerate" } else { "itemize" };
-            o.push_str(&format!("\\begin{{{env}}}\n"));
+        Block::List { items } => {
+            // reconstruct nesting from item levels: open/close enumerate/itemize
+            // environments as the level rises and falls.
+            let mut stack: Vec<bool> = Vec::new(); // ordered flag per open level
             for it in items {
-                o.push_str(&format!("\\item {}\n", inlines(it)));
+                let lvl = it.level as usize;
+                while stack.len() > lvl + 1 {
+                    let ord = stack.pop().unwrap();
+                    o.push_str(&format!(
+                        "\\end{{{}}}\n",
+                        if ord { "enumerate" } else { "itemize" }
+                    ));
+                }
+                while stack.len() < lvl + 1 {
+                    stack.push(it.ordered);
+                    o.push_str(&format!(
+                        "\\begin{{{}}}\n",
+                        if it.ordered { "enumerate" } else { "itemize" }
+                    ));
+                }
+                o.push_str(&format!("\\item {}\n", inlines(&it.inlines)));
             }
-            o.push_str(&format!("\\end{{{env}}}\n"));
+            while let Some(ord) = stack.pop() {
+                o.push_str(&format!(
+                    "\\end{{{}}}\n",
+                    if ord { "enumerate" } else { "itemize" }
+                ));
+            }
         }
         Block::Quote(blocks) => {
             o.push_str("\\begin{quote}\n");

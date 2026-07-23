@@ -13,8 +13,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use tex2word_ir::{
-    Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, RefKind,
-    RefStyle, Table, TableAlign, Theorem, TocKind,
+    Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, LabelInfo, ListItem,
+    RefKind, RefStyle, Table, TableAlign, Theorem, TocKind,
 };
 
 use crate::fields::{self, Bookmarks};
@@ -525,15 +525,18 @@ fn render_paragraph_jc(
     out.push_str("</w:p>");
 }
 
-/// One list item -> a numbered/bulleted paragraph (numId 1 = bullet, 2 = decimal).
-fn render_list_item(inlines: &[Inline], num_id: u32, ctx: &mut Ctx, out: &mut String) {
-    out.push_str(
-        "<w:p><w:pPr><w:pStyle w:val=\"ListParagraph\"/>\
-         <w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"",
-    );
+/// One list item -> a numbered/bulleted paragraph at nesting `level` (numId 1 =
+/// bullet, 2 = decimal; both define ilvl 0–4). An item with empty content still
+/// emits its numbered paragraph, so a question that only holds sub-parts keeps
+/// its own number.
+fn render_list_item(item: &ListItem, ctx: &mut Ctx, out: &mut String) {
+    let num_id = if item.ordered { 2 } else { 1 };
+    out.push_str("<w:p><w:pPr><w:pStyle w:val=\"ListParagraph\"/><w:numPr><w:ilvl w:val=\"");
+    out.push_str(&item.level.to_string());
+    out.push_str("\"/><w:numId w:val=\"");
     out.push_str(&num_id.to_string());
     out.push_str("\"/></w:numPr></w:pPr>");
-    render_inlines(inlines, RunProps::default(), ctx, out);
+    render_inlines(&item.inlines, RunProps::default(), ctx, out);
     out.push_str("</w:p>");
 }
 
@@ -578,10 +581,9 @@ fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
                 out.push_str("</w:p>");
             }
         }
-        Block::List { ordered, items } => {
-            let num_id = if *ordered { 2 } else { 1 };
+        Block::List { items } => {
             for item in items {
-                render_list_item(item, num_id, ctx, out);
+                render_list_item(item, ctx, out);
             }
         }
         Block::Quote(blocks) => {
@@ -1112,12 +1114,20 @@ pub const ROOT_RELS_XML: &str = concat!(
 pub const NUMBERING_XML: &str = concat!(
     "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
     "<w:numbering xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">",
-    "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/>",
-    "<w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{2022}\"/><w:lvlJc w:val=\"left\"/>",
-    "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
-    "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/>",
-    "<w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:lvlJc w:val=\"left\"/>",
-    "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
+    // abstractNum 0 = bullet, 5 nesting levels (•, ◦, ▪, …).
+    "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"hybridMultilevel\"/>",
+    "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{2022}\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{25E6}\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"1440\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{25AA}\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"2160\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"3\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{2022}\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"2880\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"4\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\u{25E6}\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"3600\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
+    // abstractNum 1 = ordered, 5 nesting levels (1. / (a) / (i) / 1. / (a)).
+    "<w:abstractNum w:abstractNumId=\"1\"><w:multiLevelType w:val=\"hybridMultilevel\"/>",
+    "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"(%2)\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"1440\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerRoman\"/><w:lvlText w:val=\"(%3)\"/><w:lvlJc w:val=\"right\"/><w:pPr><w:ind w:left=\"2160\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"3\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%4.\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"2880\" w:hanging=\"360\"/></w:pPr></w:lvl>",
+    "<w:lvl w:ilvl=\"4\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"(%5)\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"3600\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum>",
     // abstractNum 2 = multilevel heading numbering (1, 1.1, 1.1.1, 1.1.1.1).
     "<w:abstractNum w:abstractNumId=\"2\"><w:multiLevelType w:val=\"multilevel\"/>",
     "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/>",

@@ -130,12 +130,11 @@ pub enum Block {
         label: Option<String>,
         numbered: bool,
     },
-    /// An `itemize` (unordered) / `enumerate` (ordered) list; each item is an
-    /// inline run (multi-block items are a later milestone).
-    List {
-        ordered: bool,
-        items: Vec<Vec<Inline>>,
-    },
+    /// An `itemize` (unordered) / `enumerate` (ordered) list. Items are stored
+    /// flat with a nesting `level`, so a nested list becomes higher-level items
+    /// in sequence. An item with empty `inlines` (one that only holds a nested
+    /// sub-list) still renders its own number.
+    List { items: Vec<ListItem> },
     /// A `quote`/`quotation` set-off block.
     Quote(Vec<Block>),
     /// A `tabular`/`array` table.
@@ -148,6 +147,17 @@ pub enum Block {
     Bibliography { entries: Vec<BibEntry> },
     /// A theorem-like environment (`theorem`/`lemma`/`proof`/…).
     Theorem(Theorem),
+}
+
+/// One entry in a [`Block::List`]. `level` is the nesting depth (0 = outermost);
+/// `ordered` is whether this item's own list is an `enumerate`. `inlines` is the
+/// item's leading content (empty when the item only holds a nested sub-list —
+/// the empty numbered paragraph still shows the item's number).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListItem {
+    pub level: u8,
+    pub ordered: bool,
+    pub inlines: Vec<Inline>,
 }
 
 /// A theorem-like environment. `kind` is the display name ("Theorem", "Proof");
@@ -306,7 +316,7 @@ fn push_block_text(b: &Block, out: &mut String) {
         }
         Block::List { items, .. } => {
             for item in items {
-                push_inline_text(item, out);
+                push_inline_text(&item.inlines, out);
                 out.push('\n');
             }
         }

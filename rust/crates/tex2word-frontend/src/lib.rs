@@ -13,11 +13,12 @@
 use std::path::Path;
 
 use tex2word_ir::{
-    BibEntry, Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, RefKind, RefStyle,
-    Table, TableAlign, TableCell, TableRow, Theorem, TocKind,
+    BibEntry, Block, CiteMode, Document, EmphasisKind, Float, FloatKind, Inline, ListItem, RefKind,
+    RefStyle, Table, TableAlign, TableCell, TableRow, Theorem, TocKind,
 };
 
 mod macros;
+mod preprocess;
 
 /// Parse a LaTeX document string into the IR (relative `\input`s resolved against
 /// the current directory).
@@ -31,7 +32,8 @@ pub fn parse_document(source: &str) -> Document {
 /// it.
 pub fn parse_document_reporting(source: &str, base_dir: &Path) -> (Document, Vec<String>) {
     let flat = flatten_inputs(&strip_comments(source), base_dir, 0);
-    let expanded = macros::expand_macros(&flat);
+    let pre = preprocess::preprocess(&flat, base_dir);
+    let expanded = macros::expand_macros(&pre);
     let body = extract_environment(&expanded, "document").unwrap_or_else(|| expanded.clone());
     let unsupported = scan_unsupported(&body);
     (parse_document_in(source, base_dir), unsupported)
@@ -238,9 +240,11 @@ fn is_supported_macro(name: &str) -> bool {
 
 /// Parse a LaTeX document, resolving `\input`/`\include` files against `base_dir`.
 pub fn parse_document_in(source: &str, base_dir: &Path) -> Document {
-    // strip comments, flatten \input/\include, then expand macros, then parse.
+    // strip comments, flatten \input/\include, run source transforms (exam class,
+    // \halign, tikz cheatsheets), then expand macros, then parse.
     let flat = flatten_inputs(&strip_comments(source), base_dir, 0);
-    let src = macros::expand_macros(&flat);
+    let pre = preprocess::preprocess(&flat, base_dir);
+    let src = macros::expand_macros(&pre);
     let title = extract_braced_macro_arg(&src, "title")
         .map(|t| parse_inlines(t.trim()))
         .filter(|v| !is_blank_inlines(v));
@@ -706,7 +710,7 @@ fn matches_at(s: &[char], i: usize, pat: &[char]) -> bool {
 /// From just after `\begin{env}` (at `i`), read the environment body up to the
 /// matching `\end{env}`, tracking nested `\begin{env}` of the *same* name.
 /// Returns (body, index-after-`\end{env}`).
-fn read_env_body(s: &[char], i: usize, env: &str) -> (String, usize) {
+pub(crate) fn read_env_body(s: &[char], i: usize, env: &str) -> (String, usize) {
     let begin_pat: Vec<char> = format!("\\begin{{{env}}}").chars().collect();
     let end_pat: Vec<char> = format!("\\end{{{env}}}").chars().collect();
     let start = i;
@@ -731,25 +735,49 @@ fn read_env_body(s: &[char], i: usize, env: &str) -> (String, usize) {
     (s[start..].iter().collect(), s.len())
 }
 
-/// Parse an `itemize`/`enumerate` body (split on top-level `\item`).
+/// Parse an `itemize`/`enumerate` body into flat, depth-tagged [`ListItem`]s
+/// (nested lists become higher-`level` items in sequence).
 fn parse_list(body: &str, ordered: bool) -> Block {
+    let mut items: Vec<ListItem> = Vec::new();
+    parse_list_into(body, ordered, 0, &mut items);
+    Block::List { items }
+}
+
+/// Split a list body on top-level `\item` (tracking `\begin`/`\end` nesting so a
+/// nested list's `\item`s don't split the outer list); for each item, emit its
+/// own leading content as a [`ListItem`] and recurse into any nested
+/// `itemize`/`enumerate` at `level + 1`. An item that only holds a nested list
+/// still emits an (empty) item, so its own number renders above the sub-items.
+fn parse_list_into(body: &str, ordered: bool, level: u8, out: &mut Vec<ListItem>) {
+    for chunk in split_items(body) {
+        emit_list_item(&chunk, ordered, level, out);
+    }
+}
+
+/// Split a list body into per-item raw chunks on top-level `\item`.
+fn split_items(body: &str) -> Vec<String> {
     let s: Vec<char> = body.chars().collect();
     let n = s.len();
-    let mut items: Vec<Vec<Inline>> = Vec::new();
+    let mut items: Vec<String> = Vec::new();
     let mut buf = String::new();
     let mut started = false;
+    let mut depth = 0i32; // \begin/\end nesting
     let mut i = 0;
     while i < n {
         if s[i] == '\\' {
             let (name, after) = read_command_name(&s, i);
-            if name == "item" {
-                if started {
-                    items.push(parse_inlines(buf.trim()));
-                    buf.clear();
+            match name.as_str() {
+                "begin" => depth += 1,
+                "end" => depth -= 1,
+                "item" if depth == 0 => {
+                    if started {
+                        items.push(std::mem::take(&mut buf));
+                    }
+                    started = true;
+                    i = skip_optional_bracket(&s, after); // drop \item[label]
+                    continue;
                 }
-                started = true;
-                i = skip_optional_bracket(&s, after); // drop \item[label]
-                continue;
+                _ => {}
             }
             if started {
                 buf.extend(&s[i..after]);
@@ -763,9 +791,50 @@ fn parse_list(body: &str, ordered: bool) -> Block {
         i += 1;
     }
     if started {
-        items.push(parse_inlines(buf.trim()));
+        items.push(buf);
     }
-    Block::List { ordered, items }
+    items
+}
+
+/// Emit one item: its leading (non-nested-list) content as a [`ListItem`] at
+/// `level`, followed by the flattened items of each nested `itemize`/`enumerate`
+/// at `level + 1`.
+fn emit_list_item(chunk: &str, ordered: bool, level: u8, out: &mut Vec<ListItem>) {
+    let s: Vec<char> = chunk.chars().collect();
+    let n = s.len();
+    let mut text = String::new();
+    let mut sublists: Vec<(bool, String)> = Vec::new();
+    let mut i = 0;
+    while i < n {
+        if s[i] == '\\' {
+            let (name, after) = read_command_name(&s, i);
+            if name == "begin" {
+                let (env, after_env) = read_braced(&s, after);
+                if env == "itemize" || env == "enumerate" {
+                    let (b, after_body) = read_env_body(&s, after_env, &env);
+                    sublists.push((env == "enumerate", b));
+                    i = after_body;
+                    continue;
+                }
+                text.extend(&s[i..after]); // other env kept as text
+                i = after;
+                continue;
+            }
+            text.extend(&s[i..after]);
+            i = after;
+            continue;
+        }
+        text.push(s[i]);
+        i += 1;
+    }
+    out.push(ListItem {
+        level,
+        ordered,
+        inlines: parse_inlines(text.trim()),
+    });
+    for (sub_ordered, sub_body) in sublists {
+        parse_list_into(&sub_body, sub_ordered, level + 1, out);
+    }
 }
 
 /// Skip an optional `[ … ]` group (e.g. `\item[label]`); returns index-after.
@@ -1198,6 +1267,20 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
             '\\' => {
                 let (name, after) = read_command_name(&s, i);
                 match name.as_str() {
+                    // \[ … \] display math and \( … \) inline math -> Inline::Math
+                    // (an item may carry display math in the flat list model).
+                    "[" | "(" => {
+                        flush_text!();
+                        let close = if name == "[" { ']' } else { ')' };
+                        let start = after;
+                        let mut j = after;
+                        while j < n && !(s[j] == '\\' && j + 1 < n && s[j + 1] == close) {
+                            j += 1;
+                        }
+                        let math: String = s[start..j].iter().collect();
+                        out.push(Inline::Math(math.trim().to_string()));
+                        i = if j < n { j + 2 } else { n };
+                    }
                     "textbf" | "emph" | "textit" | "texttt" | "underline" | "textrm" | "textsc"
                     | "textsuperscript" | "textsubscript" | "textnormal" | "mbox" | "hbox"
                     | "text" | "mathrm" => {
@@ -1681,7 +1764,7 @@ fn apply_accent(accent: &str, base: char) -> Option<char> {
 /// From a `\` at `i`, read the command name; returns (name, index-after).
 /// A control *word* is a run of ASCII letters (trailing spaces are gobbled);
 /// a control *symbol* is the single following character.
-fn read_command_name(s: &[char], i: usize) -> (String, usize) {
+pub(crate) fn read_command_name(s: &[char], i: usize) -> (String, usize) {
     debug_assert_eq!(s[i], '\\');
     let mut j = i + 1;
     if j < s.len() && s[j].is_ascii_alphabetic() {
@@ -1703,7 +1786,7 @@ fn read_command_name(s: &[char], i: usize) -> (String, usize) {
 
 /// Skip whitespace then read a balanced `{ … }` group; returns (inner, index-after).
 /// If no `{` follows, returns ("", i) unchanged.
-fn read_braced(s: &[char], i: usize) -> (String, usize) {
+pub(crate) fn read_braced(s: &[char], i: usize) -> (String, usize) {
     let mut j = i;
     while j < s.len() && (s[j] == ' ' || s[j] == '\n' || s[j] == '\t' || s[j] == '\r') {
         j += 1;
@@ -1737,7 +1820,7 @@ fn read_braced(s: &[char], i: usize) -> (String, usize) {
 
 /// Skip whitespace then read a bracketed `[ … ]` optional argument (brace-aware).
 /// Returns (inner, index-after); if no `[` follows, returns ("", i) unchanged.
-fn read_optional(s: &[char], i: usize) -> (String, usize) {
+pub(crate) fn read_optional(s: &[char], i: usize) -> (String, usize) {
     let mut j = i;
     while j < s.len() && (s[j] == ' ' || s[j] == '\n' || s[j] == '\t' || s[j] == '\r') {
         j += 1;
@@ -1796,6 +1879,43 @@ mod tests {
 
     fn conv(src: &str) -> Document {
         parse_document(src)
+    }
+
+    #[test]
+    fn nested_list_levels_and_leading_number() {
+        // an item whose only content is a nested list still gets its own item
+        // (empty leading text -> its number renders above the sub-items).
+        let doc = conv(concat!(
+            r"\begin{document}\begin{enumerate}",
+            r"\item\begin{enumerate}\item a\item b\end{enumerate}",
+            r"\item text\end{enumerate}\end{document}"
+        ));
+        let Block::List { items } = &doc.blocks[0] else {
+            panic!("expected list");
+        };
+        let levels: Vec<u8> = items.iter().map(|it| it.level).collect();
+        assert_eq!(levels, vec![0, 1, 1, 0]); // Q1 (empty), a, b, Q2
+        assert!(items[0].inlines.is_empty()); // leading item carries the number
+    }
+
+    #[test]
+    fn exam_class_renders_nested_questions() {
+        // exam markers -> nested numbered lists; \part must not become sectioning
+        let doc = conv(concat!(
+            r"\documentclass{exam}\begin{document}\begin{questions}",
+            r"\question\begin{parts}\part x \part y\end{parts}",
+            r"\begin{solution}hidden\end{solution}\end{questions}\end{document}"
+        ));
+        let Block::List { items } = &doc.blocks[0] else {
+            panic!("expected list, got {:?}", doc.blocks)
+        };
+        let levels: Vec<u8> = items.iter().map(|it| it.level).collect();
+        assert_eq!(levels, vec![0, 1, 1]); // question (0) then two parts (1)
+                                           // no Heading block leaked from \part sectioning
+        assert!(!doc
+            .blocks
+            .iter()
+            .any(|b| matches!(b, Block::Heading { .. })));
     }
 
     #[test]
@@ -1872,17 +1992,31 @@ end\end{document}",
             doc.blocks,
             vec![
                 Block::List {
-                    ordered: false,
                     items: vec![
-                        vec![Inline::Text("first".into())],
-                        vec![Inline::Text("second".into())],
+                        ListItem {
+                            level: 0,
+                            ordered: false,
+                            inlines: vec![Inline::Text("first".into())]
+                        },
+                        ListItem {
+                            level: 0,
+                            ordered: false,
+                            inlines: vec![Inline::Text("second".into())]
+                        },
                     ],
                 },
                 Block::List {
-                    ordered: true,
                     items: vec![
-                        vec![Inline::Text("one".into())],
-                        vec![Inline::Text("two".into())],
+                        ListItem {
+                            level: 0,
+                            ordered: true,
+                            inlines: vec![Inline::Text("one".into())]
+                        },
+                        ListItem {
+                            level: 0,
+                            ordered: true,
+                            inlines: vec![Inline::Text("two".into())]
+                        },
                     ],
                 },
             ]
@@ -1897,9 +2031,9 @@ end\end{document}",
         let Block::List { items, .. } = &doc.blocks[0] else {
             panic!("expected list");
         };
-        assert_eq!(items[0][0], Inline::Text("with ".into()));
+        assert_eq!(items[0].inlines[0], Inline::Text("with ".into()));
         assert!(matches!(
-            &items[0][1],
+            &items[0].inlines[1],
             Inline::Emphasis {
                 kind: EmphasisKind::Bold,
                 ..

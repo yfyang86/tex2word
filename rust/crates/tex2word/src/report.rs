@@ -52,7 +52,7 @@ fn count_blocks(blocks: &[Block], c: &mut Coverage) {
             Block::List { items, .. } => {
                 c.lists += 1;
                 for it in items {
-                    count_inlines(it, c);
+                    count_inlines(&it.inlines, c);
                 }
             }
             Block::Quote(bs) => count_blocks(bs, c),
