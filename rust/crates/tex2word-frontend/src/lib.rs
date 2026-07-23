@@ -193,6 +193,45 @@ fn is_supported_macro(name: &str) -> bool {
         "hsize",
         "height",
         "width",
+        // boxes / colour / spacing / verbatim handled or cleanly dropped
+        "paragraph",
+        "subparagraph",
+        "mbox",
+        "hbox",
+        "textcolor",
+        "color",
+        "raisebox",
+        "rule",
+        "fontsize",
+        "verb",
+        "phantom",
+        "hphantom",
+        "vphantom",
+        "hspace",
+        "vspace",
+        "selectfont",
+        "normalfont",
+        // font-size declarations (dropped; sizing not modelled)
+        "tiny",
+        "scriptsize",
+        "footnotesize",
+        "small",
+        "normalsize",
+        "large",
+        "Large",
+        "LARGE",
+        "huge",
+        "Huge",
+        // font-shape/series declarations (dropped)
+        "bfseries",
+        "mdseries",
+        "itshape",
+        "slshape",
+        "scshape",
+        "upshape",
+        "rmfamily",
+        "sffamily",
+        "ttfamily",
     ];
     STRUCT.contains(&name)
 }
@@ -410,6 +449,7 @@ fn section_level(name: &str) -> Option<u8> {
         "section" => Some(1),
         "subsection" => Some(2),
         "subsubsection" => Some(3),
+        "paragraph" | "subparagraph" => Some(4),
         _ => None,
     }
 }
@@ -1159,7 +1199,8 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                 let (name, after) = read_command_name(&s, i);
                 match name.as_str() {
                     "textbf" | "emph" | "textit" | "texttt" | "underline" | "textrm" | "textsc"
-                    | "textsuperscript" | "textsubscript" | "textnormal" => {
+                    | "textsuperscript" | "textsubscript" | "textnormal" | "mbox" | "hbox"
+                    | "text" | "mathrm" => {
                         flush_text!();
                         let (arg, after2) = read_braced(&s, after);
                         let inner = parse_inlines(&arg);
@@ -1168,9 +1209,52 @@ fn parse_inlines(src: &str) -> Vec<Inline> {
                                 kind,
                                 inlines: inner,
                             }),
-                            None => out.extend(inner), // \textrm/\textnormal -> passthrough
+                            // \textrm/\textnormal/\mbox/\hbox/\text -> passthrough
+                            None => out.extend(inner),
                         }
                         i = after2;
+                    }
+                    // \textcolor{c}{txt}/\raisebox{d}{txt}: drop the first arg, keep
+                    // the second (fixes the literal-brace bug for 2-arg macros).
+                    "textcolor" | "raisebox" => {
+                        flush_text!();
+                        let (_first, a1) = read_braced(&s, after);
+                        let (txt, a2) = read_braced(&s, a1);
+                        out.extend(parse_inlines(&txt));
+                        i = a2;
+                    }
+                    // \rule{w}{h}/\fontsize{a}{b}: both args dropped (rule = a line;
+                    // fontsize = sizing we don't model).
+                    "rule" | "fontsize" => {
+                        flush_text!();
+                        let (_a, a1) = read_braced(&s, after);
+                        let (_b, a2) = read_braced(&s, a1);
+                        i = a2;
+                    }
+                    // \verb|code| -> a typewriter run (any delimiter char).
+                    "verb" => {
+                        flush_text!();
+                        let mut j = after;
+                        if j < n && s[j] == '*' {
+                            j += 1;
+                        }
+                        if j < n {
+                            let delim = s[j];
+                            j += 1;
+                            let start = j;
+                            while j < n && s[j] != delim {
+                                j += 1;
+                            }
+                            let code: String = s[start..j].iter().collect();
+                            if j < n {
+                                j += 1; // consume closing delimiter
+                            }
+                            out.push(Inline::Emphasis {
+                                kind: EmphasisKind::Typewriter,
+                                inlines: vec![Inline::Text(code)],
+                            });
+                        }
+                        i = j;
                     }
                     "\\" | "newline" => {
                         flush_text!();
@@ -2353,6 +2437,31 @@ Math is exempt: $\alpha$ \[ \gamma \] \begin{equation}\delta\end{equation}.
                 "{ok} wrongly flagged"
             );
         }
+    }
+
+    #[test]
+    fn color_verb_box_and_paragraph_fidelity() {
+        let doc = conv(
+            r"\begin{document}A \textcolor{green}{highlighted} word and \verb|x=1| code, \mbox{boxed}.
+\paragraph{Note}Body.\end{document}",
+        );
+        let Block::Paragraph { inlines } = &doc.blocks[0] else {
+            panic!("expected paragraph, got {:?}", doc.blocks[0]);
+        };
+        let text = doc.plain_text();
+        // \textcolor keeps the text, drops the colour name, no literal braces
+        assert!(text.contains("A highlighted word"));
+        assert!(!text.contains('{') && !text.contains("green"));
+        // \verb -> typewriter run preserving the code
+        assert!(inlines.iter().any(|i| matches!(i,
+            Inline::Emphasis { kind: EmphasisKind::Typewriter, inlines }
+                if inlines == &vec![Inline::Text("x=1".into())])));
+        // \mbox passthrough
+        assert!(text.contains("boxed"));
+        // \paragraph -> a level-4 heading
+        assert!(doc.blocks.iter().any(|b| matches!(b,
+            Block::Heading { level: 4, inlines, .. }
+                if inlines == &vec![Inline::Text("Note".into())])));
     }
 
     #[test]

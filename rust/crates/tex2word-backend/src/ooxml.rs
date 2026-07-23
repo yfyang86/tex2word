@@ -1150,7 +1150,12 @@ pub fn styles_xml() -> String {
         "<w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>",
         "<w:pPr><w:jc w:val=\"center\"/></w:pPr><w:rPr><w:sz w:val=\"28\"/></w:rPr></w:style>",
     ));
-    for (id, sz) in [("Heading1", 36), ("Heading2", 30), ("Heading3", 26)] {
+    for (id, sz) in [
+        ("Heading1", 36),
+        ("Heading2", 30),
+        ("Heading3", 26),
+        ("Heading4", 24),
+    ] {
         s.push_str(&format!(
             "<w:style w:type=\"paragraph\" w:styleId=\"{id}\"><w:name w:val=\"{id}\"/>\
              <w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/>\

@@ -14,36 +14,38 @@ feature coverage. Gated in CI by `crates/tex2word/tests/corpus_parity.rs`.
 
 ## Results (7/7 valid, 7/7 open in python-docx)
 
+After the Sprint-2 fidelity fixes (colour/box/verb/paragraph/spacing macros +
+the two-arg-macro brace bug), the dropped-macro list is down to genuine
+out-of-scope features:
+
 | File | Valid | Opens | Unsupported macros (dropped) |
 |------|:-----:|:-----:|------------------------------|
 | `corpus/article.tex` | ✅ | ✅ | `\bibliography`, `\bibliographystyle` |
-| `corpus/features.tex` | ✅ | ✅ | `\verb`, algorithmic (`\STATE`/`\FOR`/`\REQUIRE`/`\RETURN`/`\ENDFOR`) |
+| `corpus/features.tex` | ✅ | ✅ | algorithmic (`\STATE`/`\FOR`/`\REQUIRE`/`\RETURN`/`\ENDFOR`) |
 | `corpus/longtable.tex` | ✅ | ✅ | `\endhead` |
 | `corpus/macros.tex` | ✅ | ✅ | *(none)* |
 | `corpus/tables.tex` | ✅ | ✅ | *(none)* |
-| `uat/arXiv-2507.17026v2/main.tex` | ✅ | ✅ | `\paragraph` |
-| `uat/arXiv-2605.23904v2/main.tex` | ✅ | ✅ | `\appendix`, `\textcolor`/`\color`, `\fontsize`/`\selectfont`, `\footnotesize`, `\mbox`, `\raisebox`, `\rule`, `\hphantom` |
+| `uat/arXiv-2507.17026v2/main.tex` | ✅ | ✅ | *(none)* |
+| `uat/arXiv-2605.23904v2/main.tex` | ✅ | ✅ | `\appendix` |
 
 Every file produces a **structurally valid** `.docx` that opens in python-docx.
-No malformed output; the remaining differences are *dropped* macros, not broken
-documents.
+No malformed output; the remaining differences are a handful of *dropped*
+out-of-scope macros, not broken documents.
 
-## Gap analysis (from the dropped macros)
+## Fidelity fixes shipped (Sprint 2)
 
-**Easy fidelity wins (Sprint 2 follow-up):**
-- `\paragraph`/`\subparagraph` → heading levels 4/5 (Word has `Heading4`; the
-  heading list already supports 4 levels).
-- `\textcolor{c}{text}`/`\color` → keep the text (drop the colour). ⚠️ Today an
-  unknown two-argument macro drops only its *first* `{…}`, leaving the second as
-  literal `{text}` braces — a real correctness bug to fix alongside this.
-- `\mbox{x}`/`\hbox{x}` → passthrough content (like `\textrm`).
-- `\verb|code|` → typewriter run.
-- `\hphantom`/`\raisebox`/`\rule`/spacing → drop cleanly (invisible), and add to
-  the "handled" set so they stop being reported.
-- `\footnotesize`/`\fontsize`/`\selectfont`/`\normalsize` → drop (font sizing not
-  modelled), silenced.
+- `\paragraph`/`\subparagraph` → `Heading4`.
+- `\textcolor{c}{text}`/`\color` → keep the text, drop the colour. Fixed the
+  underlying bug where an unknown two-argument macro left its second `{…}` as
+  literal `{text}` braces.
+- `\mbox{x}`/`\hbox{x}` → passthrough content.
+- `\verb|code|` → a typewriter run.
+- `\raisebox{d}{text}` → keep the text; `\rule`/`\fontsize` → dropped.
+- `\hphantom`/`\phantom`/`\hspace`/`\vspace` and the font-size/shape declarations
+  (`\footnotesize`/`\selectfont`/`\bfseries`/…) → dropped cleanly and no longer
+  reported.
 
-**Out of scope for Phase 6 (backlog):**
+## Gap analysis — remaining (out of scope for Phase 6, backlog)
 - `\bibliography`/`\bibliographystyle` (BibTeX): the Rust port handles the
   LaTeX-native `thebibliography`; BibTeX resolution is a later CSL pass.
 - `algorithmic`/`algorithm2e` environments (`\STATE`/`\FOR`/…): a dedicated
