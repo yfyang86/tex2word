@@ -1,0 +1,32 @@
+\documentclass{cos324}
+\usepackage{newtxtext,newtxmath} %Change the font look. Can remove, if so desired.
+\usepackage{graphicx} %If you want to include graphics.
+
+%Modify the following as needed.
+\name{Your Name}
+\email{email@princeton.edu}
+\course{MATH 340}
+\assignment{Precept \#5}
+\duedate{23:55pm Monday August 24, 2020}
+
+\begin{document}
+
+Recall the following useful facts about $D_{n}$ (which you discovered in a previous problem set).
+\begin{itemize}
+    \item Suppose $n$ is even. The conjugacy classes of $D_{n}$ are:
+    \begin{align*}
+        \{e\},  \{r,r^{n-1}\},  \{r^{2},r^{n-2}\},  \cdots ,  \{r^{\frac{n}{2}-1},r^{\frac{n}{2}+1}\}, \{r^{\frac{n}{2}}\}, \{s,r^{2}s,\cdots,r^{n-2}s\}, \{rs,r^{3}s,\cdots,r^{n-1}s\}.
+    \end{align*}
+    \item Suppose $n$ is odd. The conjugacy classes of $D_{n}$ are:
+    \begin{align*}
+        \{e\},  \{r,r^{n-1}\},  \{r^{2},r^{n-2}\},  \cdots , \{r^{\frac{n-1}{2}},r^{\frac{n+1}{2}}\},  \{s,rs,r^{2}s,\cdots,r^{n-1}s\}.
+    \end{align*}
+\end{itemize}
+
+\input{problems/card_game.tex}
+\input{solutions/card_game.tex}
+
+\input{problems/beads.tex}
+\input{solutions/beads.tex}
+
+\end{document}
