@@ -200,6 +200,9 @@ impl Parser {
                 text: flatten_text(&self.parse_atom()),
             },
             "mathit" => Node::Run(flatten_text(&self.parse_atom())), // italic = default
+            // math-class wrappers only affect spacing -> render content transparently
+            "mathbin" | "mathrel" | "mathop" | "mathord" | "mathopen" | "mathclose"
+            | "mathpunct" | "mathinner" => self.parse_atom(),
             // script/blackboard/fraktur alphabets -> Unicode math-alphanumerics
             "mathbb" | "mathcal" | "mathscr" | "mathfrak" => {
                 Node::Run(symbols::alphabet(&name, &flatten_text(&self.parse_atom())))
@@ -526,6 +529,13 @@ fn split_matrix(body: &str) -> Vec<Vec<Node>> {
                 }
             } else if j < n {
                 j += 1;
+            }
+            let cmd: String = s[start + 1..j].iter().collect();
+            if cmd == "cr" {
+                // plain-TeX row separator, equivalent to `\\`
+                rows.push(vec![String::new()]);
+                i = j;
+                continue;
             }
             rows.last_mut()
                 .unwrap()

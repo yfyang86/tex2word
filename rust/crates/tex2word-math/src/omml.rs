@@ -272,4 +272,30 @@ mod tests {
                 == 2
         );
     }
+
+    #[test]
+    fn cr_is_matrix_row_separator() {
+        // plain-TeX `\cr` ends a row exactly like `\\`; cells must not be empty
+        let p = render(&parse(r"\begin{pmatrix}a&b\cr b&d\cr\end{pmatrix}"));
+        assert_eq!(p.matches("<m:mr>").count(), 2);
+        for ch in ["a", "b", "d"] {
+            assert!(p.contains(&format!(">{ch}<")), "cell {ch} missing from {p}");
+        }
+    }
+
+    #[test]
+    fn math_class_wrappers_are_transparent() {
+        // \mathbin/\mathop/… affect spacing only -> content rendered through
+        assert!(render(&parse(r"a \mathbin{\land} b")).contains("∧"));
+        // \mathop{…} T renders its content through (\rm is dropped; runs merge)
+        let im = render(&parse(r"\mathop{\rm im} T"));
+        assert!(im.contains(">im<") && im.contains(">T<"), "{im}");
+    }
+
+    #[test]
+    fn normal_subgroup_and_restriction_symbols() {
+        assert!(render(&parse(r"A \trianglelefteq B")).contains("⊴"));
+        assert!(render(&parse(r"a \nmid b")).contains("∤"));
+        assert!(render(&parse(r"T{\restriction} U")).contains("↾"));
+    }
 }
