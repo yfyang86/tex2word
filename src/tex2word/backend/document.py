@@ -314,6 +314,24 @@ class DocumentWriter:
             self._description_item(item, body, level)
             return
         marked = False
+        # If the item leads with a nested list (no leading text of its own — e.g.
+        # an exam question whose \parts follow immediately), emit an empty
+        # numbered paragraph first so the item's own number ("1.") renders ABOVE
+        # the nested (a)/(b)/(c), rather than being deferred onto a later
+        # trailing paragraph (which left the sub-list looking unnumbered).
+        first_structural = next(
+            (b for b in item.blocks if isinstance(b, (ir.Paragraph, ir.ItemList))), None
+        )
+        if isinstance(first_structural, ir.ItemList):
+            p = self._styled_paragraph("Normal")
+            ppr = p.find(_qn("w:pPr"))
+            assert ppr is not None
+            numpr = sub(ppr, "w:numPr")
+            sub(numpr, "w:ilvl", **{"w:val": str(level)})
+            sub(numpr, "w:numId", **{"w:val": str(num_id)})
+            self._bookmark_list_item(item, p)
+            body.append(p)
+            marked = True
         for inner in item.blocks:
             if isinstance(inner, ir.ItemList):
                 self._list(inner, body, level + 1)

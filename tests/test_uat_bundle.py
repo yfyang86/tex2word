@@ -96,3 +96,14 @@ def test_oxmathproblems_exam_class_renders_as_lists():
     assert "linearly independent" in text
     # the pmatrix (\cr rows) has its cells
     assert re.search(r"<m:t[^>]*>a</m:t>", d) and re.search(r"<m:t[^>]*>b</m:t>", d)
+    # a question that leads straight into \parts still gets its own number (an
+    # ilvl-0 numbered paragraph) BEFORE the (a)/(b)/(c) sub-items -- regression
+    # for "(a) misses 1".
+    ilvls = re.findall(r'<w:ilvl w:val="(\d+)"', d)
+    assert ilvls[:2] == ["0", "1"], ilvls[:6]
+    # solutions are hidden without \printanswers (matches the compiled sheet)
+    assert "solution would go here" not in text
+    # the Oxford sheet title (from \course/\sheettitle) is recovered
+    assert "Impossible Maths" in text
+    # \halign system of equations became an array (its variables survive as math)
+    assert re.search(r"<m:t[^>]*>x</m:t>", d)

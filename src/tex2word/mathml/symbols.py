@@ -40,6 +40,8 @@ SYMBOLS: dict[str, str] = {
     "trianglelefteq": "⊴", "trianglerighteq": "⊵",
     "ntrianglelefteq": "⋬", "ntrianglerighteq": "⋭",
     "nmid": "∤", "nparallel": "∦", "smallsetminus": "∖",
+    "restriction": "↾", "upharpoonright": "↾", "upharpoonleft": "↿",
+    "downharpoonright": "⇂", "downharpoonleft": "⇃",
     # binary operators
     "times": "×", "div": "÷", "pm": "±", "mp": "∓",
     "cdot": "⋅", "ast": "∗", "star": "⋆", "circ": "∘",
