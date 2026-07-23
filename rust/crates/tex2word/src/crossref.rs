@@ -25,6 +25,7 @@ pub fn resolve(doc: &mut Document) -> Vec<Warning> {
     let mut labels: HashMap<String, LabelInfo> = HashMap::new();
     collect(&doc.blocks, &mut labels);
     collect_citations(&doc.blocks, &mut labels);
+    number_targets(&doc.blocks, &mut labels);
     doc.labels = labels;
     let mut warnings = Vec::new();
     // Take the labels out to avoid borrowing doc immutably + mutably at once.
@@ -98,6 +99,7 @@ fn add_label(
             counter_name: counter_name(kind).to_string(),
             bookmark: sanitize_bookmark(key),
             name,
+            number: None,
         },
     );
 }
@@ -148,10 +150,97 @@ fn collect_citations(blocks: &[Block], labels: &mut HashMap<String, LabelInfo>) 
                         kind: RefKind::Generic,
                         counter_name: String::new(),
                         bookmark: sanitize_bookmark(&format!("cite_{}", e.key)),
-                        name: Some(number),
+                        name: Some(number.clone()),
+                        number: Some(number),
                     },
                 );
             }
+        }
+    }
+}
+
+/// Running counters for the numbering pass (document order).
+#[derive(Default)]
+struct Counters {
+    figure: u32,
+    table: u32,
+    equation: u32,
+    theorem: u32,
+    /// Section counters for levels 1..=4.
+    section: [u32; 4],
+}
+
+/// Compute each labelled target's display number (Figure 2, section 1.3, …) so
+/// the back-end can cache it into the `REF`/`SEQ` fields — numbers then show
+/// correctly without Word's "Update Fields" (and in viewers that never update).
+fn number_targets(blocks: &[Block], labels: &mut HashMap<String, LabelInfo>) {
+    let mut c = Counters::default();
+    walk_number(blocks, &mut c, labels);
+}
+
+fn set_number(labels: &mut HashMap<String, LabelInfo>, label: &Option<String>, number: String) {
+    if let Some(k) = label {
+        if let Some(info) = labels.get_mut(k) {
+            info.number = Some(number);
+        }
+    }
+}
+
+fn walk_number(blocks: &[Block], c: &mut Counters, labels: &mut HashMap<String, LabelInfo>) {
+    for b in blocks {
+        match b {
+            Block::Heading {
+                level,
+                label,
+                numbered: true,
+                ..
+            } if (1..=4).contains(level) => {
+                let lvl = *level as usize;
+                c.section[lvl - 1] += 1;
+                for s in c.section.iter_mut().skip(lvl) {
+                    *s = 0; // deeper levels restart under a higher-level increment
+                }
+                let num = c.section[..lvl]
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(".");
+                set_number(labels, label, num);
+            }
+            Block::MathBlock {
+                numbered: true,
+                label,
+                ..
+            } => {
+                c.equation += 1;
+                set_number(labels, label, c.equation.to_string());
+            }
+            Block::Float(f) => {
+                // captioned floats are numbered (matches the back-end's SEQ order)
+                if f.caption.is_some() {
+                    let num = match f.kind {
+                        tex2word_ir::FloatKind::Figure => {
+                            c.figure += 1;
+                            c.figure
+                        }
+                        tex2word_ir::FloatKind::Table => {
+                            c.table += 1;
+                            c.table
+                        }
+                    };
+                    set_number(labels, &f.label, num.to_string());
+                }
+                walk_number(&f.content, c, labels);
+            }
+            Block::Quote(bs) => walk_number(bs, c, labels),
+            Block::Theorem(t) => {
+                if t.counter.is_some() {
+                    c.theorem += 1;
+                    set_number(labels, &t.label, c.theorem.to_string());
+                }
+                walk_number(&t.blocks, c, labels);
+            }
+            _ => {}
         }
     }
 }
@@ -334,6 +423,53 @@ mod tests {
         assert!(matches!(&inlines[1], Inline::Ref { bookmark: None, .. }));
         assert_eq!(warns.len(), 1);
         assert!(warns[0].message.contains("missing"));
+    }
+
+    #[test]
+    fn numbering_pass_assigns_real_numbers() {
+        use tex2word_ir::{Float, FloatKind};
+        let fig = |label: &str| {
+            Block::Float(Float {
+                kind: FloatKind::Figure,
+                content: vec![],
+                caption: Some(vec![Inline::Text("c".into())]),
+                centered: false,
+                label: Some(label.into()),
+                spanning: false,
+            })
+        };
+        let mut doc = Document {
+            blocks: vec![
+                Block::Heading {
+                    level: 1,
+                    inlines: vec![Inline::Text("One".into())],
+                    label: Some("s1".into()),
+                    numbered: true,
+                },
+                Block::Heading {
+                    level: 2,
+                    inlines: vec![Inline::Text("Sub".into())],
+                    label: Some("s11".into()),
+                    numbered: true,
+                },
+                Block::Heading {
+                    level: 1,
+                    inlines: vec![Inline::Text("Two".into())],
+                    label: Some("s2".into()),
+                    numbered: true,
+                },
+                fig("fa"),
+                fig("fb"),
+            ],
+            ..Default::default()
+        };
+        resolve(&mut doc);
+        // sections number hierarchically; figures count in order
+        assert_eq!(doc.labels["s1"].number.as_deref(), Some("1"));
+        assert_eq!(doc.labels["s11"].number.as_deref(), Some("1.1"));
+        assert_eq!(doc.labels["s2"].number.as_deref(), Some("2"));
+        assert_eq!(doc.labels["fa"].number.as_deref(), Some("1"));
+        assert_eq!(doc.labels["fb"].number.as_deref(), Some("2"));
     }
 
     #[test]

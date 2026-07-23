@@ -248,6 +248,10 @@ pub struct LabelInfo {
     pub bookmark: String,
     /// The target's title/caption text (for `\nameref`).
     pub name: Option<String>,
+    /// The target's computed display number (e.g. `2`, `1.3`), filled by the
+    /// numbering pass. Cached into the `REF` field so it shows correctly without
+    /// Word's "Update Fields".
+    pub number: Option<String>,
 }
 
 /// A whole document: title/author/date metadata plus a sequence of blocks.

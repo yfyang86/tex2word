@@ -62,16 +62,19 @@ pub fn field(code: &str, cached: &str, out: &mut String) {
     field_close(out);
 }
 
-/// A `SEQ <counter>` auto-number (the live figure/table/equation number).
-pub fn seq_field(counter: &str, out: &mut String) {
-    field(&format!("SEQ {counter} \\* ARABIC"), "1", out);
+/// A `SEQ <counter>` auto-number (the live figure/table/equation number). The
+/// `cached` result is the computed number shown before Word runs "Update Fields"
+/// (so it displays correctly in viewers that never auto-update).
+pub fn seq_field(counter: &str, cached: &str, out: &mut String) {
+    field(&format!("SEQ {counter} \\* ARABIC"), cached, out);
 }
 
 /// A `REF <bookmark>` field. `paragraph_number` uses `\r` (the target's list /
-/// section number); otherwise `\h` hyperlinks to the bookmark.
-pub fn ref_field(bookmark: &str, paragraph_number: bool, out: &mut String) {
+/// section number); otherwise `\h` hyperlinks to the bookmark. `cached` is the
+/// target's computed number, shown until fields are updated.
+pub fn ref_field(bookmark: &str, paragraph_number: bool, cached: &str, out: &mut String) {
     let switches = if paragraph_number { "\\r \\h" } else { "\\h" };
-    field(&format!("REF {bookmark} {switches}"), "1", out);
+    field(&format!("REF {bookmark} {switches}"), cached, out);
 }
 
 /// A `PAGEREF <bookmark> \h` field (the page the bookmark is on).
@@ -121,9 +124,10 @@ mod tests {
     #[test]
     fn ref_and_pageref_codes() {
         let mut s = String::new();
-        ref_field("fig_a", false, &mut s);
+        ref_field("fig_a", false, "2", &mut s);
         pageref_field("fig_a", &mut s);
         assert!(s.contains("REF fig_a \\h"));
+        assert!(s.contains("<w:t xml:space=\"preserve\">2</w:t>")); // cached number
         assert!(s.contains("PAGEREF fig_a \\h"));
     }
 }

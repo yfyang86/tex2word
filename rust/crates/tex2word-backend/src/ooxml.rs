@@ -170,6 +170,13 @@ struct Ctx<'a> {
     /// Collected `\footnote`s: `(id, content)` lifted into `footnotes.xml`.
     footnote_id: u32,
     footnotes: Vec<(u32, Vec<Inline>)>,
+    /// In-document-order caption counters, used to cache each `SEQ` field's real
+    /// number (so it shows correctly before "Update Fields"). These mirror the
+    /// numbering pass, which caches the same numbers into `REF` fields.
+    figure: u32,
+    table: u32,
+    equation: u32,
+    theorem: u32,
 }
 
 impl Ctx<'_> {
@@ -300,7 +307,7 @@ fn render_inlines(inlines: &[Inline], rp: RunProps, ctx: &mut Ctx, out: &mut Str
                 kind,
                 style,
                 bookmark,
-            } => render_ref(key, *kind, *style, bookmark, rp, out),
+            } => render_ref(key, *kind, *style, bookmark, rp, ctx, out),
             Inline::Link {
                 inlines,
                 url,
@@ -376,12 +383,20 @@ fn render_ref(
     style: RefStyle,
     bookmark: &Option<String>,
     rp: RunProps,
+    ctx: &Ctx,
     out: &mut String,
 ) {
     let Some(bm) = bookmark else {
         render_run(key, rp, out); // unresolved -> literal key
         return;
     };
+    // The target's computed number, cached so the field shows correctly before
+    // "Update Fields" (falls back to "1" if the numbering pass had none).
+    let num = ctx
+        .labels
+        .get(key)
+        .and_then(|i| i.number.clone())
+        .unwrap_or_else(|| "1".to_string());
     // cleveref-style type prefix ("Figure ", "fig. ", …); \ref/\eqref stay bare.
     let prefix = ref_prefix(kind, style);
     if !prefix.is_empty() {
@@ -391,11 +406,11 @@ fn render_ref(
         RefKind::Page => fields::pageref_field(bm, out),
         RefKind::Equation => {
             render_run("(", rp, out);
-            fields::ref_field(bm, false, out);
+            fields::ref_field(bm, false, &num, out);
             render_run(")", rp, out);
         }
-        RefKind::Section | RefKind::ListItem => fields::ref_field(bm, true, out),
-        _ => fields::ref_field(bm, false, out),
+        RefKind::Section | RefKind::ListItem => fields::ref_field(bm, true, &num, out),
+        _ => fields::ref_field(bm, false, &num, out),
     }
 }
 
@@ -545,13 +560,15 @@ fn render_block(block: &Block, ctx: &mut Ctx, out: &mut String) {
                 render_math(latex, out);
                 out.push_str("<w:r><w:tab/></w:r>");
                 render_run("(", RunProps::default(), out);
+                ctx.equation += 1;
+                let num = ctx.equation.to_string();
                 match ctx.bookmark_of(label) {
                     Some(name) => {
                         let id = ctx.bookmarks.start(&name, out);
-                        fields::seq_field("Equation", out);
+                        fields::seq_field("Equation", &num, out);
                         ctx.bookmarks.end(id, out);
                     }
-                    None => fields::seq_field("Equation", out),
+                    None => fields::seq_field("Equation", &num, out),
                 }
                 render_run(")", RunProps::default(), out);
                 out.push_str("</w:p>");
@@ -613,13 +630,15 @@ fn render_theorem(t: &Theorem, ctx: &mut Ctx, out: &mut String) {
         render_run(&t.kind, head_rp, out);
         if let Some(counter) = &t.counter {
             render_run(" ", head_rp, out);
+            ctx.theorem += 1;
+            let num = ctx.theorem.to_string();
             match ctx.bookmark_of(&t.label) {
                 Some(name) => {
                     let id = ctx.bookmarks.start(&name, out);
-                    fields::seq_field(counter, out);
+                    fields::seq_field(counter, &num, out);
                     ctx.bookmarks.end(id, out);
                 }
-                None => fields::seq_field(counter, out),
+                None => fields::seq_field(counter, &num, out),
             }
         }
         if let Some(title) = &t.title {
@@ -741,14 +760,26 @@ fn render_float(float: &Float, ctx: &mut Ctx, out: &mut String) {
             ..Default::default()
         };
         render_run(&format!("{counter} "), bold, out);
-        // the number: a live SEQ field, wrapped in the float's bookmark if labelled
+        // the number: a live SEQ field caching its real in-order value, wrapped
+        // in the float's bookmark if labelled
+        let num = match float.kind {
+            FloatKind::Figure => {
+                ctx.figure += 1;
+                ctx.figure
+            }
+            FloatKind::Table => {
+                ctx.table += 1;
+                ctx.table
+            }
+        }
+        .to_string();
         match ctx.bookmark_of(&float.label) {
             Some(name) => {
                 let id = ctx.bookmarks.start(&name, out);
-                fields::seq_field(counter, out);
+                fields::seq_field(counter, &num, out);
                 ctx.bookmarks.end(id, out);
             }
-            None => fields::seq_field(counter, out),
+            None => fields::seq_field(counter, &num, out),
         }
         render_run(": ", bold, out);
         render_inlines(cap, RunProps::default(), ctx, out);
@@ -900,6 +931,10 @@ pub fn build_package(doc: &Document, base_dir: &Path, page: &PageGeometry) -> Pa
         labels: &doc.labels,
         footnote_id: 0,
         footnotes: Vec::new(),
+        figure: 0,
+        table: 0,
+        equation: 0,
+        theorem: 0,
     };
     // Emit the body as column "regions": the title block and any spanning
     // `figure*`/`table*` are full-width (1 col); the rest flows in `n` columns.
@@ -1332,6 +1367,7 @@ mod tests {
                 counter_name: "Figure".into(),
                 bookmark: "fig_a".into(),
                 name: None,
+                number: Some("1".into()),
             },
         );
         let doc = Document {
@@ -1431,6 +1467,7 @@ mod tests {
                 counter_name: String::new(),
                 bookmark: "cite_a".into(),
                 name: Some("1".into()),
+                number: Some("1".into()),
             },
         );
         let doc = Document {
@@ -1496,6 +1533,7 @@ mod tests {
                 counter_name: "Theorem".into(),
                 bookmark: "thm_a".into(),
                 name: Some("Pythagoras".into()),
+                number: Some("1".into()),
             },
         );
         let thm = Block::Theorem(Theorem {
@@ -1529,6 +1567,68 @@ mod tests {
         // proof: italic "Proof. " lead-in + a QED mark, no SEQ
         assert!(xml.contains(">Proof. </w:t>"));
         assert!(xml.contains('\u{220E}'));
+    }
+
+    #[test]
+    fn fields_cache_real_numbers_not_one() {
+        use std::collections::HashMap;
+        let mut labels = HashMap::new();
+        labels.insert(
+            "fb".to_string(),
+            LabelInfo {
+                kind: RefKind::Figure,
+                counter_name: "Figure".into(),
+                bookmark: "fb".into(),
+                name: None,
+                number: Some("2".into()), // second figure
+            },
+        );
+        let fig = |cap: &str| {
+            Block::Float(Float {
+                kind: FloatKind::Figure,
+                content: vec![],
+                caption: Some(vec![Inline::Text(cap.into())]),
+                centered: false,
+                label: None,
+                spanning: false,
+            })
+        };
+        let doc = Document {
+            labels,
+            blocks: vec![
+                fig("a"),
+                fig("b"),
+                Block::Paragraph {
+                    inlines: vec![Inline::Ref {
+                        key: "fb".into(),
+                        kind: RefKind::Figure,
+                        style: RefStyle::Plain,
+                        bookmark: Some("fb".into()),
+                    }],
+                },
+            ],
+            ..Default::default()
+        };
+        let xml = document_xml(&doc);
+        // the cached result run of each SEQ Figure field, in order: "1" then "2"
+        let caches: Vec<String> = xml
+            .match_indices("SEQ Figure")
+            .map(|(i, _)| {
+                let seg = &xml[i..];
+                let sep = seg.find("separate").unwrap();
+                let ts = seg[sep..].find("<w:t").unwrap() + sep;
+                let gt = seg[ts..].find('>').unwrap() + ts + 1;
+                let lt = seg[gt..].find('<').unwrap() + gt;
+                seg[gt..lt].to_string()
+            })
+            .collect();
+        assert_eq!(caches, vec!["1", "2"]);
+        // the REF to the 2nd figure caches "2"
+        assert!(xml.contains("REF fb \\h"));
+        assert!(
+            xml.matches(">2</w:t>").count() >= 2,
+            "SEQ #2 and REF both cache 2"
+        );
     }
 
     #[test]
