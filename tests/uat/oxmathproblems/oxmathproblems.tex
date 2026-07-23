@@ -1,0 +1,159 @@
+%Example of use of oxmathproblems latex class for problem sheets
+\documentclass{oxmathproblems}
+
+%(un)comment this line to enable/disable output of any solutions in the file
+%\printanswers
+
+%define the page header/title info
+\oxfordterm{MT18}
+\course{Impossible Maths I}
+\sheetnumber{3}
+\sheettitle{First topic questions} %can leave out if no title per sheet
+
+% add further contact details to footer if desired,
+%e.g. email address, or name and email address
+\contact{Joe Bloggs: joe.bloggs@maths.ox.ac.uk}
+
+
+\begin{document}
+
+\begin{questions}
+
+\miquestion
+\begin{parts}
+  \part Define what it means for a finite subset of a vector space to be
+  {\em linearly independent}, a {\em spanning set}, and a {\em basis}.
+
+  State the {\it Steinitz Exchange Lemma}.
+
+  Prove that if a vector space $V$ has a finite basis, then every linearly
+  independent subset of $V$ may be extended to a basis.
+
+  Prove that any two finite bases of a vector space have the same number of
+  elements. Define the {\em dimension} of a finite-dimensional vector space.
+
+  \part Let $V$ be a finite-dimensional vector space.
+
+  Suppose that $X$ and $Y$ are subspaces of $V$.
+
+  Prove that
+  \[ \dim(X+Y)+\dim(X\cap Y)=\dim X+\dim Y. \]
+
+  \part Suppose $V$ is a finite-dimensional vector space, and $T:V\to V $
+  is a linear transformation. Suppose that for all $v\in V$, if $T(T(v))=0$,
+  then $T(v)=0$. Prove that $V=\ker T\oplus \mathop{\rm im} T$, and that the
+  restriction, $T{\restriction} {\mathop{\rm im} T}$, of $T$ to $\mathop{\rm
+    im} T$ is a bijection from $\mathop{\rm im} T$ to itself.
+
+  [{\em You may assume the Rank-Nullity Theorem.}]
+
+  [{\em If\/ $V$ and $W$ are vector spaces, $T:V\to W$ is a linear
+    transformation,
+
+    and $U$ is a subspace of $V$, then we define the {\em restriction}
+    $T{\restriction} U$ of $T$ to $U$ to be a linear transformation from $U$
+    to $W$ such that for all $u\in U$, $(T{\restriction} U)(u)=T(u)$.}]
+\end{parts}
+
+\begin{solution}
+  The solution would go here
+\end{solution}
+
+\miquestion
+\begin{parts}
+  \part Define an {\em elementary row operation}, and say what it means
+  for a matrix to be in {\em row-reduced echelon form}. Describe how any
+  matrix may be reduced to row-reduced echelon form.
+
+  \part For which values of $\lambda$ is the following system of equat
+  ions solvable? In each case calculate the solutions.
+  \[
+  \centerline{\hbox{\vbox{\openup1.5\jot\halign{\hss$\displaystyle{}\ #\
+          {}$\hss&& \hss$\displaystyle {}\ #\ {}$\hss\cr x&+2y&-3z&=&5\cr
+          x&-2y&-5z&=&7\cr 2x&+8y&+(-\lambda-6)z&=&8\cr
+          x&-2y&+(\lambda-3)z&=&\lambda^2+3\cr }}}}
+  \]
+\end{parts}
+
+\begin{solution}
+  The solution would go here
+\end{solution}
+
+%force a page break for better layout of questions 
+%NOTE: only force pagebreaks at the final stage for perfecting the layout
+%\newpage
+
+\miquestion
+\begin{parts}
+  \part
+  \begin{subparts}
+    \subpart Define what it means to say that a square matrix with real
+    entries is {\em diagonalisable} over ${\mathbb R}$.  \subpart Show that
+    if $A$ is a square matrix with real entries and $\bf u$ and $\bf v$ are
+    eigenvalues of $A$ corresponding to different eigenvalues, then $\bf u$
+    and $\bf v$ are linearly independent.
+  \end{subparts}
+
+  \part
+  \begin{subparts}
+    \subpart Consider the $2\times 2$ real square matrix
+    \[ A=\begin{pmatrix}a&b\cr b&d\cr\end{pmatrix}. \] Show that $A$ has at
+    least one real eigenvalue; and that if $a\neq d$ or $b\neq 0$, then it
+    has two distinct real eigenvalues.
+
+    Deduce that $A$ is diagonalisable.
+
+    \subpart Determine the values of $\alpha$ and $\beta$ for which the real
+    matrix
+    \[ A=\begin{pmatrix}1&\alpha\cr \beta&1\cr\end{pmatrix} \] is
+    diagonalisable.
+
+    \subpart Determine when the $2\times 2$ real matrix
+    \[ A=\begin{pmatrix}a&b\cr c&a\cr\end{pmatrix} \] is diagonalisable.
+  \end{subparts}
+\end{parts}
+
+\begin{solution}
+  The solution would go here
+\end{solution}
+
+\miquestion Let $\mathbf{u}$, $\mathbf{v}$ and $\mathbf{w}$ be vectors in
+$\mathbb{R}^3$.
+\begin{parts}
+  \part[7]
+  \begin{subparts}
+    \subpart Prove that $\mathbf{u}$, $\mathbf{v}$ and $\mathbf{w}$ are linearly
+    independent if and only if 
+    $\mathbf{u}.(\mathbf{v}\mathbin{\land}\mathbf{w})\neq \mathbf{0}$.  
+    \subpart Establish the identity
+    \[
+    \mathbf{u}\mathbin{\land}(\mathbf{w}\mathbin{\land}\mathbf{v})
+    =(\mathbf{u}.\mathbf{v})\mathbf{w}-(\mathbf{u}.\mathbf{w})\mathbf{v}.
+    \]
+  \end{subparts}
+
+  \part[7] Prove that $\mathbf{u}$, $\mathbf{v}$ and $\mathbf{w}$ are linearly
+  independent if and only if
+  $\mathbf{v}\mathbin{\land}\mathbf{w}$, 
+  $\mathbf{w}\mathbin{\land}\mathbf{u}$, and
+  $\mathbf{u}\mathbin{\land}\mathbf{v}$ are linearly independent.
+
+  \part[6] Suppose that $\mathbf{u}$, $\mathbf{v}$ and $\mathbf{w}$ are
+  linearly independent, and that
+  \[ \mathbf{r}=a\mathbf{u}+b\mathbf{v}+c\mathbf{w}. \]
+  Find coefficients $\alpha$, $\beta$ and $\gamma$ such that
+  \[
+  \mathbf{r}=\alpha\mathbf{v}\mathbin{\land}\mathbf{w}
+  +\beta\mathbf{w}\mathbin{\land}\mathbf{u}
+  +\gamma\mathbf{u}\mathbin{\land}\mathbf{v}.
+  \]
+
+\end{parts}
+
+\begin{solution}
+  The solution would go here
+\end{solution}
+
+\end{questions}
+
+\end{document}

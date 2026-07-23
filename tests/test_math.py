@@ -89,6 +89,15 @@ def test_matrix():
     assert count(o, "mr") == 2
 
 
+def test_matrix_cr_row_separator():
+    # plain-TeX \cr ends a matrix row (as \\ does); cells must not be empty
+    o = omml.render_inline(r"\begin{pmatrix}a&b\cr b&d\cr\end{pmatrix}")
+    assert count(o, "mr") == 2
+    text = xml(o)
+    for ch in ("a", "b", "d"):
+        assert ch in text, f"cell '{ch}' missing from {text}"
+
+
 def test_greek_symbol_present():
     o = omml.render_inline(r"\alpha")
     assert "α" in xml(o)
@@ -273,3 +282,21 @@ def test_equation_with_aligned_is_one_number_and_aligned():
 def test_gather_is_not_collapsed():
     root = _conv_root(r"\begin{gather} a=b \\ c=d \end{gather}")
     assert count(root, "m") == 0            # no & -> stacked, not a matrix
+
+
+# -- math-class wrappers (\mathbin/\mathop/... affect spacing only) ----------- #
+
+
+def test_mathbin_renders_content_transparently():
+    # \mathbin{\land} is just spacing-class markup around the wedge glyph
+    assert "∧" in xml(omml.render_inline(r"a \mathbin{\land} b"))
+
+
+def test_mathop_renders_content_transparently():
+    # \mathop{\rm im} T  (as in the oxmathproblems restriction example)
+    txt = xml(omml.render_inline(r"\mathop{\rm im} T"))
+    assert ">i<" in txt and ">m<" in txt
+
+
+def test_restriction_symbol_present():
+    assert "↾" in xml(omml.render_inline(r"T{\restriction} U"))

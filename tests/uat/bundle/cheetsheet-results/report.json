@@ -1,0 +1,30 @@
+{
+ "coverage": {
+  "math_total": 108,
+  "math_omml": 107,
+  "math_image": 0,
+  "math_raw": 1
+ },
+ "constructs": {
+  "multicols*": 1,
+  "\\\n": 1,
+  "math": 1
+ },
+ "entries": [
+  {
+   "severity": "warning",
+   "construct": "multicols*",
+   "message": "unknown environment multicols*: treated as transparent"
+  },
+  {
+   "severity": "warning",
+   "construct": "\\\n",
+   "message": "unsupported inline macro \\\n"
+  },
+  {
+   "severity": "warning",
+   "construct": "math",
+   "message": "fell back to raw LaTeX for construct \\shortvdotswithin"
+  }
+ ]
+}

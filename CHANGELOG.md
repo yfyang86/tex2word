@@ -7,6 +7,39 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.6 — problem sheets, cheatsheets & plain-TeX math
+
+Support for real-world problem-sheet and cheatsheet documents (a new UAT
+bundle: ProblemSet, ams-article, exam/homework sheets, the Oxford
+`oxmathproblems` class, TikZ cheatsheets, and a résumé), driven by the gaps
+those documents surfaced.
+
+### Added
+
+- **`exam` document class.** `questions`/`parts`/`subparts` environments and
+  `\question`/`\miquestion`/`\part`/`\subpart` markers (with an optional
+  `[points]`) render as nested numbered lists, instead of colliding with
+  `\part` sectioning (which produced garbage like "Part I D"). A question that
+  leads straight into its `\parts` still gets its own number above the
+  `(a)/(b)/(c)` sub-items. Solutions are hidden unless `\printanswers` is set,
+  matching the compiled sheet. The Oxford-style title block is recovered from
+  `\course`/`\sheetnumber`/`\oxfordterm`/`\sheettitle`.
+- **TikZ "cheatsheet" content boxes.** The idiom of `\node{…minipage…}` content
+  boxes plus a `\node[fancytitle]{Title}` (no drawing primitives) has its text
+  and math recovered — titles become headings — rather than being dropped as an
+  empty graphics placeholder when no TeX engine is present. Real diagrams (with
+  `\draw`/`\fill`/…) are still routed to the image/compile path untouched.
+- **Plain-TeX math.** `\halign` systems of equations inside `\[ … \]` (wrapped
+  in `\centerline{\hbox{\vbox{\openup…\jot …}}}`) convert to an `array`; `\cr`
+  is treated as a matrix/array row separator; the math-class wrappers
+  `\mathbin`/`\mathrel`/`\mathop`/`\mathord`/`\mathopen`/`\mathclose`/
+  `\mathpunct`/`\mathinner` render their content transparently (they only affect
+  spacing).
+- **Symbols.** Normal-subgroup relations (`\vartriangleleft`/`\trianglelefteq`/
+  `\ntrianglelefteq`/…), `\nmid`/`\nparallel`/`\smallsetminus`, and the
+  restriction/harpoon glyphs (`\restriction`/`\upharpoonright`/…). The `\/`
+  italic correction is a silent no-op.
+
 ## 1.0.5 — TikZ preamble fix
 
 - **TikZ compile no longer broken by a multi-line preamble macro.** The

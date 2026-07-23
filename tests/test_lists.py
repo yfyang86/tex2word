@@ -88,3 +88,20 @@ def test_multi_paragraph_item_marks_once():
     )
     root = document_root(convert_source(src).docx)
     assert len(root.xpath("//w:numPr", namespaces=NS)) == 1
+
+
+def test_item_leading_with_sublist_still_numbered():
+    # an item whose content is *only* a nested list (no leading text of its own)
+    # must still get its own number, rendered ABOVE the sub-items -- not deferred
+    # onto a later paragraph. Regression for exam sheets where a \question leads
+    # straight into \parts ("(a) misses 1").
+    src = (
+        r"\begin{document}\begin{enumerate}"
+        r"\item\begin{enumerate}\item a\item b\end{enumerate}"
+        r"\item\begin{enumerate}\item c\end{enumerate}"
+        r"\end{enumerate}\end{document}"
+    )
+    root = document_root(convert_source(src).docx)
+    ilvls = [e.get(f"{{{NS['w']}}}val") for e in root.xpath("//w:ilvl", namespaces=NS)]
+    # outer item 1 (0), its two sub-items (1,1), outer item 2 (0), its sub-item (1)
+    assert ilvls == ["0", "1", "1", "0", "1"]
