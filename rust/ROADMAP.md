@@ -192,8 +192,16 @@ Each phase is validated against the Python output on the corpus + UATs.
     in python-docx, and reports full coverage with zero unsupported macros.
     (Full CSL/BibTeX/Zotero, endnotes/index, docx reference-doc reading, and
     `.docx`→LaTeX remain out of scope — candidates for a later pass.)
-- **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
-  when green, make Rust the default and retire the Python tree.
+- **Phase 6 — usability parity & cutover.** See [`PHASE6_PLAN.md`](PHASE6_PLAN.md).
+  A differential investigation found two usability gaps that make correct output
+  *look* broken and must close before cutover: (1) every `SEQ`/`REF` field caches
+  the literal `"1"`, so figure/ref numbers show as "1" until a reader runs *Update
+  Fields* — invisible in LibreOffice/Google Docs/Preview which never auto-update;
+  (2) math misses `\mathbb`/`\mathcal` (double-struck/script), `\mathbf` (bold),
+  `\binom`, and `\pmod` (the core symbol table and `\int`/`\sum`/`\frac`/matrices
+  are fine). **Sprint 1** = static number caching + those math fixes; **Sprint 2**
+  = a differential harness (Rust vs Python parity report over the corpus/UATs),
+  then flip Rust to default and deprecate the Python tree.
 
 ## Testing strategy
 
