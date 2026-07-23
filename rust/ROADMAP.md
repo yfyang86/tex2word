@@ -5,13 +5,19 @@ Python implementation on the `rust` branch: the Python code is the **reference
 oracle** (its test suite and the arXiv UATs define expected behaviour) and stays
 in place until the Rust port reaches parity; only then is Python retired.
 
-## Status: vertical slice ✅
+## Status: Phases 0–5 complete ✅ (Phase 6 cutover remaining)
 
-A minimal, dependency-free end-to-end path is working and CI-gated:
+A dependency-free end-to-end path is working and CI-gated, now covering the
+front-end core, the OMML math engine, tables/figures/images, live fields &
+cross-references (numbered sections, TOC, multi-column), citations/footnotes/
+theorems, a structural OOXML validator, a conversion/coverage report, and an
+IR→LaTeX round-trip writer:
 
 ```
-LaTeX  ──►  tex2word-frontend  ──►  IR  ──►  tex2word-backend  ──►  .docx
-            (parser)             (tex2word-ir)   (OOXML + zip)
+LaTeX ─► tex2word-frontend ─► IR ─► crossref ─► tex2word-backend ─► .docx
+         (parser/macros)   (tex2word-ir)  (transforms)  (OOXML+fields+zip)
+                                    │                          ▲
+                            tex2word-latex (IR→LaTeX)   tex2word-validate
 ```
 
 `cargo run -p tex2word-cli -- convert paper.tex -o paper.docx` produces a real,
@@ -171,8 +177,21 @@ Each phase is validated against the Python output on the corpus + UATs.
     A conversion report scans the expanded body (outside math) for unhandled
     macros and folds them, with the cross-reference warnings, into
     `Conversion.warnings`; `tex2word convert --strict` fails on any warning.
-  - ⏳ **Sprint 3** = IR→LaTeX round-trip writer + reference-doc templates.
-    (Full CSL/BibTeX/Zotero, endnotes/index, and `.docx`→LaTeX stay out of scope.)
+  - ✅ **Sprint 3 — round-trip writer, page geometry, coverage.** A `tex2word-latex`
+    crate reconstructs `.tex` from the IR (`to_latex`), IR-idempotent under
+    `parse → to_latex → parse` (4 round-trip tests); exposed via `tex2word latex`.
+    `PageGeometry` presets (`--page letter|a4|legal`) drive `w:pgSz`/`w:pgMar`. A
+    coverage report (`--report`) tallies every converted construct + dropped
+    macros. Full docx **reference-doc** adoption (an arbitrary template's styles/
+    geometry) is deferred — it needs DEFLATE inflation the zero-dep STORE reader
+    lacks; presets cover the common page-setup need.
+  - **Phase 5 complete.** Final UAT: a twocolumn paper with title/TOC, numbered
+    sections, math, a labelled equation/figure*/table, the full `\ref` family +
+    `\href`/`\nameref`, a list, `\citep` + a bibliography, a footnote, and a
+    theorem+proof converts to a `.docx` that passes the in-house validator, opens
+    in python-docx, and reports full coverage with zero unsupported macros.
+    (Full CSL/BibTeX/Zotero, endnotes/index, docx reference-doc reading, and
+    `.docx`→LaTeX remain out of scope — candidates for a later pass.)
 - **Phase 6 — cutover.** Differential-test Rust vs Python across the corpus/UATs;
   when green, make Rust the default and retire the Python tree.
 
