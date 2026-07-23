@@ -1,0 +1,61 @@
+{
+ "coverage": {
+  "math_total": 145,
+  "math_omml": 142,
+  "math_image": 0,
+  "math_raw": 3
+ },
+ "constructs": {
+  "multicols*": 1,
+  "\\hrule": 4,
+  "\\\n": 1,
+  "math": 3
+ },
+ "entries": [
+  {
+   "severity": "warning",
+   "construct": "multicols*",
+   "message": "unknown environment multicols*: treated as transparent"
+  },
+  {
+   "severity": "warning",
+   "construct": "\\hrule",
+   "message": "unsupported inline macro \\hrule"
+  },
+  {
+   "severity": "warning",
+   "construct": "\\hrule",
+   "message": "unsupported inline macro \\hrule"
+  },
+  {
+   "severity": "warning",
+   "construct": "\\hrule",
+   "message": "unsupported inline macro \\hrule"
+  },
+  {
+   "severity": "warning",
+   "construct": "\\\n",
+   "message": "unsupported inline macro \\\n"
+  },
+  {
+   "severity": "warning",
+   "construct": "\\hrule",
+   "message": "unsupported inline macro \\hrule"
+  },
+  {
+   "severity": "warning",
+   "construct": "math",
+   "message": "fell back to raw LaTeX for construct alignment"
+  },
+  {
+   "severity": "warning",
+   "construct": "math",
+   "message": "fell back to raw LaTeX for construct alignment"
+  },
+  {
+   "severity": "warning",
+   "construct": "math",
+   "message": "fell back to raw LaTeX for construct alignment"
+  }
+ ]
+}
