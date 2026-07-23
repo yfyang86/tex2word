@@ -1,0 +1,105 @@
+{
+  "coverage": {
+    "math_total": 72,
+    "math_omml": 71,
+    "math_image": 0,
+    "math_raw": 1
+  },
+  "constructs": {
+    "\\/": 1,
+    "solution": 4,
+    "math": 13
+  },
+  "entries": [
+    {
+      "severity": "warning",
+      "construct": "\\/",
+      "message": "unsupported inline macro \\/"
+    },
+    {
+      "severity": "warning",
+      "construct": "solution",
+      "message": "unknown environment solution: treated as transparent"
+    },
+    {
+      "severity": "warning",
+      "construct": "solution",
+      "message": "unknown environment solution: treated as transparent"
+    },
+    {
+      "severity": "warning",
+      "construct": "solution",
+      "message": "unknown environment solution: treated as transparent"
+    },
+    {
+      "severity": "warning",
+      "construct": "solution",
+      "message": "unknown environment solution: treated as transparent"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathop' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\restriction' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathop' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathop' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\restriction' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\restriction' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "warning",
+      "construct": "math",
+      "message": "fell back to raw LaTeX for construct \\centerline"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathbin' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathbin' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathbin' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathbin' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathbin' via LaTeX->MathML->OMML"
+    },
+    {
+      "severity": "info",
+      "construct": "math",
+      "message": "converted '\\mathbin' via LaTeX->MathML->OMML"
+    }
+  ]
+}
