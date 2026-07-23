@@ -1,0 +1,167 @@
+{
+  "coverage": {
+    "math_total": 0,
+    "math_omml": 0,
+    "math_image": 0,
+    "math_raw": 0
+  },
+  "constructs": {
+    "multicols*": 1,
+    "\\tikzstyle": 2,
+    "tikzpicture": 13,
+    "\\\n": 1,
+    "figure": 13
+  },
+  "entries": [
+    {
+      "severity": "warning",
+      "construct": "multicols*",
+      "message": "unknown environment multicols*: treated as transparent"
+    },
+    {
+      "severity": "warning",
+      "construct": "\\tikzstyle",
+      "message": "unsupported inline macro \\tikzstyle"
+    },
+    {
+      "severity": "warning",
+      "construct": "\\tikzstyle",
+      "message": "unsupported inline macro \\tikzstyle"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "\\\n",
+      "message": "unsupported inline macro \\\n"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "tikzpicture",
+      "message": "tikzpicture kept as a graphics placeholder"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    },
+    {
+      "severity": "warning",
+      "construct": "figure",
+      "message": "TikZ figure not rendered: the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
+    }
+  ]
+}
