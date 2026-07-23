@@ -199,9 +199,15 @@ Each phase is validated against the Python output on the corpus + UATs.
   Fields* — invisible in LibreOffice/Google Docs/Preview which never auto-update;
   (2) math misses `\mathbb`/`\mathcal` (double-struck/script), `\mathbf` (bold),
   `\binom`, and `\pmod` (the core symbol table and `\int`/`\sum`/`\frac`/matrices
-  are fine). **Sprint 1** = static number caching + those math fixes; **Sprint 2**
-  = a differential harness (Rust vs Python parity report over the corpus/UATs),
-  then flip Rust to default and deprecate the Python tree.
+  are fine).
+  - ✅ **Sprint 1 — usability.** A numbering pass computes each labelled target's
+    real number (Figure 2, section 1.3, …) and the back-end caches it into the
+    `SEQ`/`REF` fields, so numbers show correctly on first open in any viewer
+    while the fields stay live. Math: `\mathbb`/`\mathcal`/`\mathscr`/`\mathfrak`
+    → Unicode math-alphanumerics (holes ℂℝℤ… handled), `\mathbf` → bold styled
+    run, `\binom` → parens over a no-bar fraction, `\pmod`/`\bmod`.
+  - ⏳ **Sprint 2** = a differential harness (Rust vs Python parity report over
+    the corpus/UATs), then flip Rust to default and deprecate the Python tree.
 
 ## Testing strategy
 
