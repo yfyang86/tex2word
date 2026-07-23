@@ -1,11 +1,14 @@
 # tex2word — Rust port roadmap
 
-This directory holds the **Rust rewrite** of tex2word. It lives alongside the
-Python implementation on the `rust` branch: the Python code is the **reference
-oracle** (its test suite and the arXiv UATs define expected behaviour) and stays
-in place until the Rust port reaches parity; only then is Python retired.
+This document is the historical phase-by-phase roadmap of the **Rust
+implementation** of tex2word. It was written while the port was developed
+against the original Python implementation as the reference oracle (whose test
+suite and arXiv UATs defined expected behaviour). The Rust project is now
+standalone at **version 1.0.6**; this file is retained as design history.
+For current usage and development, see [`README.md`](README.md),
+[`DEVELOPMENT.md`](DEVELOPMENT.md), and [`CHANGELOG.md`](CHANGELOG.md).
 
-## Status: Phases 0–5 complete ✅ (Phase 6 cutover remaining)
+## Status: Phases 0–6 complete ✅ (standalone at 1.0.6)
 
 A dependency-free end-to-end path is working and CI-gated, now covering the
 front-end core, the OMML math engine, tables/figures/images, live fields &
