@@ -64,7 +64,10 @@ def test_solution_shown_with_printanswers():
 
 
 def test_halign_display_becomes_array():
-    src = r"\[\centerline{\hbox{\vbox{\openup1.5\jot\halign{\hss$#$\hss&&$#$\cr x&=&5\cr y&=&7\cr}}}}\]"
+    src = (
+        r"\[\centerline{\hbox{\vbox{\openup1.5\jot"
+        r"\halign{\hss$#$\hss&&$#$\cr x&=&5\cr y&=&7\cr}}}}\]"
+    )
     out = _rewrite_halign(src)
     assert r"\halign" not in out and r"\centerline" not in out
     assert r"\begin{array}" in out and r"\end{array}" in out
