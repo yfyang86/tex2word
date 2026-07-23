@@ -604,7 +604,8 @@ class _Parser:
                 self._next()
                 flush_cell()
                 continue
-            if ttype == "newline":
+            if ttype == "newline" or (ttype == "cmd" and tval == "cr"):
+                # both LaTeX `\\` and plain-TeX `\cr` end a matrix row
                 self._next()
                 flush_cell()
                 rows.append([])
