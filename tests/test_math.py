@@ -89,6 +89,15 @@ def test_matrix():
     assert count(o, "mr") == 2
 
 
+def test_matrix_cr_row_separator():
+    # plain-TeX \cr ends a matrix row (as \\ does); cells must not be empty
+    o = omml.render_inline(r"\begin{pmatrix}a&b\cr b&d\cr\end{pmatrix}")
+    assert count(o, "mr") == 2
+    text = xml(o)
+    for ch in ("a", "b", "d"):
+        assert ch in text, f"cell '{ch}' missing from {text}"
+
+
 def test_greek_symbol_present():
     o = omml.render_inline(r"\alpha")
     assert "α" in xml(o)
