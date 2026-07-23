@@ -434,6 +434,12 @@ class _Parser:
             return _styled(self.parse_group(), script="fraktur")
         if name == "mathit":
             return self.parse_group_as_group()
+        if name in (
+            "mathbin", "mathrel", "mathop", "mathord",
+            "mathopen", "mathclose", "mathpunct", "mathinner",
+        ):
+            # math-class wrappers only affect spacing -> render their content
+            return self.parse_group_as_group()
         if name == "left":
             return self._parse_fenced()
         if name == "right":

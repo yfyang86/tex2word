@@ -197,6 +197,8 @@ def _normalize_begin_star(source: str) -> str:
 # (oxmathproblems.cls: \newcommand{\miquestion}[1][]{\question}).
 _EXAM_ITEM_RE = re.compile(r"\\(?:miquestion|question|subpart|part)\b\s*(?:\[[^\]]*\])?")
 _EXAM_ENVS = ("questions", "parts", "subparts")
+# exam's answer environments — shown only under \printanswers, hidden otherwise.
+_EXAM_SOLUTION_ENVS = ("solution", "solutionorbox", "solutionorlines", "solutionordottedlines")
 
 
 def _uses_exam_class(source: str, base_dir: str) -> bool:
@@ -226,6 +228,17 @@ def _rewrite_exam_class(source: str, base_dir: str) -> str:
     """
     if not _uses_exam_class(source, base_dir):
         return source
+    # solutions are printed only under \printanswers; otherwise drop them so the
+    # output matches the compiled sheet (and their text doesn't leak into the
+    # preceding question item).
+    if not re.search(r"\\printanswers\b", source):
+        for env in _EXAM_SOLUTION_ENVS:
+            source = re.sub(
+                r"\\begin\{" + env + r"\}.*?\\end\{" + env + r"\}",
+                "",
+                source,
+                flags=re.DOTALL,
+            )
     for env in _EXAM_ENVS:
         source = re.sub(r"\\begin\{" + env + r"\}", r"\\begin{enumerate}", source)
         source = re.sub(r"\\end\{" + env + r"\}", r"\\end{enumerate}", source)
@@ -293,6 +306,74 @@ def _recover_tikz_boxes(source: str) -> str:
     )
 
 
+def _rewrite_halign(source: str) -> str:
+    """Convert a plain-TeX ``\\halign`` alignment (a system of equations) inside
+    ``\\[ … \\]`` into an ``array`` the math engine handles. The whole display
+    (including the ``\\centerline{\\hbox{\\vbox{\\openup…\\jot …}}}`` wrappers) is
+    replaced, so those plain-TeX box/glue primitives never reach the parser.
+    """
+
+    def to_array(inner: str) -> str:
+        h = inner.find(r"\halign")
+        brace = inner.find("{", h)
+        if h == -1 or brace == -1:
+            return inner
+        body, _ = _read_balanced(inner, brace, "{", "}")
+        # the template precedes the first \cr; the rest are the data rows
+        cr = body.find(r"\cr")
+        data = body[cr + 3 :] if cr != -1 else body
+        rows = [r.strip() for r in data.split(r"\cr") if r.strip()]
+        if not rows:
+            return inner
+        ncols = max(r.count("&") for r in rows) + 1
+        return r"\begin{array}{" + "c" * ncols + "}" + r" \\ ".join(rows) + r"\end{array}"
+
+    out: list[str] = []
+    i = 0
+    while i < len(source):
+        if source.startswith(r"\[", i):
+            end = source.find(r"\]", i + 2)
+            if end != -1 and r"\halign" in source[i + 2 : end]:
+                out.append(r"\[" + to_array(source[i + 2 : end]) + r"\]")
+                i = end + 2
+                continue
+        out.append(source[i])
+        i += 1
+    return "".join(out)
+
+
+def _inject_exam_title(source: str) -> str:
+    """Oxford-style problem-sheet header: the class puts the title in a fancyhdr
+    ``\\chead`` (a page header we don't render), so recover it from the
+    ``\\course``/``\\sheetnumber``/``\\oxfordterm``/``\\sheettitle`` values into a
+    centred title block at the top of the body."""
+
+    def val(cmd: str) -> str:
+        m = re.search(r"\\" + cmd + r"\s*\{([^}]*)\}", source)
+        return m.group(1).strip() if m else ""
+
+    course, num, term, title = (
+        val("course"),
+        val("sheetnumber"),
+        val("oxfordterm"),
+        val("sheettitle"),
+    )
+    if not (course or title):
+        return source
+    lines: list[str] = []
+    if course:
+        lines.append(r"{\Large\bfseries " + course + "}")
+    sheet = f"Sheet {num}" if num else ""
+    if term:
+        sheet = f"{sheet} --- {term}" if sheet else term
+    if sheet:
+        lines.append(sheet)
+    if title:
+        lines.append(title)
+    block = "\n\\begin{center}\n" + r"\\".join(lines) + "\n\\end{center}\n"
+    return re.sub(r"\\begin\{document\}", lambda m: m.group(0) + block, source, count=1)
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
@@ -300,7 +381,10 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(source), base_dir)
-    source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
+    if _uses_exam_class(source, base_dir):
+        source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
+        source = _inject_exam_title(source)  # recover the fancyhdr title block
+    source = _rewrite_halign(source)  # plain-TeX \halign systems -> array
     source = _TIKZSTYLE_RE.sub("", source)  # drop \tikzstyle{…}=[…] declarations
     source = _recover_tikz_boxes(source)  # cheatsheet content-box tikz -> text
     source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}

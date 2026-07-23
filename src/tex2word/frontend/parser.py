@@ -217,6 +217,7 @@ _IGNORE_MACROS = {
     "scriptsize", "tiny", "huge", "Huge", "vspace", "hspace", "vfill",
     "bigskip", "medskip", "smallskip", "indent", "par", "protect",
     "displaystyle", "unskip", "ignorespaces", "leavevmode",
+    "/",  # italic correction -> no output
     "sloppy", "fussy", "raggedright", "raggedleft", "flushbottom",
     "samepage", "frenchspacing", "boldmath", "unboldmath",
     "selectfont", "rmfamily", "sffamily", "normalfont", "floatbarrier",
