@@ -87,6 +87,23 @@ def test_filtered_preamble_drops_fancyhdr_layout_redefinitions():
     assert "NavyDark" in fp and "positioning" in fp and r"\newcommand{\keepme}" in fp
 
 
+def test_filtered_preamble_keeps_symbol_and_citation_packages():
+    # a node's text may use macros from content packages (pifont's \ding,
+    # natbib's \citep); those packages must survive so the standalone build
+    # doesn't fail with "Undefined control sequence".
+    preamble = "\n".join([
+        r"\usepackage{pifont}",
+        r"\usepackage[round,authoryear]{natbib}",
+        r"\usepackage{graphicx}",
+        r"\usepackage[margin=1in]{geometry}",
+        r"\usepackage{hyperref}",
+        r"\usepackage{tikz}",
+    ])
+    fp = tikz._filtered_preamble(preamble, unicode_engine=False)
+    assert "pifont" in fp and "natbib" in fp and "graphicx" in fp
+    assert "geometry" not in fp and "hyperref" not in fp
+
+
 def test_filtered_preamble_keeps_full_multiline_macro():
     # a multi-line \newcommand body must be captured whole; keeping only its
     # opening line leaves an unbalanced "{" that fails the standalone compile.

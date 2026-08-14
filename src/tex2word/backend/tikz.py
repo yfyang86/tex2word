@@ -35,10 +35,17 @@ _KEEP_MACRO = re.compile(
     r"pgfdeclare\w*|definecolor|colorlet|newcommand|renewcommand|providecommand|"
     r"def|let|newif|DeclareMathOperator|newcounter|setlength|tikzstyle)\b"
 )
+# Packages safe to load in the cropped standalone build and whose macros a
+# picture's node text may use. Besides the drawing/math/colour core, this keeps
+# symbol and citation packages (pifont's \ding, natbib's \citep, …) so a node
+# that embeds document text doesn't fail with "Undefined control sequence".
 _KEEP_USEPACKAGE = re.compile(
     r"^\s*\\usepackage\b[^\n]*\{[^}]*\b"
-    r"(tikz|pgfplots|pgf|pgfgantt|circuitikz|amsmath|amssymb|amsfonts|mathtools|"
-    r"xcolor|color|bm|siunitx)\b"
+    r"(tikz|pgfplots|pgfplotstable|pgf|pgfgantt|circuitikz|tikz-cd|"
+    r"amsmath|amssymb|amsfonts|amsthm|mathtools|mathrsfs|dsfont|bbm|stmaryrd|"
+    r"xcolor|color|bm|siunitx|graphicx|"
+    r"pifont|wasysym|marvosym|textcomp|fontawesome5|fontawesome|"
+    r"natbib|cite)\b"
 )
 # fontspec/xeCJK lines only make sense under a Unicode engine.
 _KEEP_FONT = re.compile(r"^\s*\\(usepackage\b[^\n]*\{(fontspec|xeCJK)\}|set(main|CJK\w*)font)\b")
