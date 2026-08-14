@@ -202,8 +202,11 @@ class DocumentWriter:
         elif isinstance(block, ir.CodeBlock):
             self._code_block(block, body)
         elif isinstance(block, ir.Quote):
-            for inner in block.blocks:
-                self._block(inner, body, default_style="Quote")
+            if block.shade or block.border:
+                self._callout(block, body)
+            else:
+                for inner in block.blocks:
+                    self._block(inner, body, default_style="Quote")
         elif isinstance(block, ir.Theorem):
             self._theorem(block, body)
         elif isinstance(block, ir.Algorithm):
@@ -816,6 +819,36 @@ class DocumentWriter:
             p = self._styled_paragraph("SourceCode")
             p.append(self._run(line))
             body.append(p)
+
+    def _callout(self, block: ir.Quote, body: _Element) -> None:
+        """A coloured callout box (a `\\newmdenv`): a full-width single-cell table
+        with a coloured border and background fill holding the box's content."""
+        tbl = el("w:tbl")
+        tpr = sub(tbl, "w:tblPr")
+        sub(tpr, "w:tblW", **{"w:w": "5000", "w:type": "pct"})
+        # CT_TblPr order: tblW -> tblBorders -> tblCellMar.
+        borders = sub(tpr, "w:tblBorders")
+        color = block.border or "auto"
+        for side in ("top", "bottom", "left", "right"):
+            sub(borders, f"w:{side}", **{"w:val": "single", "w:sz": "8", "w:color": color})
+        for side in ("insideH", "insideV"):
+            sub(borders, f"w:{side}", **{"w:val": "nil"})
+        cellmar = sub(tpr, "w:tblCellMar")
+        for side, w in (("top", "60"), ("bottom", "60"), ("left", "108"), ("right", "108")):
+            sub(cellmar, f"w:{side}", **{"w:w": w, "w:type": "dxa"})
+        sub(sub(tbl, "w:tblGrid"), "w:gridCol")
+        tc = sub(sub(tbl, "w:tr"), "w:tc")
+        if block.shade:
+            tcpr = sub(tc, "w:tcPr")
+            sub(tcpr, "w:shd", **{"w:val": "clear", "w:color": "auto", "w:fill": block.shade})
+        for inner in block.blocks:
+            self._block(inner, tc, default_style="Normal")
+        # a table cell must end with a paragraph (not a table or nothing)
+        if tc.find(_qn("w:p")) is None or not len(tc):
+            tc.append(self._styled_paragraph("Normal"))
+        elif tc[-1].tag != _qn("w:p"):
+            tc.append(self._styled_paragraph("Normal"))
+        body.append(tbl)
 
     def _algorithm(self, block: ir.Algorithm, body: _Element) -> None:
         # Render in a "ruled" box: a full-width single-cell table with only top

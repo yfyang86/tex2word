@@ -315,6 +315,11 @@ class Algorithm(Node):
 @dataclass
 class Quote(Node):
     blocks: list[Block]
+    #: background fill (6-hex, no ``#``) for a coloured callout box, or None for a
+    #: plain set-off quote. Captured from a ``\newmdenv`` ``backgroundcolor``.
+    shade: str | None = None
+    #: border colour (6-hex) for a callout box, or None. From ``linecolor``.
+    border: str | None = None
 
 
 @dataclass

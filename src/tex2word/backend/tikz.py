@@ -35,13 +35,34 @@ _KEEP_MACRO = re.compile(
     r"pgfdeclare\w*|definecolor|colorlet|newcommand|renewcommand|providecommand|"
     r"def|let|newif|DeclareMathOperator|newcounter|setlength|tikzstyle)\b"
 )
+# Packages safe to load in the cropped standalone build and whose macros a
+# picture's node text may use. Besides the drawing/math/colour core, this keeps
+# symbol and citation packages (pifont's \ding, natbib's \citep, …) so a node
+# that embeds document text doesn't fail with "Undefined control sequence".
 _KEEP_USEPACKAGE = re.compile(
     r"^\s*\\usepackage\b[^\n]*\{[^}]*\b"
-    r"(tikz|pgfplots|pgf|pgfgantt|circuitikz|amsmath|amssymb|amsfonts|mathtools|"
-    r"xcolor|color|bm|siunitx)\b"
+    r"(tikz|pgfplots|pgfplotstable|pgf|pgfgantt|circuitikz|tikz-cd|"
+    r"amsmath|amssymb|amsfonts|amsthm|mathtools|mathrsfs|dsfont|bbm|stmaryrd|"
+    r"xcolor|color|bm|siunitx|graphicx|"
+    r"pifont|wasysym|marvosym|textcomp|fontawesome5|fontawesome|"
+    r"natbib|cite)\b"
 )
 # fontspec/xeCJK lines only make sense under a Unicode engine.
 _KEEP_FONT = re.compile(r"^\s*\\(usepackage\b[^\n]*\{(fontspec|xeCJK)\}|set(main|CJK\w*)font)\b")
+
+# Header/footer/page-layout (re)definitions that belong to packages we DROP
+# (fancyhdr's \headrulewidth/\footrulewidth, its \fancyhead/\fancyhf/\pagestyle,
+# titlesec's \titleformat, …). \renewcommand is otherwise kept for user macros,
+# so without this a \renewcommand{\headrulewidth}{0.4pt} survives into the
+# standalone build and fails with "\headrulewidth undefined" (fancyhdr absent).
+_DROP_LAYOUT = re.compile(
+    r"^\s*\\(?:re|provide)?newcommand\*?\s*\{?\s*\\"
+    r"(?:head|foot|plainhead|plainfoot)rule(?:width)?\b"
+    r"|^\s*\\(?:let|def)\s*\\(?:head|foot|plainhead|plainfoot)rule(?:width)?\b"
+    r"|^\s*\\(?:pagestyle|thispagestyle|fancypagestyle|fancyhf|fancyhead|fancyfoot|"
+    r"lhead|chead|rhead|lfoot|cfoot|rfoot|fancyheadoffset|fancyfootoffset|"
+    r"titleformat|titlespacing)\b"
+)
 
 _PICTURE_RE = re.compile(
     r"\\begin\{(" + "|".join(DRAWING_ENVS) + r")\}.*?\\end\{\1\}", re.DOTALL
@@ -85,6 +106,11 @@ def _filtered_preamble(preamble: str, *, unicode_engine: bool) -> str:
     i, n = 0, len(lines)
     while i < n:
         line = lines[i]
+        # header/footer/layout redefinitions reference dropped packages -> skip
+        # (they'd otherwise break the standalone build, e.g. \headrulewidth).
+        if _DROP_LAYOUT.search(line):
+            i += 1
+            continue
         matched = _KEEP_USEPACKAGE.search(line) or _KEEP_MACRO.search(line) or (
             unicode_engine and _KEEP_FONT.search(line)
         )
