@@ -33,6 +33,11 @@ diagrams, `tabularx`/`longtable` tables, and `\newmdenv` callout boxes).
   isn't in pylatexenc's defaults, so its `{colspec}` leaked into the body as a
   bogus first row (with no column widths). The `[pos]{colspec}` arguments are
   now consumed and the `p{…}` widths captured.
+- **`longtable` caption and repeated headers.** A `longtable`'s in-body
+  `\caption` leaked as a row of literal `\caption{…}` text, and its header —
+  declared twice via `\endfirsthead` + `\endhead` — rendered as two rows. The
+  caption/`\label` are now pulled into the table caption ("Table N: …") and a
+  single header row is kept (the foot and duplicate first-page header dropped).
 
 ### Added
 
