@@ -47,6 +47,42 @@ def test_supertabular_and_xtabular():
         assert _rows(tbl) == [["p", "q"]]
 
 
+def test_tabularx_X_column_is_counted_and_widths_align():
+    # the flexible X column must be counted (else the fixed p{} widths shift
+    # onto the wrong columns and the paragraph column vanishes).
+    src = (
+        r"\begin{tabularx}{\textwidth}{@{}p{2.6cm}Xp{2.5cm}@{}}"
+        r" a & b & c \\ d & e & f \\ \end{tabularx}"
+    )
+    tbl = _table(_conv(src).document)
+    assert tbl.colspec == ["left", "left", "left"]        # three columns, X counted
+    # p{} columns carry a width; the X column is auto (None), in the right slot
+    assert tbl.colwidths[0] is not None and tbl.colwidths[2] is not None
+    assert tbl.colwidths[1] is None
+    assert _rows(tbl) == [["a", "b", "c"], ["d", "e", "f"]]
+
+
+def test_tabulary_LCRJ_columns_counted():
+    src = r"\begin{tabulary}{\linewidth}{LCRJ} a & b & c & d \\ \end{tabulary}"
+    tbl = _table(_conv(src).document)
+    assert tbl.colspec == ["left", "center", "right", "left"]
+    assert _rows(tbl) == [["a", "b", "c", "d"]]
+
+
+def test_longtable_colspec_not_eaten_as_row():
+    # longtable is not in pylatexenc's defaults; its {colspec} must be consumed
+    # as the environment argument, not parsed as the first data row.
+    src = (
+        r"\begin{longtable}{@{}p{2.4cm}p{4.1cm}p{4.0cm}@{}}"
+        r" A & B & C \\ x & y & z \\ \end{longtable}"
+    )
+    tbl = _table(_conv(src).document)
+    assert tbl is not None
+    assert tbl.colspec == ["left", "left", "left"]        # colspec parsed
+    assert all(w is not None for w in tbl.colwidths)      # p{} widths captured
+    assert _rows(tbl) == [["A", "B", "C"], ["x", "y", "z"]]  # colspec not a row
+
+
 def test_variants_valid():
     src = r"\begin{tabularx}{\textwidth}{lc} a & b \\ \end{tabularx}"
     assert validate_docx(_conv(src).docx) == []

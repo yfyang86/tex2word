@@ -1658,6 +1658,20 @@ def _parse_colspec(spec: str) -> tuple[list, list[float | None]]:
             aligns.append(pending_align or {"l": "left", "c": "center", "r": "right"}[c])
             widths.append(None)
             pending_align = None
+        elif c == "X":
+            # tabularx flexible column: a paragraph column that fills the
+            # remaining width. Count it (so cells line up) with an auto width;
+            # a >{\raggedright}X etc. supplies the alignment.
+            aligns.append(pending_align or "left")
+            widths.append(None)
+            pending_align = None
+        elif c in "LCRJ":
+            # tabulary auto-width columns (L/C/R = left/centre/right, J = justify)
+            aligns.append(
+                pending_align or {"L": "left", "C": "center", "R": "right", "J": "left"}[c]
+            )
+            widths.append(None)
+            pending_align = None
         elif c in "pmb" and i + 1 < len(spec) and spec[i + 1] == "{":
             aligns.append(pending_align or "left")
             pending_align = None
@@ -2079,6 +2093,10 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             EnvironmentSpec("tabularx", "{{"), EnvironmentSpec("tabulary", "{{"),
             EnvironmentSpec("supertabular", "{"), EnvironmentSpec("xtabular", "{"),
             EnvironmentSpec("mpsupertabular", "{"),
+            # longtable: \begin{longtable}[pos]{colspec} (not in pylatexenc's
+            # defaults). Declaring the args keeps the colspec out of the body,
+            # where it would otherwise be parsed as the first table row.
+            EnvironmentSpec("longtable", "[{"),
             # wrapfig: \begin{wrapfigure}[lines]{placement}{width} -- consume the
             # placement/width args so they don't leak into the float body.
             EnvironmentSpec("wrapfigure", "[{{"), EnvironmentSpec("wraptable", "[{{"),
