@@ -7,6 +7,42 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.7 — TikZ preamble, table columns & mdframed callouts
+
+Fixes surfaced by a real-world manuscript (a colour-styled article with TikZ
+diagrams, `tabularx`/`longtable` tables, and `\newmdenv` callout boxes).
+
+### Fixed
+
+- **TikZ standalone compile no longer broken by header/footer preamble.** The
+  filtered preamble for a standalone figure kept `\renewcommand{\headrulewidth}`
+  (fancyhdr) while dropping fancyhdr itself, so **every** figure failed to
+  compile with `\headrulewidth undefined`. Header/footer/page-style/`titlesec`
+  layout commands are now dropped before the keep pass.
+- **TikZ nodes may use content-package macros.** A node containing `\citep`
+  (natbib) or `\ding` (pifont) failed the standalone compile with "Undefined
+  control sequence". The kept-package allowlist now includes safe content/
+  symbol/citation packages (pifont, natbib/cite, graphicx, textcomp, wasysym,
+  marvosym, fontawesome, mathrsfs, dsfont, bbm, stmaryrd, …); layout/class
+  packages (geometry, hyperref, fancyhdr, titlesec) are still dropped.
+- **`tabularx`/`tabulary` flexible columns are counted.** An `X` column (and
+  `tabulary`'s `L/C/R/J`) was dropped by the column-spec parser, so a
+  `p{…}Xp{…}` table parsed with one fewer column and the fixed widths shifted
+  onto the wrong columns. They are now counted as auto-width columns.
+- **`longtable` column spec is parsed, not rendered as a row.** `longtable`
+  isn't in pylatexenc's defaults, so its `{colspec}` leaked into the body as a
+  bogus first row (with no column widths). The `[pos]{colspec}` arguments are
+  now consumed and the `p{…}` widths captured.
+
+### Added
+
+- **`\newmdenv` callout boxes.** User-defined mdframed environments
+  (`\newmdenv[backgroundcolor=…,linecolor=…]{name}`) now render as coloured
+  callout boxes — a bordered, shaded single-cell frame using the box's own
+  colours — instead of transparent text with an "unknown environment" warning.
+  Boxed environments without captured colours still render as plain set-off
+  quotes.
+
 ## 1.0.6 — problem sheets, cheatsheets & plain-TeX math
 
 Support for real-world problem-sheet and cheatsheet documents (a new UAT
