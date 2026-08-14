@@ -839,7 +839,8 @@ class DocumentWriter:
         sub(sub(tbl, "w:tblGrid"), "w:gridCol")
         tc = sub(sub(tbl, "w:tr"), "w:tc")
         if block.shade:
-            sub(sub(tc, "w:tcPr"), "w:shd", **{"w:val": "clear", "w:color": "auto", "w:fill": block.shade})
+            tcpr = sub(tc, "w:tcPr")
+            sub(tcpr, "w:shd", **{"w:val": "clear", "w:color": "auto", "w:fill": block.shade})
         for inner in block.blocks:
             self._block(inner, tc, default_style="Normal")
         # a table cell must end with a paragraph (not a table or nothing)
