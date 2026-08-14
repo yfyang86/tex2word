@@ -387,3 +387,27 @@ def test_resizebox_table_renders_valid_docx():
     root = document_root(res.docx)
     assert root.findall(f".//{{{NS['w']}}}tbl")  # a real table, plus shd/borders survive
     assert root.findall(f".//{{{NS['w']}}}shd") and root.findall(f".//{{{NS['w']}}}tcBorders")
+
+
+def test_longtable_caption_and_single_header():
+    # \caption inside a longtable must become the table caption (not leak as a
+    # row of literal text), and the \endfirsthead + \endhead duplicate headers
+    # must collapse to one.
+    src = (
+        r"\begin{document}\begin{longtable}{@{}ll@{}}"
+        r"\caption{My long table}\label{tab:lt}\\"
+        r"\toprule A & B \\\midrule\endfirsthead"
+        r"\toprule A & B \\\midrule\endhead"
+        r"\bottomrule\endfoot"
+        r"x & 1 \\ y & 2 \\"
+        r"\end{longtable}\end{document}"
+    )
+    table = _table(src)
+    cap = "".join(getattr(i, "value", "") or "" for i in (table.caption or []))
+    assert cap == "My long table"
+    assert table.label == "tab:lt"
+    # exactly one header row (not two), then the two body rows
+    assert sum(1 for r in table.rows if r.is_header) == 1
+    assert len(table.rows) == 3
+    body = [r for r in table.rows if not r.is_header]
+    assert len(body) == 2
