@@ -63,6 +63,30 @@ def test_build_standalone_keeps_tikz_bits_and_drops_class_packages():
     assert "geometry" not in std and "hyperref" not in std  # class packages dropped
 
 
+def test_filtered_preamble_drops_fancyhdr_layout_redefinitions():
+    # \renewcommand{\headrulewidth}{..} belongs to fancyhdr, which the standalone
+    # build drops -> keeping the redefine fails with "\headrulewidth undefined".
+    # The header/footer/page-style layout commands must be filtered out while the
+    # picture-relevant preamble (colours, tikz libraries) is kept.
+    preamble = "\n".join([
+        r"\usepackage{fancyhdr}",
+        r"\usepackage{tikz}",
+        r"\pagestyle{fancy}",
+        r"\fancyhf{}",
+        r"\fancyhead[L]{\footnotesize\itshape Title}",
+        r"\renewcommand{\headrulewidth}{0.4pt}",
+        r"\renewcommand{\footrulewidth}{0pt}",
+        r"\definecolor{NavyDark}{HTML}{1F3864}",
+        r"\usetikzlibrary{positioning}",
+        r"\newcommand{\keepme}{ok}",
+    ])
+    fp = tikz._filtered_preamble(preamble, unicode_engine=False)
+    assert "headrulewidth" not in fp and "footrulewidth" not in fp
+    assert "pagestyle" not in fp and "fancyhf" not in fp and "fancyhead" not in fp
+    # picture-relevant bits and unrelated user macros survive
+    assert "NavyDark" in fp and "positioning" in fp and r"\newcommand{\keepme}" in fp
+
+
 def test_filtered_preamble_keeps_full_multiline_macro():
     # a multi-line \newcommand body must be captured whole; keeping only its
     # opening line leaves an unbalanced "{" that fails the standalone compile.
