@@ -400,8 +400,10 @@ class _Builder:
         self.unnumbered_theorems: set[str] = set()  # \newtheorem*-defined names
         # env name -> counter display title (shared counters resolve here)
         self.theorem_counters: dict[str, str] = {}
-        # user \newtcolorbox callout environments -> rendered as Quote blocks
+        # user \newtcolorbox / \newmdenv callout environments -> Quote blocks
         self.box_envs: set[str] = set()
+        #: env name -> (backgroundcolor, linecolor) names for coloured callouts
+        self.box_styles: dict[str, tuple[str | None, str | None]] = {}
 
     # -- inline ----------------------------------------------------------- #
 
@@ -1070,7 +1072,10 @@ class _Builder:
             # boxed-content environments -> a set-off Quote block (the closest IR)
             "framed", "shaded", "mdframed", "tcolorbox", "boxedminipage", "leftbar",
         ) or base in self.box_envs:
-            out.append(ir.Quote(self.blocks(node.nodelist)))
+            bg, line = self.box_styles.get(base, (None, None))
+            shade = self.colors.resolve(bg, None) if bg else None
+            border = self.colors.resolve(line, None) if line else None
+            out.append(ir.Quote(self.blocks(node.nodelist), shade=shade, border=border))
             return
         if base in ("verbatim", "lstlisting", "minted"):
             out.append(ir.CodeBlock(_verbatim_inner(node), lang=None))
@@ -1818,6 +1823,32 @@ def _collect_tcolorbox_envs(source: str) -> set[str]:
     return {m.group(1).strip() for m in _NEWTCOLORBOX_RE.finditer(source) if m.group(1).strip()}
 
 
+# User-defined mdframed callout environments: \newmdenv[opts]{name},
+# \newmdtheoremenv[opts]{name}{caption}, \surroundwithmdframed[opts]{name}. The
+# option list may span lines (re.DOTALL). Rendered as set-off Quote blocks like
+# the other boxed environments. (\mdfdefinestyle defines a *style*, not an env,
+# so it is deliberately not matched.)
+_NEWMDENV_RE = re.compile(
+    r"\\(?:newmdenv|newmdtheoremenv|surroundwithmdframed)\s*"
+    r"(?:\[([^\]]*)\])?\s*\{([^}]+)\}",
+    re.DOTALL,
+)
+_MDOPT_RE = re.compile(r"(backgroundcolor|linecolor)\s*=\s*([A-Za-z][\w!.]*)")
+
+
+def _collect_mdframed_envs(source: str) -> dict[str, tuple[str | None, str | None]]:
+    """Map each user ``\\newmdenv`` (mdframed) environment name to its
+    ``(backgroundcolor, linecolor)`` colour names, for a coloured callout box."""
+    out: dict[str, tuple[str | None, str | None]] = {}
+    for m in _NEWMDENV_RE.finditer(source):
+        name = m.group(2).strip()
+        if not name:
+            continue
+        opts = dict(_MDOPT_RE.findall(m.group(1) or ""))
+        out[name] = (opts.get("backgroundcolor"), opts.get("linecolor"))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Public entry point
 # --------------------------------------------------------------------------- #
@@ -2302,6 +2333,8 @@ def parse_document(
     builder.unnumbered_theorems = unnumbered_theorems
     builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
     builder.box_envs = _collect_tcolorbox_envs(theorem_src)  # \newtcolorbox callouts
+    builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
+    builder.box_envs |= set(builder.box_styles)
     builder.book_mode = _is_book_class(expanded)
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)

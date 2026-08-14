@@ -47,5 +47,39 @@ def test_box_content_keeps_formatting():
     assert any(type(n).__name__ == "Emphasis" for n in para.inlines)
 
 
+def test_newmdenv_defines_a_callout_environment():
+    # \newmdenv[...]{name} in the preamble makes `name` a boxed environment,
+    # and \newcommand wrappers around it expand to it.
+    src = (
+        r"\definecolor{Amber}{HTML}{B07D2B}\definecolor{AmberLight}{HTML}{FAF0DC}"
+        r"\newmdenv[backgroundcolor=AmberLight,linecolor=Amber]{obox}"
+        r"\newcommand{\open}[2]{\begin{obox}\textbf{Open item #1.}\ #2\end{obox}}"
+        r"\begin{document}\open{7}{The note body.}\end{document}"
+    )
+    doc = convert_source(src).document
+    q = next((b for b in doc.blocks if type(b).__name__ == "Quote"), None)
+    assert q is not None, "obox not recognised as a boxed environment"
+    # coloured callout: background + border captured from the \newmdenv options
+    assert q.shade == "FAF0DC" and q.border == "B07D2B"
+
+
+def test_newmdenv_callout_renders_as_shaded_box():
+    src = (
+        r"\definecolor{NavyDark}{HTML}{1F3864}\definecolor{NavyLight}{HTML}{DCE4F2}"
+        r"\newmdenv[backgroundcolor=NavyLight,linecolor=NavyDark]{positionbox}"
+        r"\begin{document}\begin{positionbox}Reserve the word.\end{positionbox}\end{document}"
+    )
+    conv = convert_source(src)
+    assert validate_docx(conv.docx) == []
+    import re
+    import zipfile
+    from io import BytesIO
+
+    d = zipfile.ZipFile(BytesIO(conv.docx)).read("word/document.xml").decode()
+    assert 'w:fill="DCE4F2"' in d          # background shading
+    assert 'w:color="1F3864"' in d          # border colour
+    assert "Reserve the word." in " ".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", d))
+
+
 def test_valid():
     assert validate_docx(_conv(r"\begin{tcolorbox}[title=X]Body.\end{tcolorbox}").docx) == []
