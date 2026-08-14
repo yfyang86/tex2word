@@ -1348,8 +1348,60 @@ class _Builder:
         # column spec is the first mandatory group argument of the environment
         colspec, colwidths = _parse_colspec(_env_colspec(node))
         booktabs = "\\toprule" in node.latex_verbatim() or "\\midrule" in node.latex_verbatim()
-        rows = self._tabular_rows(node.nodelist, len(colspec) or 1, colspec)
-        return ir.Table(rows=rows, colspec=colspec, booktabs=booktabs, colwidths=colwidths)
+        nodes = node.nodelist
+        caption: list[ir.Inline] | None = None
+        label: str | None = None
+        if getattr(node, "environmentname", "") == "longtable":
+            nodes, caption, label = self._longtable_prep(nodes)
+        rows = self._tabular_rows(nodes, len(colspec) or 1, colspec)
+        return ir.Table(
+            rows=rows, colspec=colspec, booktabs=booktabs, colwidths=colwidths,
+            caption=caption, label=label,
+        )
+
+    def _longtable_prep(
+        self, nodes: list
+    ) -> tuple[list, list[ir.Inline] | None, str | None]:
+        """Prepare a ``longtable`` body for the generic row parser.
+
+        Pull out the ``\\caption``/``\\label`` (so the caption doesn't leak as a
+        row of literal text), and split on the header/footer markers
+        ``\\endfirsthead``/``\\endhead``/``\\endfoot``/``\\endlastfoot`` — keeping a
+        single header block (the repeatable ``\\endhead`` one, else the
+        ``\\endfirsthead`` one) plus the body rows, and dropping the duplicate
+        first-page header and the foot rows.
+        """
+        marker = {
+            "endfirsthead": "firsthead", "endhead": "head",
+            "endfoot": "foot", "endlastfoot": "lastfoot",
+        }
+        sections: dict[str, list] = {}
+        markers: dict[str, object] = {}  # the delimiter node that closed each section
+        caption: list[ir.Inline] | None = None
+        label: str | None = None
+        buf: list = []
+        for child in nodes:
+            if isinstance(child, LatexMacroNode) and child.macroname in marker:
+                sections[marker[child.macroname]] = buf
+                markers[marker[child.macroname]] = child
+                buf = []
+                continue
+            if isinstance(child, LatexMacroNode) and child.macroname == "caption":
+                if caption is None:
+                    caption = self.inlines(_group_nodes(child))
+                continue  # never keep the caption node among the table rows
+            if isinstance(child, LatexMacroNode) and child.macroname == "label":
+                if label is None:
+                    label = _chars_of(_group_nodes(child)).strip()
+                continue
+            buf.append(child)
+        sections["body"] = buf
+        src = "head" if "head" in sections else "firsthead" if "firsthead" in sections else None
+        if src is None:
+            return sections["body"], caption, label
+        # re-append the section's delimiter so the row parser marks the header
+        # rows (the header block may carry no \midrule of its own).
+        return sections[src] + [markers[src]] + sections["body"], caption, label
 
     def _tabular_rows(self, nodes: list, ncols: int, colspec: list) -> list[ir.TableRow]:
         rows: list[ir.TableRow] = []
