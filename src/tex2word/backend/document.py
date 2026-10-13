@@ -277,7 +277,7 @@ class DocumentWriter:
 
         for idx, omath in enumerate(result.omath):
             if block.numbered:
-                body.append(self._numbered_equation(omath, block, first=(idx == 0)))
+                body.append(self._numbered_equation(omath, block, idx))
             else:
                 p = self._styled_paragraph("Normal")
                 para = el("m:oMathPara")
@@ -285,7 +285,7 @@ class DocumentWriter:
                 p.append(para)
                 body.append(p)
 
-    def _numbered_equation(self, omath: _Element, block: ir.MathBlock, first: bool) -> _Element:
+    def _numbered_equation(self, omath: _Element, block: ir.MathBlock, idx: int) -> _Element:
         p = el("w:p")
         ppr = sub(p, "w:pPr")
         tabs = sub(ppr, "w:tabs")
@@ -296,9 +296,15 @@ class DocumentWriter:
         p.append(omath)
         p.append(self._tab_run())
         p.append(self._run("("))
+        # each numbered line bookmarks its own \label (so \ref to any line
+        # resolves); a single equation / external \label falls back to block.label.
+        if idx < len(block.line_labels):
+            line_label = block.line_labels[idx]
+        else:
+            line_label = block.label if idx == 0 and not block.line_labels else None
         start = None
-        if block.label and first:
-            start = fields.bookmark_start(_bookmark_for(block.label))
+        if line_label:
+            start = fields.bookmark_start(_bookmark_for(line_label))
             p.append(start)
         for run in fields.number_field("Equation", self.number_by_section):
             p.append(run)

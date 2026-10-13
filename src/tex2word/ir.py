@@ -225,6 +225,10 @@ class MathBlock(Node):
     numbered: bool = False
     label: str | None = None
     env: str = "displaymath"
+    #: per rendered line, the line's ``\label`` (or None), aligned with the
+    #: numbered lines of a multi-line ``align``/``eqnarray``. Empty for a single
+    #: equation (``label`` carries it).
+    line_labels: list[str | None] = field(default_factory=list)
 
 
 @dataclass

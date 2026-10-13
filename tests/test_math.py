@@ -271,6 +271,31 @@ def test_numbered_align_keeps_per_line_numbers():
     assert _seq_eq_count(root) == 2
 
 
+def test_align_bookmarks_every_labelled_line():
+    # #41: each numbered line's \label is bookmarked and \ref resolves to a REF
+    # field, not the literal "??" that only the first line used to avoid.
+    import io
+    import re
+    import zipfile
+
+    from tex2word import convert_source
+
+    src = (
+        r"\documentclass{article}\usepackage{amsmath}\begin{document}"
+        r"\begin{align} a &= b \label{eq:a} \\ c &= d \label{eq:b} \\ "
+        r"e &= f \label{eq:c} \end{align}"
+        r"Refs \ref{eq:a} \ref{eq:b} \ref{eq:c}.\end{document}"
+    )
+    res = convert_source(src)
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert set(re.findall(r'<w:bookmarkStart[^>]*w:name="([^"]+)"', d)) >= {
+        "eq_a", "eq_b", "eq_c"
+    }
+    assert set(re.findall(r"REF (\w+)", d)) >= {"eq_a", "eq_b", "eq_c"}
+    assert "??" not in d
+    assert not any("unresolved" in w.message for w in res.report.warnings)
+
+
 def test_equation_with_aligned_is_one_number_and_aligned():
     root = _conv_root(
         r"\begin{equation}\begin{aligned} a &= b \\ cc &= d \end{aligned}\end{equation}"

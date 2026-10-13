@@ -1041,10 +1041,23 @@ class _Builder:
         self._labelable = heading
 
     def _math_block(self, verbatim: str, env: str, numbered: bool) -> ir.MathBlock:
+        from ..mathml.omml import _split_top_level
+
         latex = _strip_math_delims(verbatim, env)
-        label = _extract_label(latex) if "\\label" in latex else None
+        # Per-line labels, aligned with the lines the math engine renders: it
+        # drops \label/\tag then splits on top-level "\\" and keeps non-empty
+        # lines, so mirror that here (one entry per rendered, numbered line).
+        line_labels: list[str | None] = []
+        if "\\label" in latex:
+            for seg in _split_top_level(latex, "\\\\"):
+                lab = _extract_label(seg) if "\\label" in seg else None
+                if _LABEL_TAG_RE.sub("", seg).strip():
+                    line_labels.append(lab)
+        label = next((lb for lb in line_labels if lb), None)
         latex = _LABEL_TAG_RE.sub("", latex).strip()
-        block = ir.MathBlock(latex=latex, numbered=numbered, env=env, label=label)
+        block = ir.MathBlock(
+            latex=latex, numbered=numbered, env=env, label=label, line_labels=line_labels
+        )
         self._labelable = block
         return block
 
