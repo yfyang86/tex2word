@@ -7,6 +7,33 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.8 — issue sprint (#37–#41)
+
+Fixes for five reported issues, each with a repro.
+
+### Fixed
+
+- **`\today` is expanded** (#40). `\date{\today}` emitted the literal `\today`
+  on the most visible line of page 1; it now expands to the current date
+  (`Month D, YYYY`), and an omitted `\date` defaults to today when a title is
+  present (an explicit `\date{}` stays empty).
+- **CJK proofing language** (#39). `--lang zh-CN` set only the Latin half
+  (`w:val`), so Word spell-checked Chinese/Japanese/Korean text as English. The
+  CJK half (`w:eastAsia`) is now written for a CJK language, and defaults to
+  `zh-CN` when a CJK font is in use but no language was given.
+- **Multi-image figures** (#37). A `figure` with several `\includegraphics`
+  kept only the last image and caption while the first `\label` won, silently
+  dropping content and mismatching `\ref`s. Each image now keeps its own
+  caption and label, emitted as one numbered figure per panel.
+- **`\includegraphics` sizing** (#38). Relative widths (`0.5\textwidth`,
+  `\linewidth`, …) now resolve against the output page's text column instead of
+  overflowing; `keepaspectratio` is honoured for a `width`+`height` box; and the
+  width cap is the real text column, not a hardcoded 6in that clamped explicit
+  absolute widths.
+- **Per-line `align` labels** (#41). Only the first line of a numbered
+  `align`/`eqnarray` was bookmarked, so `\ref` to the other lines printed `??`.
+  Every numbered line's `\label` is now bookmarked and referenced.
+
 ## 1.0.7 — TikZ preamble, table columns & mdframed callouts
 
 Fixes surfaced by a real-world manuscript (a colour-styled article with TikZ
