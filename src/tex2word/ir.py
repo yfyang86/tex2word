@@ -179,6 +179,9 @@ class Image(Node):
     path: str
     width: float | None = None   # target width in EMU (from width=/scale=)
     height: float | None = None  # target height in EMU
+    rel_width: float | None = None   # width as a fraction of the text column (0.5\textwidth)
+    rel_height: float | None = None  # height as a fraction of the text height (0.3\textheight)
+    keep_aspect: bool = False    # \includegraphics[...,keepaspectratio]
     original_format: str = ""
     scale: float | None = None   # \includegraphics[scale=]
     angle: float | None = None   # rotation in degrees (counter-clockwise)
@@ -222,6 +225,10 @@ class MathBlock(Node):
     numbered: bool = False
     label: str | None = None
     env: str = "displaymath"
+    #: per rendered line, the line's ``\label`` (or None), aligned with the
+    #: numbered lines of a multi-line ``align``/``eqnarray``. Empty for a single
+    #: equation (``label`` carries it).
+    line_labels: list[str | None] = field(default_factory=list)
 
 
 @dataclass

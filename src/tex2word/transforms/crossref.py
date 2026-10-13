@@ -94,6 +94,16 @@ def _collect(blocks: list[ir.Block], labels: dict[str, ir.LabelInfo]) -> None:
                 bookmark=sanitize_bookmark(label),
                 name=_label_name(block),
             )
+        # every numbered line of an align/eqnarray that carries a \label is its
+        # own referenceable equation (not just the first line).
+        if isinstance(block, ir.MathBlock) and block.line_labels:
+            for lab in block.line_labels:
+                if lab:
+                    labels[lab] = ir.LabelInfo(
+                        kind="equation",  # type: ignore[arg-type]
+                        counter_name="Equation",
+                        bookmark=sanitize_bookmark(lab),
+                    )
         # sub-figure labels resolve to the parent figure's number.
         if isinstance(block, ir.Figure) and block.subfigures:
             bookmark = figure_bookmark(block)

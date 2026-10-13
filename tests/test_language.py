@@ -64,3 +64,28 @@ def test_output_with_language_is_valid():
     res = convert_source(r"\documentclass{article}\usepackage[french]{babel}"
                          r"\begin{document}x\end{document}")
     assert validate_docx(res.docx) == []
+
+
+def test_cjk_lang_sets_eastasia():
+    # --lang zh-CN must set w:eastAsia (Word's CJK proofing language), not just
+    # w:val, else Chinese text is spell-checked as English.
+    src = r"\documentclass{article}\begin{document}中文测试。\end{document}"
+    styles = _styles(convert_source(src, language="zh-CN").docx)
+    dd = styles.split("docDefaults")[1].split("/w:docDefaults")[0]
+    assert 'w:val="zh-CN"' in dd and 'w:eastAsia="zh-CN"' in dd
+
+
+def test_latin_lang_has_no_eastasia():
+    src = r"\documentclass{article}\begin{document}Hello.\end{document}"
+    styles = _styles(convert_source(src, language="en-US").docx)
+    dd = styles.split("docDefaults")[1].split("/w:docDefaults")[0]
+    assert 'w:val="en-US"' in dd and "w:eastAsia" not in dd
+
+
+def test_cjk_font_without_lang_defaults_eastasia():
+    src = (
+        r"\documentclass{article}\usepackage{xeCJK}\setCJKmainfont{SimSun}"
+        r"\begin{document}中文。\end{document}"
+    )
+    styles = _styles(convert_source(src).docx)
+    assert 'w:eastAsia="zh-CN"' in styles

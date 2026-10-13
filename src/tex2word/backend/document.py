@@ -75,6 +75,10 @@ class DocumentWriter:
         #: page geometry (from a --reference-doc), or None for the built-in default.
         self.page_pgsz = page_pgsz
         self.page_pgmar = page_pgmar
+        #: the output page's text column (EMU), from the reference-doc geometry or
+        #: the built-in default (US-Letter, 1in margins -> 6.5in). Images size and
+        #: clamp against this, so relative widths and the cap track the real page.
+        self.text_width_emu, self.text_height_emu = self._text_box_emu()
         #: (element, w:type, r:id) header/footer references from a --reference-doc.
         self.header_footer_refs = header_footer_refs or []
         #: citekey -> CSLItem, populated from the Bibliography block in build().
@@ -273,7 +277,7 @@ class DocumentWriter:
 
         for idx, omath in enumerate(result.omath):
             if block.numbered:
-                body.append(self._numbered_equation(omath, block, first=(idx == 0)))
+                body.append(self._numbered_equation(omath, block, idx))
             else:
                 p = self._styled_paragraph("Normal")
                 para = el("m:oMathPara")
@@ -281,7 +285,7 @@ class DocumentWriter:
                 p.append(para)
                 body.append(p)
 
-    def _numbered_equation(self, omath: _Element, block: ir.MathBlock, first: bool) -> _Element:
+    def _numbered_equation(self, omath: _Element, block: ir.MathBlock, idx: int) -> _Element:
         p = el("w:p")
         ppr = sub(p, "w:pPr")
         tabs = sub(ppr, "w:tabs")
@@ -292,9 +296,15 @@ class DocumentWriter:
         p.append(omath)
         p.append(self._tab_run())
         p.append(self._run("("))
+        # each numbered line bookmarks its own \label (so \ref to any line
+        # resolves); a single equation / external \label falls back to block.label.
+        if idx < len(block.line_labels):
+            line_label = block.line_labels[idx]
+        else:
+            line_label = block.label if idx == 0 and not block.line_labels else None
         start = None
-        if block.label and first:
-            start = fields.bookmark_start(_bookmark_for(block.label))
+        if line_label:
+            start = fields.bookmark_start(_bookmark_for(line_label))
             p.append(start)
         for run in fields.number_field("Equation", self.number_by_section):
             p.append(run)
@@ -543,7 +553,7 @@ class DocumentWriter:
         # holds the (width-scaled) image and its "(a)" sub-caption.
         subs = block.subfigures
         ncols = max(len(subs), 1)
-        col_emu = int(images._MAX_WIDTH_EMU / ncols) - 90000  # small inter-cell gap
+        col_emu = int(self.text_width_emu / ncols) - 90000  # small inter-cell gap
         tbl = el("w:tbl")
         tpr = sub(tbl, "w:tblPr")
         sub(tpr, "w:tblW", **{"w:w": "0", "w:type": "auto"})
@@ -665,18 +675,47 @@ class DocumentWriter:
         alt = (image.alt if image and image.alt else name)
         return self._drawing(rel_id, cx, cy, draw_id, name, rot=rot, src_rect=src_rect, alt=alt)
 
-    @staticmethod
+    def _text_box_emu(self) -> tuple[int, int]:
+        """The output page's text column (width, height) in EMU, from the
+        reference-doc / default page size and margins (twips -> EMU)."""
+        _EMU_PER_TWIP = 635
+        pgsz = self.page_pgsz or {"w:w": "12240", "w:h": "15840"}
+        pgmar = self.page_pgmar or {
+            "w:top": "1440", "w:right": "1440", "w:bottom": "1440", "w:left": "1440",
+        }
+
+        def tw(d: dict, key: str) -> int:
+            try:
+                return int(d.get(key, "0"))
+            except (TypeError, ValueError):
+                return 0
+
+        w = tw(pgsz, "w:w") - tw(pgmar, "w:left") - tw(pgmar, "w:right")
+        h = tw(pgsz, "w:h") - tw(pgmar, "w:top") - tw(pgmar, "w:bottom")
+        return max(w, 1440) * _EMU_PER_TWIP, max(h, 1440) * _EMU_PER_TWIP
+
     def _image_extent(
-        info: images.ImageInfo, image: ir.Image | None, max_width_emu: int | None
+        self, info: images.ImageInfo, image: ir.Image | None, max_width_emu: int | None
     ) -> tuple[int, int]:
-        """Final (cx, cy) in EMU, honouring width/height/scale then fitting width."""
+        """Final (cx, cy) in EMU. Resolves relative widths/heights against the
+        page's text box, honours ``keepaspectratio`` for a width+height box, then
+        clamps to the text column (or ``max_width_emu`` for a sub-figure cell)."""
         nat_cx = info.width_px * images.EMU_PER_PX
         nat_cy = info.height_px * images.EMU_PER_PX
         w = image.width if image else None
         h = image.height if image else None
+        if image and image.rel_width:
+            w = image.rel_width * self.text_width_emu
+        if image and image.rel_height:
+            h = image.rel_height * self.text_height_emu
         scale = image.scale if image else None
+        keep = bool(image and image.keep_aspect)
         if w and h:
-            cx, cy = w, h
+            if keep and nat_cx and nat_cy:
+                f = min(w / nat_cx, h / nat_cy)  # fit inside the box, aspect kept
+                cx, cy = nat_cx * f, nat_cy * f
+            else:
+                cx, cy = w, h
         elif w:
             cx, cy = w, (nat_cy * w / nat_cx if nat_cx else nat_cy)
         elif h:
@@ -684,8 +723,9 @@ class DocumentWriter:
         elif scale:
             cx, cy = nat_cx * scale, nat_cy * scale
         else:
-            return images.emu_size(info, max_width_emu)
-        limit = max_width_emu if max_width_emu is not None else images._MAX_WIDTH_EMU
+            limit = max_width_emu if max_width_emu is not None else self.text_width_emu
+            return images.emu_size(info, limit)
+        limit = max_width_emu if max_width_emu is not None else self.text_width_emu
         if cx > limit:
             cy *= limit / cx
             cx = limit

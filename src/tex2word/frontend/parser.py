@@ -366,6 +366,14 @@ def _chars_of(nodes: list) -> str:
     return "".join(out).strip()
 
 
+def _today_text() -> str:
+    """``\\today`` -> the current date in LaTeX's default English format
+    (``Month D, YYYY``), engine-independent."""
+    import datetime
+    t = datetime.date.today()
+    return f"{t:%B} {t.day}, {t.year}"
+
+
 def _latex_of(nodes: list) -> str:
     """The verbatim LaTeX source of a node list (for \\ensuremath bodies)."""
     return "".join(n.latex_verbatim() for n in nodes).strip()
@@ -693,6 +701,9 @@ class _Builder:
             # \shortstack[pos]{a \\ b}: stacked lines -> the content with \\ kept
             # as line breaks (the LatexMacroNode "\\" becomes ir.LineBreak).
             out.extend(self.inlines(_group_nodes(node)))
+            return
+        if name == "today":  # \today -> the current date (LaTeX default format)
+            out.append(ir.Text(_today_text()))
             return
         if name in _TEXT_SYMBOLS:
             out.append(ir.Text(_TEXT_SYMBOLS[name]))
@@ -1030,10 +1041,23 @@ class _Builder:
         self._labelable = heading
 
     def _math_block(self, verbatim: str, env: str, numbered: bool) -> ir.MathBlock:
+        from ..mathml.omml import _split_top_level
+
         latex = _strip_math_delims(verbatim, env)
-        label = _extract_label(latex) if "\\label" in latex else None
+        # Per-line labels, aligned with the lines the math engine renders: it
+        # drops \label/\tag then splits on top-level "\\" and keeps non-empty
+        # lines, so mirror that here (one entry per rendered, numbered line).
+        line_labels: list[str | None] = []
+        if "\\label" in latex:
+            for seg in _split_top_level(latex, "\\\\"):
+                lab = _extract_label(seg) if "\\label" in seg else None
+                if _LABEL_TAG_RE.sub("", seg).strip():
+                    line_labels.append(lab)
+        label = next((lb for lb in line_labels if lb), None)
         latex = _LABEL_TAG_RE.sub("", latex).strip()
-        block = ir.MathBlock(latex=latex, numbered=numbered, env=env, label=label)
+        block = ir.MathBlock(
+            latex=latex, numbered=numbered, env=env, label=label, line_labels=line_labels
+        )
         self._labelable = block
         return block
 
@@ -1056,7 +1080,7 @@ class _Builder:
             ))
             return
         if base in ("figure", "wrapfigure"):
-            out.append(self._figure(node, spanning=starred))
+            self._figure(node, out, spanning=starred)
             return
         if base in ("table", "wraptable"):
             self._table_float(node, out, spanning=starred)
@@ -1251,35 +1275,71 @@ class _Builder:
                 return _clean_inlines(self.inlines(arg.nodelist), trim=True)
         return None
 
-    def _figure(self, node: LatexEnvironmentNode, spanning: bool = False) -> ir.Figure:
+    def _figure(self, node: LatexEnvironmentNode, out: list, spanning: bool = False) -> None:
         fig = ir.Figure(image=None, source=node.latex_verbatim(), spanning=spanning)
-        self._collect_figure_parts(node.nodelist, fig, top=True)
-        if fig.image is None and not fig.subfigures:
-            self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
-        self._labelable = fig
-        return fig
+        # panels: one entry per top-level \includegraphics (plus a possible
+        # leading caption-only entry), each [image, caption, label, numbered].
+        panels: list[list] = []
+        self._collect_figure_parts(node.nodelist, fig, top=True, panels=panels)
+        img_panels = [p for p in panels if p[0] is not None]
+        if fig.subfigures or len(img_panels) <= 1:
+            if fig.image is None and not fig.subfigures:
+                self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
+            self._labelable = fig
+            out.append(fig)
+            return
+        # Several \includegraphics in one figure: LaTeX steps the figure counter
+        # at each \caption, so emit one numbered figure per image+caption panel
+        # (each with its own \label) instead of silently keeping only the last.
+        for image, caption, label, numbered in panels:
+            if image is None and caption is None:
+                continue
+            out.append(ir.Figure(
+                image=image, source="", spanning=spanning,
+                caption=caption, label=label, caption_numbered=numbered,
+            ))
+        self._labelable = None  # a trailing \label would be ambiguous across panels
 
-    def _collect_figure_parts(self, nodes: list, fig: ir.Figure, top: bool) -> None:
+    def _collect_figure_parts(
+        self, nodes: list, fig: ir.Figure, top: bool, panels: list | None = None
+    ) -> None:
         """Walk a figure body, pulling out the parent image/caption/label and
-        any ``subfigure`` environments / ``\\subfloat`` commands."""
+        any ``subfigure`` environments / ``\\subfloat`` commands. Top-level
+        ``\\includegraphics``/``\\caption``/``\\label`` are also recorded, in order,
+        into ``panels`` so a multi-image figure keeps every panel."""
         for child in nodes:
             if isinstance(child, LatexEnvironmentNode):
                 if child.environmentname.rstrip("*") == "subfigure":
                     fig.subfigures.append(self._subfigure_from_env(child))
                 else:
-                    self._collect_figure_parts(child.nodelist, fig, top=False)
+                    self._collect_figure_parts(child.nodelist, fig, top=False, panels=panels)
             elif isinstance(child, LatexGroupNode):
-                self._collect_figure_parts(child.nodelist, fig, top=False)
+                self._collect_figure_parts(child.nodelist, fig, top=False, panels=panels)
             elif isinstance(child, LatexMacroNode):
                 if child.macroname in ("subfloat", "subfigure"):
                     fig.subfigures.append(self._subfigure_from_macro(child))
                 elif child.macroname == "includegraphics":
-                    fig.image = _make_image(child)
+                    img = _make_image(child)
+                    fig.image = img
+                    if panels is not None:
+                        panels.append([img, None, None, True])
                 elif child.macroname == "caption":
-                    fig.caption = self.inlines(_group_nodes(child))
-                    fig.caption_numbered = not _has_star(child)
-                elif child.macroname == "label" and fig.label is None:
-                    fig.label = _chars_of(_group_nodes(child))
+                    cap = self.inlines(_group_nodes(child))
+                    numbered = not _has_star(child)
+                    fig.caption = cap
+                    fig.caption_numbered = numbered
+                    if panels is not None:
+                        if panels and panels[-1][1] is None:
+                            panels[-1][1] = cap
+                            panels[-1][3] = numbered
+                        else:
+                            panels.append([None, cap, None, numbered])
+                elif child.macroname == "label":
+                    lab = _chars_of(_group_nodes(child))
+                    if fig.label is None:
+                        fig.label = lab
+                    if panels is not None and panels:
+                        panels[-1][2] = lab
 
     def _subfigure_from_env(self, node: LatexEnvironmentNode) -> ir.SubFigure:
         sub = ir.SubFigure(image=None)
@@ -1768,6 +1828,37 @@ def _length_to_emu(value: str) -> float | None:
     return num * _UNIT_EMU[unit]
 
 
+# Lengths expressed relative to the running document's text box. The parser has
+# no LaTeX run, so these resolve against the output page geometry in the backend.
+_REL_WIDTH_REFS = ("\\textwidth", "\\linewidth", "\\columnwidth", "\\hsize")
+_REL_HEIGHT_REFS = ("\\textheight", "\\paperheight", "\\vsize")
+
+
+def _length_spec(value: str) -> tuple[float | None, float | None, float | None]:
+    """Parse an ``\\includegraphics`` width/height value into
+    ``(abs_emu, rel_width_fraction, rel_height_fraction)``. A relative length such
+    as ``0.5\\textwidth`` yields ``rel_width_fraction=0.5``; a bare ``\\linewidth``
+    yields ``1.0``; an absolute length yields ``abs_emu``."""
+    value = value.strip()
+
+    def frac(ref: str) -> float:
+        num = value.replace(ref, "").strip()
+        if num in ("", "+", "-"):
+            return 1.0
+        try:
+            return float(num)
+        except ValueError:
+            return 1.0
+
+    for ref in _REL_WIDTH_REFS:
+        if ref in value:
+            return (None, frac(ref), None)
+    for ref in _REL_HEIGHT_REFS:
+        if ref in value:
+            return (None, None, frac(ref))
+    return (_length_to_emu(value), None, None)
+
+
 def _parse_graphics_options(opts: str) -> dict[str, str]:
     """Parse the ``[key=val,key=val,flag]`` option list of \\includegraphics."""
     out: dict[str, str] = {}
@@ -1802,9 +1893,15 @@ def _make_image(node: LatexMacroNode) -> ir.Image:
     if opts:
         parsed = _parse_graphics_options(opts)
         if "width" in parsed:
-            image.width = _length_to_emu(parsed["width"])
+            abs_emu, rw, _ = _length_spec(parsed["width"])
+            image.width = abs_emu
+            image.rel_width = rw
         if "height" in parsed:
-            image.height = _length_to_emu(parsed["height"])
+            abs_emu, _, rh = _length_spec(parsed["height"])
+            image.height = abs_emu
+            image.rel_height = rh
+        if "keepaspectratio" in parsed:
+            image.keep_aspect = True
         if "scale" in parsed:
             try:
                 image.scale = float(parsed["scale"])
@@ -2395,6 +2492,10 @@ def parse_document(
     doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode)
 
     _fill_meta_from_preamble(doc, preamble, ctx, report)
+    # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
+    # title is present but no \date was given (an explicit \date{} stays empty).
+    if doc.meta.date is None and doc.meta.title:
+        doc.meta.date = [ir.Text(_today_text())]
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
     if doc.meta.language is None:

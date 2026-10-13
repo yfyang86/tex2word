@@ -103,10 +103,19 @@ def convert_source(
     if language is not None:
         doc.meta.language = language  # CLI/API override of the detected language
     styles_xml = reference.styles_xml if reference else load_styles_xml()
-    if doc.meta.language:
+    # Word reads w:eastAsia for the CJK proofing language. Use the document
+    # language if it's CJK; otherwise default to zh-CN when a CJK font is in use,
+    # so Chinese text isn't spell-checked as English.
+    _lang = doc.meta.language
+    _east_asia = None
+    if _lang and _lang.split("-")[0].lower() in ("zh", "ja", "ko"):
+        _east_asia = _lang
+    elif doc.meta.cjk_main_font or doc.meta.cjk_sans_font or doc.meta.cjk_mono_font:
+        _east_asia = "zh-CN"
+    if _lang or _east_asia:
         from .templates import apply_language
 
-        styles_xml = apply_language(styles_xml, doc.meta.language)
+        styles_xml = apply_language(styles_xml, _lang, east_asia=_east_asia)
     if doc.meta.main_font or doc.meta.cjk_main_font or doc.meta.cjk_sans_font \
             or doc.meta.cjk_mono_font:
         from .templates import apply_fonts

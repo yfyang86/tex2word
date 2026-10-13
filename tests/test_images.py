@@ -219,3 +219,87 @@ def test_foreign_reader_keeps_inline_image_inline(tmp_path):
     assert isinstance(block, ir.Paragraph)
     assert any(isinstance(i, ir.Image) for i in block.inlines)
     assert any(isinstance(i, ir.Text) for i in block.inlines)
+
+
+# -- #37: a figure with several \includegraphics keeps every panel ----------- #
+
+
+def test_multi_image_figure_keeps_all_panels(tmp_path):
+    _make_png(tmp_path / "a.png", 60, 80)
+    _make_png(tmp_path / "b.png", 80, 60)
+    tex = tmp_path / "main.tex"
+    tex.write_text(
+        r"\documentclass{article}\usepackage{graphicx}\begin{document}"
+        r"\begin{figure}\centering"
+        r"\includegraphics[width=5cm]{a.png}\caption{First}\label{fig:a}"
+        r"\includegraphics[width=5cm]{b.png}\caption{Second}\label{fig:b}"
+        r"\end{figure}\end{document}",
+        encoding="utf-8",
+    )
+    doc, _ = __import__("tex2word.frontend", fromlist=["parse_document"]).parse_document(
+        tex.read_text(encoding="utf-8"), base_dir=str(tmp_path)
+    )
+    figs = [b for b in doc.blocks if isinstance(b, ir.Figure)]
+    assert len(figs) == 2
+    # each panel pairs its own image+caption+label (no first/last mismatch)
+    pairs = [("".join(getattr(i, "value", "") for i in f.caption), f.label) for f in figs]
+    assert pairs == [("First", "fig:a"), ("Second", "fig:b")]
+    assert all(f.image is not None for f in figs)
+
+    res = convert_source(tex.read_text(encoding="utf-8"), base_dir=str(tmp_path))
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert d.count("<w:drawing>") == 2          # both images rendered
+    assert d.count("SEQ Figure") == 2           # two numbered captions
+    assert not any(w.construct == "figure" for w in res.report.warnings)
+
+
+def test_single_image_figure_unchanged(tmp_path):
+    # the common case still produces one figure with one caption
+    _make_png(tmp_path / "x.png", 80, 60)
+    res = convert_source(
+        r"\documentclass{article}\usepackage{graphicx}\begin{document}"
+        r"\begin{figure}\includegraphics{x.png}\caption{Only}\end{figure}\end{document}",
+        base_dir=str(tmp_path),
+    )
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert d.count("SEQ Figure") == 1 and d.count("<w:drawing>") == 1
+
+
+# -- #38: relative widths, keepaspectratio, text-column cap ------------------- #
+
+
+def _extent_cm(tmp_path, opt, w=549, h=700):
+    _make_png(tmp_path / "p.png", w, h)
+    src = (
+        r"\documentclass{article}\usepackage{graphicx}\begin{document}"
+        rf"\includegraphics[{opt}]{{p.png}}\end{{document}}"
+    )
+    d = zipfile.ZipFile(io.BytesIO(convert_source(src, base_dir=str(tmp_path)).docx))
+    x = d.read("word/document.xml").decode()
+    import re
+    m = re.search(r'<wp:extent cx="(\d+)" cy="(\d+)"', x)
+    return round(int(m.group(1)) / 914400 * 2.54, 2), round(int(m.group(2)) / 914400 * 2.54, 2)
+
+
+def test_relative_width_resolves_to_text_column(tmp_path):
+    # 0.5\textwidth -> half the default text column (6.5in = 16.51cm) ~ 8.26cm,
+    # never wider than the column (the old fallback could overflow).
+    cx, _ = _extent_cm(tmp_path, r"width=0.5\textwidth")
+    assert 8.0 < cx < 8.5
+
+
+def test_keepaspectratio_fits_box(tmp_path):
+    # without keepaspectratio, width+height distort to exactly 5x2
+    assert _extent_cm(tmp_path, "width=5cm,height=2cm") == (5.0, 2.0)
+    # with it, the image fits inside 5x2 keeping its 549:700 aspect -> 1.57x2
+    cx, cy = _extent_cm(tmp_path, "width=5cm,height=2cm,keepaspectratio")
+    assert cy == 2.0 and 1.5 < cx < 1.65
+
+
+def test_cap_is_text_column_not_six_inches(tmp_path):
+    # an explicit 16cm width is honoured on the default 16.51cm column (was
+    # clamped to the fixed 6in = 15.24cm); an absurd width clamps to the column.
+    cx16, _ = _extent_cm(tmp_path, "width=16cm")
+    assert cx16 == 16.0
+    cx20, _ = _extent_cm(tmp_path, "width=20cm")
+    assert 16.0 < cx20 < 16.7  # the real text column, not 15.24
