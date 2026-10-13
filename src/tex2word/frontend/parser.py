@@ -366,6 +366,14 @@ def _chars_of(nodes: list) -> str:
     return "".join(out).strip()
 
 
+def _today_text() -> str:
+    """``\\today`` -> the current date in LaTeX's default English format
+    (``Month D, YYYY``), engine-independent."""
+    import datetime
+    t = datetime.date.today()
+    return f"{t:%B} {t.day}, {t.year}"
+
+
 def _latex_of(nodes: list) -> str:
     """The verbatim LaTeX source of a node list (for \\ensuremath bodies)."""
     return "".join(n.latex_verbatim() for n in nodes).strip()
@@ -693,6 +701,9 @@ class _Builder:
             # \shortstack[pos]{a \\ b}: stacked lines -> the content with \\ kept
             # as line breaks (the LatexMacroNode "\\" becomes ir.LineBreak).
             out.extend(self.inlines(_group_nodes(node)))
+            return
+        if name == "today":  # \today -> the current date (LaTeX default format)
+            out.append(ir.Text(_today_text()))
             return
         if name in _TEXT_SYMBOLS:
             out.append(ir.Text(_TEXT_SYMBOLS[name]))
@@ -2395,6 +2406,10 @@ def parse_document(
     doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode)
 
     _fill_meta_from_preamble(doc, preamble, ctx, report)
+    # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
+    # title is present but no \date was given (an explicit \date{} stays empty).
+    if doc.meta.date is None and doc.meta.title:
+        doc.meta.date = [ir.Text(_today_text())]
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
     if doc.meta.language is None:

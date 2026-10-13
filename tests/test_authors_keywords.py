@@ -101,3 +101,35 @@ def test_ieeetran_author_block_content_survives():
     doc, _ = parse_document(src)
     joined = " ".join(_text(a) for a in doc.meta.authors)
     assert "Grace Hopper" in joined and "US Navy" in joined
+
+
+def test_today_expands_in_date_block():
+    # \date{\today} must expand to the current date, not emit literal "\today"
+    import datetime
+    t = datetime.date.today()
+    exp = f"{t:%B} {t.day}, {t.year}"
+    doc, _ = parse_document(
+        r"\documentclass{article}\title{T}\date{\today}\begin{document}\maketitle\end{document}"
+    )
+    assert doc.meta.date is not None
+    text = "".join(getattr(i, "value", "") for i in doc.meta.date)
+    assert text == exp
+    assert "\\today" not in text
+
+
+def test_omitted_date_defaults_to_today_when_title_present():
+    import datetime
+    t = datetime.date.today()
+    exp = f"{t:%B} {t.day}, {t.year}"
+    doc, _ = parse_document(
+        r"\documentclass{article}\title{T}\begin{document}\maketitle\end{document}"
+    )
+    assert doc.meta.date and "".join(getattr(i, "value", "") for i in doc.meta.date) == exp
+
+
+def test_empty_date_stays_empty():
+    # an explicit \date{} suppresses the date; today must not be injected
+    doc, _ = parse_document(
+        r"\documentclass{article}\title{T}\date{}\begin{document}\maketitle\end{document}"
+    )
+    assert not doc.meta.date  # None or empty, never today
