@@ -12,16 +12,25 @@ def load_styles_xml() -> bytes:
     return resources.files(__package__).joinpath("styles.xml").read_bytes()
 
 
-def apply_language(styles_xml: bytes, lang: str) -> bytes:
-    """Set the document default language (``w:lang``) in the styles docDefaults.
+def apply_language(styles_xml: bytes, lang: str | None, east_asia: str | None = None) -> bytes:
+    """Set the document default language in the styles docDefaults ``w:lang``.
 
-    Word uses this for spell-check and accessibility (document language). Returns
-    the styles bytes unchanged if the structure isn't found."""
+    Word reads ``w:val`` for the Latin proofing language and ``w:eastAsia`` for
+    the **CJK** proofing language; without the latter, Chinese/Japanese/Korean
+    text is spell-checked with whatever the template defaults to (often
+    ``en-US``), so every phrase gets a red squiggle. ``east_asia`` sets the CJK
+    half; when a CJK ``lang`` (``zh``/``ja``/``ko``) is given it is used for both
+    halves unless ``east_asia`` overrides it. Returns the bytes unchanged if the
+    structure isn't found."""
     from lxml import etree
 
     def w(name: str) -> str:
         return f"{{{_W}}}{name}"
 
+    if lang and east_asia is None and lang.split("-")[0].lower() in ("zh", "ja", "ko"):
+        east_asia = lang
+    if not lang and not east_asia:
+        return styles_xml
     try:
         root = etree.fromstring(styles_xml)
     except Exception:
@@ -32,7 +41,10 @@ def apply_language(styles_xml: bytes, lang: str) -> bytes:
     lang_el = rpr.find(w("lang"))
     if lang_el is None:
         lang_el = etree.SubElement(rpr, w("lang"))  # last child (lang is late in CT_RPr)
-    lang_el.set(w("val"), lang)
+    if lang:
+        lang_el.set(w("val"), lang)
+    if east_asia:
+        lang_el.set(w("eastAsia"), east_asia)
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
 
 
