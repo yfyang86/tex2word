@@ -1815,6 +1815,37 @@ def _length_to_emu(value: str) -> float | None:
     return num * _UNIT_EMU[unit]
 
 
+# Lengths expressed relative to the running document's text box. The parser has
+# no LaTeX run, so these resolve against the output page geometry in the backend.
+_REL_WIDTH_REFS = ("\\textwidth", "\\linewidth", "\\columnwidth", "\\hsize")
+_REL_HEIGHT_REFS = ("\\textheight", "\\paperheight", "\\vsize")
+
+
+def _length_spec(value: str) -> tuple[float | None, float | None, float | None]:
+    """Parse an ``\\includegraphics`` width/height value into
+    ``(abs_emu, rel_width_fraction, rel_height_fraction)``. A relative length such
+    as ``0.5\\textwidth`` yields ``rel_width_fraction=0.5``; a bare ``\\linewidth``
+    yields ``1.0``; an absolute length yields ``abs_emu``."""
+    value = value.strip()
+
+    def frac(ref: str) -> float:
+        num = value.replace(ref, "").strip()
+        if num in ("", "+", "-"):
+            return 1.0
+        try:
+            return float(num)
+        except ValueError:
+            return 1.0
+
+    for ref in _REL_WIDTH_REFS:
+        if ref in value:
+            return (None, frac(ref), None)
+    for ref in _REL_HEIGHT_REFS:
+        if ref in value:
+            return (None, None, frac(ref))
+    return (_length_to_emu(value), None, None)
+
+
 def _parse_graphics_options(opts: str) -> dict[str, str]:
     """Parse the ``[key=val,key=val,flag]`` option list of \\includegraphics."""
     out: dict[str, str] = {}
@@ -1849,9 +1880,15 @@ def _make_image(node: LatexMacroNode) -> ir.Image:
     if opts:
         parsed = _parse_graphics_options(opts)
         if "width" in parsed:
-            image.width = _length_to_emu(parsed["width"])
+            abs_emu, rw, _ = _length_spec(parsed["width"])
+            image.width = abs_emu
+            image.rel_width = rw
         if "height" in parsed:
-            image.height = _length_to_emu(parsed["height"])
+            abs_emu, _, rh = _length_spec(parsed["height"])
+            image.height = abs_emu
+            image.rel_height = rh
+        if "keepaspectratio" in parsed:
+            image.keep_aspect = True
         if "scale" in parsed:
             try:
                 image.scale = float(parsed["scale"])
