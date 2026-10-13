@@ -219,3 +219,47 @@ def test_foreign_reader_keeps_inline_image_inline(tmp_path):
     assert isinstance(block, ir.Paragraph)
     assert any(isinstance(i, ir.Image) for i in block.inlines)
     assert any(isinstance(i, ir.Text) for i in block.inlines)
+
+
+# -- #37: a figure with several \includegraphics keeps every panel ----------- #
+
+
+def test_multi_image_figure_keeps_all_panels(tmp_path):
+    _make_png(tmp_path / "a.png", 60, 80)
+    _make_png(tmp_path / "b.png", 80, 60)
+    tex = tmp_path / "main.tex"
+    tex.write_text(
+        r"\documentclass{article}\usepackage{graphicx}\begin{document}"
+        r"\begin{figure}\centering"
+        r"\includegraphics[width=5cm]{a.png}\caption{First}\label{fig:a}"
+        r"\includegraphics[width=5cm]{b.png}\caption{Second}\label{fig:b}"
+        r"\end{figure}\end{document}",
+        encoding="utf-8",
+    )
+    doc, _ = __import__("tex2word.frontend", fromlist=["parse_document"]).parse_document(
+        tex.read_text(encoding="utf-8"), base_dir=str(tmp_path)
+    )
+    figs = [b for b in doc.blocks if isinstance(b, ir.Figure)]
+    assert len(figs) == 2
+    # each panel pairs its own image+caption+label (no first/last mismatch)
+    pairs = [("".join(getattr(i, "value", "") for i in f.caption), f.label) for f in figs]
+    assert pairs == [("First", "fig:a"), ("Second", "fig:b")]
+    assert all(f.image is not None for f in figs)
+
+    res = convert_source(tex.read_text(encoding="utf-8"), base_dir=str(tmp_path))
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert d.count("<w:drawing>") == 2          # both images rendered
+    assert d.count("SEQ Figure") == 2           # two numbered captions
+    assert not any(w.construct == "figure" for w in res.report.warnings)
+
+
+def test_single_image_figure_unchanged(tmp_path):
+    # the common case still produces one figure with one caption
+    _make_png(tmp_path / "x.png", 80, 60)
+    res = convert_source(
+        r"\documentclass{article}\usepackage{graphicx}\begin{document}"
+        r"\begin{figure}\includegraphics{x.png}\caption{Only}\end{figure}\end{document}",
+        base_dir=str(tmp_path),
+    )
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert d.count("SEQ Figure") == 1 and d.count("<w:drawing>") == 1

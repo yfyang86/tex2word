@@ -1067,7 +1067,7 @@ class _Builder:
             ))
             return
         if base in ("figure", "wrapfigure"):
-            out.append(self._figure(node, spanning=starred))
+            self._figure(node, out, spanning=starred)
             return
         if base in ("table", "wraptable"):
             self._table_float(node, out, spanning=starred)
@@ -1262,35 +1262,71 @@ class _Builder:
                 return _clean_inlines(self.inlines(arg.nodelist), trim=True)
         return None
 
-    def _figure(self, node: LatexEnvironmentNode, spanning: bool = False) -> ir.Figure:
+    def _figure(self, node: LatexEnvironmentNode, out: list, spanning: bool = False) -> None:
         fig = ir.Figure(image=None, source=node.latex_verbatim(), spanning=spanning)
-        self._collect_figure_parts(node.nodelist, fig, top=True)
-        if fig.image is None and not fig.subfigures:
-            self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
-        self._labelable = fig
-        return fig
+        # panels: one entry per top-level \includegraphics (plus a possible
+        # leading caption-only entry), each [image, caption, label, numbered].
+        panels: list[list] = []
+        self._collect_figure_parts(node.nodelist, fig, top=True, panels=panels)
+        img_panels = [p for p in panels if p[0] is not None]
+        if fig.subfigures or len(img_panels) <= 1:
+            if fig.image is None and not fig.subfigures:
+                self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
+            self._labelable = fig
+            out.append(fig)
+            return
+        # Several \includegraphics in one figure: LaTeX steps the figure counter
+        # at each \caption, so emit one numbered figure per image+caption panel
+        # (each with its own \label) instead of silently keeping only the last.
+        for image, caption, label, numbered in panels:
+            if image is None and caption is None:
+                continue
+            out.append(ir.Figure(
+                image=image, source="", spanning=spanning,
+                caption=caption, label=label, caption_numbered=numbered,
+            ))
+        self._labelable = None  # a trailing \label would be ambiguous across panels
 
-    def _collect_figure_parts(self, nodes: list, fig: ir.Figure, top: bool) -> None:
+    def _collect_figure_parts(
+        self, nodes: list, fig: ir.Figure, top: bool, panels: list | None = None
+    ) -> None:
         """Walk a figure body, pulling out the parent image/caption/label and
-        any ``subfigure`` environments / ``\\subfloat`` commands."""
+        any ``subfigure`` environments / ``\\subfloat`` commands. Top-level
+        ``\\includegraphics``/``\\caption``/``\\label`` are also recorded, in order,
+        into ``panels`` so a multi-image figure keeps every panel."""
         for child in nodes:
             if isinstance(child, LatexEnvironmentNode):
                 if child.environmentname.rstrip("*") == "subfigure":
                     fig.subfigures.append(self._subfigure_from_env(child))
                 else:
-                    self._collect_figure_parts(child.nodelist, fig, top=False)
+                    self._collect_figure_parts(child.nodelist, fig, top=False, panels=panels)
             elif isinstance(child, LatexGroupNode):
-                self._collect_figure_parts(child.nodelist, fig, top=False)
+                self._collect_figure_parts(child.nodelist, fig, top=False, panels=panels)
             elif isinstance(child, LatexMacroNode):
                 if child.macroname in ("subfloat", "subfigure"):
                     fig.subfigures.append(self._subfigure_from_macro(child))
                 elif child.macroname == "includegraphics":
-                    fig.image = _make_image(child)
+                    img = _make_image(child)
+                    fig.image = img
+                    if panels is not None:
+                        panels.append([img, None, None, True])
                 elif child.macroname == "caption":
-                    fig.caption = self.inlines(_group_nodes(child))
-                    fig.caption_numbered = not _has_star(child)
-                elif child.macroname == "label" and fig.label is None:
-                    fig.label = _chars_of(_group_nodes(child))
+                    cap = self.inlines(_group_nodes(child))
+                    numbered = not _has_star(child)
+                    fig.caption = cap
+                    fig.caption_numbered = numbered
+                    if panels is not None:
+                        if panels and panels[-1][1] is None:
+                            panels[-1][1] = cap
+                            panels[-1][3] = numbered
+                        else:
+                            panels.append([None, cap, None, numbered])
+                elif child.macroname == "label":
+                    lab = _chars_of(_group_nodes(child))
+                    if fig.label is None:
+                        fig.label = lab
+                    if panels is not None and panels:
+                        panels[-1][2] = lab
 
     def _subfigure_from_env(self, node: LatexEnvironmentNode) -> ir.SubFigure:
         sub = ir.SubFigure(image=None)
