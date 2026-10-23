@@ -353,3 +353,45 @@ def test_tikz_figure_stays_on_compile_path():
     )
     fig = next(b for b in convert_source(src).document.blocks if isinstance(b, ir.Figure))
     assert fig.blocks == [] and "tikzpicture" in fig.source
+
+
+# -- \captionof non-floating figures + preamble teaser figures ---------------- #
+
+
+def test_captionof_in_center_is_a_numbered_figure(tmp_path):
+    _make_png(tmp_path / "t.png", 60, 40)
+    src = (
+        r"\documentclass{article}\usepackage{graphicx,caption}\begin{document}"
+        r"\begin{center}\includegraphics[width=3cm]{t.png}"
+        r"\captionof{figure}{A non-floating figure}\label{fig:nf}\end{center}"
+        r"See \ref{fig:nf}.\end{document}"
+    )
+    res = convert_source(src, base_dir=str(tmp_path))
+    fig = next(b for b in res.document.blocks if isinstance(b, ir.Figure))
+    assert fig.image is not None and fig.label == "fig:nf"
+    assert "".join(getattr(i, "value", "") for i in fig.caption) == "A non-floating figure"
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "SEQ Figure" in d and "\\captionof" not in d
+    assert not any("captionof" in w.construct for w in res.report.warnings)
+
+
+def test_preamble_pretitlefigure_is_recovered_first(tmp_path):
+    _make_png(tmp_path / "teaser.png", 80, 40)
+    src = (
+        r"\documentclass{thuc3i}\usepackage{graphicx}\title{T}"
+        r"\pretitlefigure{\begin{center}\includegraphics{teaser.png}"
+        r"\captionof{figure}{Teaser}\label{fig:teaser}\end{center}\vskip4pt}"
+        r"\begin{document}\maketitle"
+        r"\begin{figure}\includegraphics{teaser.png}\caption{Second}\end{figure}"
+        r"\end{document}"
+    )
+    res = convert_source(src, base_dir=str(tmp_path))
+    figs = [b for b in res.document.blocks if isinstance(b, ir.Figure)]
+    assert [f.label for f in figs][:1] == ["fig:teaser"]  # leads the body
+    caps = ["".join(getattr(i, "value", "") for i in f.caption) for f in figs]
+    assert caps == ["Teaser", "Second"]
+
+
+def test_setheadertext_sets_running_head():
+    src = r"\setheadertext{Short Title}\title{Long Title}\begin{document}x\end{document}"
+    assert convert_source(src).document.meta.running_head == "Short Title"

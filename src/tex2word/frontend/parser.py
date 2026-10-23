@@ -418,6 +418,21 @@ def _is_minipage(node: object) -> bool:
     return isinstance(node, LatexEnvironmentNode) and node.environmentname == "minipage"
 
 
+def _has_captionof(nodes: list, kind: str) -> bool:
+    """True if ``nodes`` (one level, plus groups) hold ``\\captionof{kind}``."""
+    for n in nodes:
+        if isinstance(n, LatexMacroNode) and n.macroname == "captionof":
+            groups = [
+                a for a in (n.nodeargd.argnlist if n.nodeargd else [])
+                if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "{"
+            ]
+            if groups and _chars_of(groups[0].nodelist).strip() == kind:
+                return True
+        elif isinstance(n, LatexGroupNode) and _has_captionof(n.nodelist, kind):
+            return True
+    return False
+
+
 #: horizontal glue that can sit between side-by-side minipages without breaking
 #: the row (they don't produce content of their own).
 _LAYOUT_GLUE_MACROS = {
@@ -1181,6 +1196,13 @@ class _Builder:
         if base == "abstract":
             self.meta.abstract = self.blocks(node.nodelist)
             return
+        if base in ("center", "flushleft", "flushright", "minipage") and _has_captionof(
+            node.nodelist, "figure"
+        ):
+            # a non-floating figure: \includegraphics + \captionof{figure}{…}
+            # inside a center/minipage is numbered and captioned like a figure.
+            self._figure(node, out)
+            return
         if base in ("center", "flushleft", "flushright"):
             align = {"center": "center", "flushleft": "left", "flushright": "right"}[base]
             for blk in self.blocks(node.nodelist):
@@ -1529,7 +1551,7 @@ class _Builder:
                     fig.image = img
                     if panels is not None:
                         panels.append([img, None, None, True])
-                elif child.macroname == "caption":
+                elif child.macroname in ("caption", "captionof"):
                     cap = self.inlines(_group_nodes(child))
                     numbered = not _has_star(child)
                     fig.caption = cap
@@ -2415,6 +2437,8 @@ def _build_context(
             MacroSpec("chapter", "*[{"),
             MacroSpec("part", "*[{"),
             MacroSpec("caption", "*[{"),
+            # \captionof*{type}[short]{long} (caption / capt-of packages)
+            MacroSpec("captionof", "*{[{"),
             # layout / front-matter commands: consume their args so they don't
             # leak as text (e.g. full-page cover \AddToShipoutPicture{\put...}).
             MacroSpec("AddToShipoutPicture", "*{"),
@@ -2641,12 +2665,34 @@ def _split_document(source: str) -> tuple[str, str]:
     return body, preamble
 
 
+#: preamble commands some classes use to place a captioned teaser figure on the
+#: title page (thuc3i's \pretitlefigure, a few arXiv templates' \teaserfigure).
+_TEASER_MACROS = ("pretitlefigure", "teaserfigure", "titlefigure")
+
+
+def _preamble_teaser_blocks(preamble: str, ctx, builder: _Builder) -> list[ir.Block]:
+    """Parse a preamble teaser-figure command's body into blocks (best effort)."""
+    out: list[ir.Block] = []
+    for macro in _TEASER_MACROS:
+        content = _braced_content(preamble, macro)
+        if not content:
+            continue
+        try:
+            nodes, _, _ = LatexWalker(content, latex_context=ctx, tolerant_parsing=True
+                                      ).get_latex_nodes()
+        except Exception:  # never let a class-specific teaser abort the conversion
+            continue
+        out.extend(b for b in builder.blocks(nodes) if not _is_blank_paragraph(b))
+    return out
+
+
 def _running_head_from_preamble(preamble: str) -> str | None:
     """Recover a running head declared in the preamble (best effort, plain text)."""
     m = re.search(r"\\title\s*\[([^\]]*)\]", preamble)  # \title[short]{long}
     if m:
         return _normalize_ws(m.group(1)).strip() or None
-    for macro in ("runninghead", "shorttitle", "markright"):
+    for macro in ("runninghead", "shorttitle", "markright", "setheadertext",
+                  "titlerunning", "runningtitle"):
         content = _braced_content(preamble, macro)
         if content:
             return _normalize_ws(content).strip() or None
@@ -2829,7 +2875,10 @@ def parse_document(
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)
     _collect_glossary_entries(expanded, builder.glossary)  # \newglossaryentry terms
-    blocks = builder.blocks(nodes)
+    # A class-level teaser figure declared in the preamble (\pretitlefigure{…}):
+    # it is page-1 content, so parse it first and lead the body with it.
+    teaser = _preamble_teaser_blocks(preamble, ctx, builder)
+    blocks = teaser + builder.blocks(nodes)
     doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode)
 
     _fill_meta_from_preamble(doc, preamble, ctx, report)
