@@ -325,3 +325,28 @@ def test_mathop_renders_content_transparently():
 
 def test_restriction_symbol_present():
     assert "↾" in xml(omml.render_inline(r"T{\restriction} U"))
+
+
+# -- base-less script markers ($^{*1}$, $^\dagger$) are text, not math -------- #
+
+
+def test_affiliation_markers_become_superscript_text():
+    from tex2word import ir
+    from tex2word.frontend import parse_document
+
+    doc, _ = parse_document(
+        r"\begin{document}Ann$^{*1}$, Bo$^{\dagger}$, 1$^{st}$, 5$^\circ$C\end{document}"
+    )
+    inl = doc.blocks[0].inlines
+    sups = [n for n in inl if isinstance(n, ir.Emphasis) and n.kind_ == "superscript"]
+    assert ["".join(t.value for t in s.inlines) for s in sups] == ["*1", "†", "st"]
+    assert not any(isinstance(n, ir.Math) for n in inl)       # no empty-base OMML
+    assert any(isinstance(n, ir.Text) and "°" in n.value for n in inl)  # degree
+
+
+def test_real_scripts_stay_math():
+    from tex2word import ir
+    from tex2word.frontend import parse_document
+
+    doc, _ = parse_document(r"\begin{document}$x^2$ and $^{\frac{1}{2}}$\end{document}")
+    assert sum(isinstance(n, ir.Math) for n in doc.blocks[0].inlines) == 2

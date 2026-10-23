@@ -158,7 +158,8 @@ _TEXT_SYMBOLS = {
     "degree": "°", "celsius": "℃", "ohm": "Ω", "micro": "µ", "perthousand": "‰",
     "&": "&", "_": "_", "#": "#", "$": "$", "{": "{", "}": "}",
     " ": " ", ",": " ", ";": " ", ":": " ", "!": "", "@": "",
-    "quad": " ", "qquad": "  ", "hfill": " ", "newline": "\n",
+    # \quad = 1em, \qquad = 2em: em spaces, so "A \quad B" stays visibly apart
+    "quad": " ", "qquad": "  ", "hfill": " ", "newline": "\n",
     # \xspace re-inserts the space pylatexenc gobbles after a control word,
     # so adjacent words don't fuse ("Cache\\xspace Practical").
     "xspace": " ",
@@ -418,6 +419,83 @@ def _is_minipage(node: object) -> bool:
     return isinstance(node, LatexEnvironmentNode) and node.environmentname == "minipage"
 
 
+#: math symbols that commonly serve as affiliation / footnote markers.
+_MARKER_SYMBOLS = {
+    "dagger": "†", "ddagger": "‡", "dag": "†", "ddag": "‡", "ast": "∗", "star": "⋆",
+    "S": "§", "P": "¶", "natural": "♮", "sharp": "♯", "flat": "♭", "prime": "′",
+    "bullet": "•", "diamond": "⋄", "triangle": "△", "clubsuit": "♣",
+    "spadesuit": "♠", "heartsuit": "♡", "diamondsuit": "♢", "sim": "∼",
+    "#": "#", "&": "&", "%": "%", ",": "", ";": "", "!": "",
+}
+#: font wrappers whose argument is just text (``^{\mathrm{th}}`` -> "th").
+_MARKER_WRAPPERS = {"mathrm", "text", "textrm", "mathit", "mathbf", "textbf", "mathsf",
+                    "textit", "textup", "mathnormal"}
+_MARKER_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*,.;:+-()'/=|!? "
+)
+
+
+def _marker_text(body: str) -> str | None:
+    """Plain text for a script body made only of marker characters/symbols, or
+    None if it holds real math structure (fractions, nested scripts, …)."""
+    out: list[str] = []
+    i, n = 0, len(body)
+    while i < n:
+        c = body[i]
+        if c == "\\":
+            m = re.match(r"\\([A-Za-z]+|.)", body[i:])
+            name = m.group(1) if m else ""
+            i += m.end() if m else 1
+            if name in _MARKER_SYMBOLS:
+                out.append(_MARKER_SYMBOLS[name])
+            elif name in _MARKER_WRAPPERS:
+                while i < n and body[i] == " ":
+                    i += 1
+                if i < n and body[i] == "{":
+                    inner, end = _braced_group(body, i)
+                    sub = _marker_text(inner)
+                    if sub is None:
+                        return None
+                    out.append(sub)
+                    i = end + 1
+            else:
+                return None
+        elif c in "{}":
+            i += 1
+        elif c in _MARKER_CHARS:
+            out.append("−" if c == "-" else c)
+            i += 1
+        else:
+            return None
+    text = "".join(out).strip()
+    return text or None
+
+
+def _script_marker(latex: str) -> tuple[str, str] | None:
+    """``^{*1}`` -> ("superscript", "*1"); ``_{a}`` -> ("subscript", "a");
+    ``^\\circ`` -> ("plain", "°"). None unless the math is *only* a base-less
+    script whose content is marker text."""
+    s = latex.strip()
+    if len(s) < 2 or s[0] not in "^_":
+        return None
+    kind = "superscript" if s[0] == "^" else "subscript"
+    rest = s[1:].lstrip()
+    if rest.startswith("{"):
+        body, end = _braced_group(rest, 0)
+        tail = rest[end + 1:]
+    else:
+        m = re.match(r"\\[A-Za-z]+|\\.|.", rest)
+        if m is None:
+            return None
+        body, tail = m.group(0), rest[m.end():]
+    if tail.strip():  # more after the script (^a_b, ^1 x): leave it as math
+        return None
+    if kind == "superscript" and body.strip() in ("\\circ", "{\\circ}"):
+        return ("plain", "°")  # $^\circ$ is a degree sign, already raised
+    text = _marker_text(body)
+    return (kind, text) if text is not None else None
+
+
 def _has_captionof(nodes: list, kind: str) -> bool:
     """True if ``nodes`` (one level, plus groups) hold ``\\captionof{kind}``."""
     for n in nodes:
@@ -559,6 +637,19 @@ class _Builder:
             return
         if isinstance(node, LatexMathNode):
             latex = _strip_math_delims(node.latex_verbatim(), "math")
+            marker = _script_marker(latex) if node.displaytype == "inline" else None
+            if marker is not None:
+                # $^{*1}$ / $^\dagger$ / 1$^{st}$: a base-less script is a text
+                # marker, not math -- an empty-base OMML superscript is dropped by
+                # LibreOffice and other importers, a superscript run is not.
+                kind, text = marker
+                if kind == "plain":
+                    out.append(ir.Text(text))
+                elif kind == "subscript":
+                    out.append(ir.Emphasis([ir.Text(text)], "subscript"))
+                else:
+                    out.append(ir.Emphasis([ir.Text(text)], "superscript"))
+                return
             out.append(ir.Math(latex))
             return
         if isinstance(node, LatexGroupNode):
