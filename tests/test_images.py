@@ -303,3 +303,53 @@ def test_cap_is_text_column_not_six_inches(tmp_path):
     assert cx16 == 16.0
     cx20, _ = _extent_cm(tmp_path, "width=20cm")
     assert 16.0 < cx20 < 16.7  # the real text column, not 15.24
+
+
+# -- graphic-less figures render their body (boxes / minipages / text) -------- #
+
+
+def test_graphicless_figure_keeps_its_body():
+    # a figure holding only text/boxes (no \includegraphics, no TikZ) used to
+    # drop everything but the caption; the body now renders above the caption.
+    src = (
+        r"\documentclass{article}\begin{document}\begin{figure}\centering"
+        r"\fbox{Inside the figure}\caption{Cap}\label{fig:x}\end{figure}\end{document}"
+    )
+    res = convert_source(src)
+    fig = next(b for b in res.document.blocks if isinstance(b, ir.Figure))
+    assert fig.image is None and fig.blocks and fig.label == "fig:x"
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "Inside the figure" in d
+    assert "\\caption" not in d  # the caption is the figure's, not leaked body text
+    assert d.count("SEQ Figure") == 1
+    assert not any(w.construct == "figure" for w in res.report.warnings)
+
+
+def test_side_by_side_minipages_become_a_layout_row():
+    src = (
+        r"\documentclass{article}\begin{document}\begin{figure}"
+        r"\begin{minipage}[t]{0.48\textwidth}Left panel\end{minipage}\hfill"
+        r"\begin{minipage}[t]{0.48\textwidth}Right panel\end{minipage}"
+        r"\caption{Two panels}\end{figure}\end{document}"
+    )
+    res = convert_source(src)
+    fig = next(b for b in res.document.blocks if isinstance(b, ir.Figure))
+    rows = [b for b in fig.blocks if isinstance(b, ir.Table)]
+    assert len(rows) == 1 and rows[0].layout
+    assert len(rows[0].rows[0].cells) == 2
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "Left panel" in d and "Right panel" in d
+    # borderless layout grid, not a ruled data table
+    tbl = d[d.find("<w:tbl>"):d.find("</w:tbl>")]
+    assert 'w:val="nil"' in tbl and 'w:val="single"' not in tbl.split("<w:tr")[0]
+
+
+def test_tikz_figure_stays_on_compile_path():
+    # a drawing figure must not be parsed as text (it compiles to an image)
+    src = (
+        r"\documentclass{article}\usepackage{tikz}\begin{document}\begin{figure}"
+        r"\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}\caption{T}"
+        r"\end{figure}\end{document}"
+    )
+    fig = next(b for b in convert_source(src).document.blocks if isinstance(b, ir.Figure))
+    assert fig.blocks == [] and "tikzpicture" in fig.source

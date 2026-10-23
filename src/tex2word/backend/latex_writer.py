@@ -293,6 +293,8 @@ class LatexWriter:
             if sub.label:
                 lines.append(f"\\label{{{sub.label}}}")
             lines.append("\\end{subfigure}")
+        if block.image is None and block.blocks:
+            lines.append(self._blocks(block.blocks).rstrip("\n"))
         if block.caption:
             star = "" if block.caption_numbered else "*"
             lines.append(f"\\caption{star}{{{self._inlines(block.caption)}}}")

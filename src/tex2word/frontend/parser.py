@@ -374,6 +374,45 @@ def _today_text() -> str:
     return f"{t:%B} {t.day}, {t.year}"
 
 
+def _has_opaque_env(source: str) -> bool:
+    """True if a figure source holds a drawing environment (TikZ & co.), which
+    stays on the compile-to-image path rather than being parsed as text."""
+    return any(f"\\begin{{{env}}}" in source for env in _OPAQUE_ENVS)
+
+
+def _is_blank_paragraph(block: ir.Block) -> bool:
+    """A paragraph with no visible content (only whitespace / line breaks)."""
+    if not isinstance(block, ir.Paragraph):
+        return False
+    for node in block.inlines:
+        if isinstance(node, ir.LineBreak):
+            continue
+        if isinstance(node, ir.Text) and not node.value.strip():
+            continue
+        return False
+    return True
+
+
+def _is_minipage(node: object) -> bool:
+    return isinstance(node, LatexEnvironmentNode) and node.environmentname == "minipage"
+
+
+#: horizontal glue that can sit between side-by-side minipages without breaking
+#: the row (they don't produce content of their own).
+_LAYOUT_GLUE_MACROS = {
+    "hfill", "hspace", "hskip", "quad", "qquad", "enspace", "thinspace", "centering",
+    "noindent", "hss", "hfil", ",", " ", "~",
+}
+
+
+def _is_layout_glue(node: object) -> bool:
+    if isinstance(node, LatexCharsNode):
+        return not node.chars.strip()
+    if isinstance(node, LatexCommentNode):
+        return True
+    return isinstance(node, LatexMacroNode) and node.macroname in _LAYOUT_GLUE_MACROS
+
+
 def _latex_of(nodes: list) -> str:
     """The verbatim LaTeX source of a node list (for \\ensuremath bodies)."""
     return "".join(n.latex_verbatim() for n in nodes).strip()
@@ -410,6 +449,9 @@ class _Builder:
         self.theorem_counters: dict[str, str] = {}
         # user \newtcolorbox / \newmdenv callout environments -> Quote blocks
         self.box_envs: set[str] = set()
+        #: True while parsing a graphic-less figure body (its \caption is the
+        #: figure's, already collected -> suppress it there).
+        self._in_figure_body = False
         #: env name -> (backgroundcolor, linecolor) names for coloured callouts
         self.box_styles: dict[str, tuple[str | None, str | None]] = {}
 
@@ -561,6 +603,8 @@ class _Builder:
             if self._labelable is not None and label:
                 self._labelable.label = label
             return
+        if self._in_figure_body and name in ("caption", "captionof"):
+            return  # the enclosing figure's caption, collected separately
         if name in ("href", "url"):
             self._inline_link(node, out)
             return
@@ -1283,7 +1327,12 @@ class _Builder:
         self._collect_figure_parts(node.nodelist, fig, top=True, panels=panels)
         img_panels = [p for p in panels if p[0] is not None]
         if fig.subfigures or len(img_panels) <= 1:
-            if fig.image is None and not fig.subfigures:
+            if fig.image is None and not fig.subfigures and not _has_opaque_env(fig.source):
+                # No graphic and no drawing env: the figure *is* its body
+                # (tcolorboxes, minipage text, a tabular, a listing, …). Render
+                # that content above the caption instead of dropping it.
+                fig.blocks = self._figure_body_blocks(node.nodelist)
+            if fig.image is None and not fig.subfigures and not fig.blocks:
                 self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
             self._labelable = fig
             out.append(fig)
@@ -1299,6 +1348,49 @@ class _Builder:
                 caption=caption, label=label, caption_numbered=numbered,
             ))
         self._labelable = None  # a trailing \label would be ambiguous across panels
+
+    def _figure_body_blocks(self, nodes: list) -> list[ir.Block]:
+        """Parse a graphic-less figure body into blocks. The caption/label were
+        already collected, so ``\\caption`` is suppressed and the label target is
+        detached (a body ``\\label`` must not re-attach to an earlier block);
+        layout-only paragraphs (``\\\\[4pt]``, ``\\hfill``) are dropped."""
+        prev_flag, prev_target = self._in_figure_body, self._labelable
+        self._in_figure_body, self._labelable = True, None
+        try:
+            blocks: list[ir.Block] = []
+            segment: list = []
+            i, n = 0, len(nodes)
+            while i < n:
+                if _is_minipage(nodes[i]):
+                    # a run of sibling minipages (joined only by \hfill & co.)
+                    # sits side by side in LaTeX -> one borderless layout row.
+                    run, k, last = [nodes[i]], i + 1, i
+                    while k < n and (_is_minipage(nodes[k]) or _is_layout_glue(nodes[k])):
+                        if _is_minipage(nodes[k]):
+                            run.append(nodes[k])
+                            last = k
+                        k += 1
+                    if len(run) >= 2:
+                        blocks.extend(self.blocks(segment))
+                        segment = []
+                        blocks.append(self._minipage_row(run))
+                        i = last + 1
+                        continue
+                segment.append(nodes[i])
+                i += 1
+            blocks.extend(self.blocks(segment))
+        finally:
+            self._in_figure_body, self._labelable = prev_flag, prev_target
+        return [b for b in blocks if not _is_blank_paragraph(b)]
+
+    def _minipage_row(self, minipages: list) -> ir.Table:
+        """Side-by-side minipages -> a one-row borderless layout table, one cell
+        per minipage holding its parsed body."""
+        cells = [
+            ir.TableCell(blocks=[b for b in self.blocks(mp.nodelist) if not _is_blank_paragraph(b)])
+            for mp in minipages
+        ]
+        return ir.Table(rows=[ir.TableRow(cells)], colspec=["left"] * len(cells), layout=True)
 
     def _collect_figure_parts(
         self, nodes: list, fig: ir.Figure, top: bool, panels: list | None = None

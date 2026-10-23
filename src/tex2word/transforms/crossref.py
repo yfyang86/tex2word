@@ -120,6 +120,8 @@ def _collect(blocks: list[ir.Block], labels: dict[str, ir.LabelInfo]) -> None:
         # recurse into nested block containers
         if isinstance(block, ir.Quote | ir.Theorem):
             _collect(block.blocks, labels)
+        elif isinstance(block, ir.Figure) and block.blocks:
+            _collect(block.blocks, labels)
         elif isinstance(block, ir.ItemList):
             for item in block.items:
                 if item.label:
@@ -171,8 +173,11 @@ def _rewrite_refs_blocks(blocks: list[ir.Block], labels, report) -> None:
                 _rewrite_refs_blocks(item.blocks, labels, report)
         elif isinstance(block, ir.Table) and block.caption:
             _rewrite_refs_inlines(block.caption, labels, report)
-        elif isinstance(block, ir.Figure) and block.caption:
-            _rewrite_refs_inlines(block.caption, labels, report)
+        elif isinstance(block, ir.Figure):
+            if block.caption:
+                _rewrite_refs_inlines(block.caption, labels, report)
+            if block.blocks:
+                _rewrite_refs_blocks(block.blocks, labels, report)
 
 
 def resolve_crossrefs(doc: ir.Document, report: ConversionReport) -> ir.Document:

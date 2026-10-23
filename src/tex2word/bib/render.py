@@ -243,6 +243,8 @@ def _walk_cites(blocks: list[ir.Block], out: list[ir.Cite]) -> None:
             inl(block.inlines)
         elif isinstance(block, ir.Quote):
             _walk_cites(block.blocks, out)
+        elif isinstance(block, ir.Figure) and block.blocks:
+            _walk_cites(block.blocks, out)
         elif isinstance(block, ir.ItemList):
             for item in block.items:
                 _walk_cites(item.blocks, out)
