@@ -133,3 +133,15 @@ def test_empty_date_stays_empty():
         r"\documentclass{article}\title{T}\date{}\begin{document}\maketitle\end{document}"
     )
     assert not doc.meta.date  # None or empty, never today
+
+
+def test_redefined_today_is_used_for_the_default_date():
+    # \renewcommand{\today}{...} must win over the real date, both for an
+    # omitted \date (the \maketitle default) and for \date{\today}.
+    for src in (
+        r"\renewcommand{\today}{2026-09-04}\title{T}\begin{document}\maketitle\end{document}",
+        r"\renewcommand{\today}{2026-09-04}\title{T}\date{\today}"
+        r"\begin{document}\maketitle\end{document}",
+    ):
+        doc, _ = parse_document(src)
+        assert "".join(getattr(i, "value", "") for i in doc.meta.date) == "2026-09-04"

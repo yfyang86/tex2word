@@ -379,6 +379,22 @@ def _today_text() -> str:
     return f"{t:%B} {t.day}, {t.year}"
 
 
+def _default_date(source: str, builder: _Builder) -> list[ir.Inline]:
+    """The date \\maketitle shows when no \\date is given: the document's own
+    ``\\today`` if it redefines it (``\\renewcommand{\\today}{2026-09-04}``),
+    else the current date."""
+    from .macros import collect_macros, expand
+
+    macros, _ = collect_macros(source)
+    if "today" in macros:
+        text = expand("\\today", macros).strip()
+        if text and "\\today" not in text:
+            inl = builder._fragment_inlines(text)
+            if inl:
+                return inl
+    return [ir.Text(_today_text())]
+
+
 def _has_opaque_env(source: str) -> bool:
     """True if a figure source holds a drawing environment (TikZ & co.), which
     stays on the compile-to-image path rather than being parsed as text."""
@@ -2820,7 +2836,7 @@ def parse_document(
     # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
     # title is present but no \date was given (an explicit \date{} stays empty).
     if doc.meta.date is None and doc.meta.title:
-        doc.meta.date = [ir.Text(_today_text())]
+        doc.meta.date = _default_date(source, builder)
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
     if doc.meta.language is None:
