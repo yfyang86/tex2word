@@ -30,7 +30,7 @@ from ..report import ConversionReport
 from . import siunitx
 from .colors import ColorTable
 from .macros import expand_macros, local_package_sources
-from .preprocess import preprocess, replace_inline_tikz
+from .preprocess import normalize_spacing_and_icons, preprocess, replace_inline_tikz
 
 # --------------------------------------------------------------------------- #
 # Static maps
@@ -150,6 +150,10 @@ _TEXT_SYMBOLS = {
     "textmho": "℧", "textdiv": "÷", "texttimes": "×", "textpm": "±",
     "textminus": "−", "textperiodcentered": "·", "textdaggerdbl": "‡",
     "textdagger": "†", "checkmark": "✓", "slash": "/", "nobreakspace": " ",
+    # bbding dingbats (\greencheck-style macros expand to these)
+    "Checkmark": "✓", "CheckmarkBold": "✔", "XSolid": "✗", "XSolidBold": "✘",
+    "XSolidBrush": "✘", "Cross": "✗", "CrossBold": "✘", "HandRight": "☞",
+    "HandLeft": "☜", "PencilRight": "✎", "Envelope": "✉", "Phone": "☎",
     # gensymb package text/math symbols
     "degree": "°", "celsius": "℃", "ohm": "Ω", "micro": "µ", "perthousand": "‰",
     "&": "&", "_": "_", "#": "#", "$": "$", "{": "{", "}": "}",
@@ -2780,6 +2784,8 @@ def parse_document(
     """
     report = ConversionReport()
     expanded = replace_inline_tikz(expand_macros(preprocess(source, base_dir), base_dir))
+    # after expansion, so macro-generated \vskip/\faX are cleaned up too
+    expanded = normalize_spacing_and_icons(expanded)
     body, preamble = _split_document(expanded)
     # \newtheorem declarations may live in a \usepackage'd local .sty (e.g. a
     # paper's MyPreamble.sty), which macro expansion harvests but doesn't inline;

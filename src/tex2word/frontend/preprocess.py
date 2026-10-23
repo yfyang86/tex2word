@@ -463,3 +463,61 @@ def replace_inline_tikz(source: str) -> str:
             out.append(source[i])
             i += 1
     return "".join(out)
+
+
+# -- TeX spacing primitives and icon fonts (applied after macro expansion) ---- #
+
+# A TeX dimension: a signed number with a unit, a coefficient times a register
+# (0.5\baselineskip), or a bare register (\baselineskip).
+_GLUE_UNIT = r"(?:pt|mm|cm|in|em|ex|bp|pc|sp|dd|cc|mu|fil{1,3}|true\s*(?:pt|mm|cm|in))"
+_DIMEN = (
+    r"(?:[-+]\s*)?(?:(?:\d+(?:\.\d*)?|\.\d+)\s*(?:" + _GLUE_UNIT + r"|\\[A-Za-z@]+)"
+    r"|\\[A-Za-z@]+)"
+)
+_GLUE = _DIMEN + r"(?:\s*plus\s*" + _DIMEN + r")?(?:\s*minus\s*" + _DIMEN + r")?"
+#: \vskip/\hskip/\mskip/\kern take a glue/dimen *without braces*, so the parser
+#: would otherwise print it ("\vskip -1mm" -> the text "-1mm").
+_SPACING_PRIM_RE = re.compile(r"\\(?:vskip|hskip|mskip|kern|mkern)(?![A-Za-z@])\s*" + _GLUE)
+
+#: fontawesome icons with a sensible Unicode stand-in; the rest are dropped
+#: (decorative), never printed as their control sequence.
+_FA_GLYPHS = {
+    "Envelope": "✉", "EnvelopeOpen": "✉", "Phone": "☎", "PhoneAlt": "☎",
+    "Check": "✓", "CheckCircle": "✔", "CheckSquare": "☑", "Times": "✗",
+    "TimesCircle": "✗", "Close": "✗", "Star": "★", "StarHalf": "★", "Heart": "♥",
+    "ArrowRight": "→", "ArrowLeft": "←", "ArrowUp": "↑", "ArrowDown": "↓",
+    "LongArrowAltRight": "⟶", "InfoCircle": "ℹ", "Info": "ℹ",
+    "ExclamationTriangle": "⚠", "Exclamation": "!", "Question": "?",
+    "Copyright": "©", "Music": "♪", "Sun": "☀", "Cloud": "☁", "Plus": "+",
+    "Minus": "−", "Bars": "≡", "Square": "□", "Circle": "●", "Flag": "⚑",
+}
+# \faGithub, \faEnvelope[regular], \faStar* ; \faIcon[regular]{envelope}
+_FA_RE = re.compile(r"\\fa([A-Z][A-Za-z]*)\*?(?:\s*\[[^\]]*\])?(?![A-Za-z@])")
+_FAICON_RE = re.compile(r"\\faIcon\*?(?:\s*\[[^\]]*\])?\s*\{([^}]*)\}")
+_VERBATIM_BLOCK_RE = re.compile(r"\\begin\{verbatim\}.*?\\end\{verbatim\}", re.DOTALL)
+
+
+def _fa_name_glyph(name: str) -> str:
+    # \faIcon{arrow-right} -> ArrowRight
+    camel = "".join(p[:1].upper() + p[1:] for p in re.split(r"[-_\s]+", name.strip()) if p)
+    return _FA_GLYPHS.get(camel, "")
+
+
+def _clean_spacing_and_icons(text: str) -> str:
+    text = _SPACING_PRIM_RE.sub("", text)
+    text = _FAICON_RE.sub(lambda m: _fa_name_glyph(m.group(1)), text)
+    return _FA_RE.sub(lambda m: _FA_GLYPHS.get(m.group(1), ""), text)
+
+
+def normalize_spacing_and_icons(source: str) -> str:
+    """Drop TeX spacing primitives together with their glue (``\\vskip -1mm``,
+    ``\\kern2pt``) and replace fontawesome icons by a Unicode stand-in (or
+    nothing). Verbatim bodies are left untouched."""
+    out: list[str] = []
+    pos = 0
+    for m in _VERBATIM_BLOCK_RE.finditer(source):
+        out.append(_clean_spacing_and_icons(source[pos:m.start()]))
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(_clean_spacing_and_icons(source[pos:]))
+    return "".join(out)
