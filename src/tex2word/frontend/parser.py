@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import dataclass
 
 from pylatexenc.latexwalker import (
     LatexCharsNode,
@@ -449,6 +450,12 @@ class _Builder:
         self.theorem_counters: dict[str, str] = {}
         # user \newtcolorbox / \newmdenv callout environments -> Quote blocks
         self.box_envs: set[str] = set()
+        #: \newtcolorbox definitions and \tcbset{name/.style=...} styles, used to
+        #: give tcolorbox callouts their colours and title bar.
+        self.tcb_envs: dict[str, _TcbEnv] = {}
+        self.tcb_styles: dict[str, str] = {}
+        #: the pylatexenc context (for parsing option fragments such as a title)
+        self.ctx = None
         #: True while parsing a graphic-less figure body (its \caption is the
         #: figure's, already collected -> suppress it there).
         self._in_figure_body = False
@@ -1135,6 +1142,9 @@ class _Builder:
         ):
             out.append(self._tabular(node))
             return
+        if base == "tcolorbox" or base in self.tcb_envs:
+            out.append(self._tcolorbox_quote(node, base))
+            return
         if base in (
             "quote", "quotation", "verse", "displayquote", "displaycquote",
             # boxed-content environments -> a set-off Quote block (the closest IR)
@@ -1391,6 +1401,90 @@ class _Builder:
             for mp in minipages
         ]
         return ir.Table(rows=[ir.TableRow(cells)], colspec=["left"] * len(cells), layout=True)
+
+    def _tcolorbox_quote(self, node: LatexEnvironmentNode, base: str) -> ir.Quote:
+        """A ``tcolorbox`` (or a ``\\newtcolorbox`` env) -> a coloured callout.
+
+        Options are resolved in tcolorbox order: the env definition (with its
+        ``#1..#n`` replaced by the ``\\begin{box}{…}`` arguments), then any
+        ``\\begin{tcolorbox}[…]`` options; bare keys naming a ``\\tcbset`` style
+        expand that style. Unset colours fall back to tcolorbox's defaults."""
+        texts: list[str] = []
+        env = self.tcb_envs.get(base)
+        if env is not None:
+            opts = env.opts
+            for k, arg in enumerate(self._env_arg_texts(node, env), 1):
+                opts = opts.replace(f"#{k}", arg)
+            texts.append(opts)
+        if base == "tcolorbox":
+            texts.append(_graphics_option_text(node))
+        eff = self._tcb_resolve(texts)
+
+        def colour(key: str, default: str) -> str | None:
+            spec = eff.get(key) or default
+            return self.colors.resolve(spec, None)
+
+        shade = colour("colback", "black!5!white")
+        border = colour("colframe", "black!75!white")
+        if _length_to_emu(eff.get("boxrule", "1pt")) == 0:
+            border = shade  # boxrule=0pt: no visible frame
+        title = None
+        title_shade = None
+        if eff.get("title"):
+            title = self._fragment_inlines(eff["title"])
+            if "\\bfseries" in eff.get("fonttitle", ""):
+                title = [ir.Emphasis(title, "bold")]
+            title = [ir.Colored(title, fg=colour("coltitle", "white"))]
+            title_shade = colour("colbacktitle", eff.get("colframe") or "black!75!white")
+        return ir.Quote(
+            self.blocks(node.nodelist), shade=shade, border=border,
+            title=title, title_shade=title_shade,
+        )
+
+    def _env_arg_texts(self, node: LatexEnvironmentNode, env: _TcbEnv) -> list[str]:
+        """Raw LaTeX of a user env's ``\\begin`` arguments (optional first arg
+        falls back to its declared default)."""
+        args = list(node.nodeargd.argnlist) if node.nodeargd else []
+        texts: list[str] = []
+        for a in args[: env.nargs]:
+            if a is None:
+                texts.append("")
+                continue
+            v = a.latex_verbatim().strip()
+            if v[:1] in "{[" and v[-1:] in "}]":
+                v = v[1:-1]
+            texts.append(v)
+        if env.default is not None and (not texts or not texts[0]):
+            texts[:1] = [env.default]
+        return texts
+
+    def _tcb_resolve(self, texts: list[str]) -> dict[str, str]:
+        eff: dict[str, str] = {}
+
+        def apply(raw: str, depth: int) -> None:
+            if depth > 8:  # guard against self-referencing styles
+                return
+            for key, val in _kv_list(raw):
+                if val is None:
+                    if key in self.tcb_styles:
+                        apply(self.tcb_styles[key], depth + 1)
+                elif key in _TCB_KEYS:
+                    eff[key] = _strip_braces(val)
+
+        for t in texts:
+            if t:
+                apply(t, 0)
+        return eff
+
+    def _fragment_inlines(self, latex: str) -> list[ir.Inline]:
+        """Parse a LaTeX fragment (e.g. a box title) into inlines."""
+        try:
+            nodes, _, _ = LatexWalker(
+                latex, latex_context=self.ctx, tolerant_parsing=True
+            ).get_latex_nodes()
+        except Exception:  # never let a title abort the conversion
+            return [ir.Text(latex)]
+        return _clean_inlines(self.inlines(nodes), trim=True)
 
     def _collect_figure_parts(
         self, nodes: list, fig: ir.Figure, top: bool, panels: list | None = None
@@ -2064,6 +2158,126 @@ def _collect_tcolorbox_envs(source: str) -> set[str]:
     return {m.group(1).strip() for m in _NEWTCOLORBOX_RE.finditer(source) if m.group(1).strip()}
 
 
+@dataclass
+class _TcbEnv:
+    """A ``\\newtcolorbox{name}[nargs][default]{options}`` definition."""
+
+    nargs: int = 0
+    default: str | None = None  # default of an optional first argument
+    opts: str = ""              # raw option text (may reference #1..#n)
+
+
+_NEWTCB_HEAD_RE = re.compile(r"\\(?:re)?newtcolorbox(?![A-Za-z])")
+#: tcolorbox keys that shape the rendered callout; everything else is layout.
+_TCB_KEYS = frozenset({
+    "colback", "colframe", "colbacktitle", "coltitle", "title", "fonttitle", "boxrule",
+})
+
+
+def _skip_ws(s: str, i: int) -> int:
+    while i < len(s) and s[i] in " \t\r\n":
+        i += 1
+    return i
+
+
+def _read_bracket(s: str, i: int) -> tuple[str, int]:
+    """Read a brace-aware ``[...]`` group at ``s[i] == '['``; (inner, index-after)."""
+    depth = 0
+    for j in range(i + 1, len(s)):
+        c = s[j]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == "]" and depth == 0:
+            return s[i + 1:j], j + 1
+    return s[i + 1:], len(s)
+
+
+def _strip_braces(value: str) -> str:
+    """Drop one level of braces wrapping a whole value (``{#1}`` -> ``#1``)."""
+    v = value.strip()
+    if len(v) >= 2 and v[0] == "{" and v[-1] == "}":
+        inner, end = _braced_group(v, 0)
+        if end == len(v) - 1:
+            return inner.strip()
+    return v
+
+
+def _kv_list(opts: str) -> list[tuple[str, str | None]]:
+    """Split a ``key=value,flag,...`` option list on top-level commas,
+    preserving order and case (later keys override earlier ones)."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for ch in opts:
+        if ch in "{[":
+            depth += 1
+        elif ch in "}]":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    parts.append("".join(buf))
+    out: list[tuple[str, str | None]] = []
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        if "=" in part:
+            key, _, val = part.partition("=")
+            out.append((key.strip(), val.strip()))
+        else:
+            out.append((part, None))
+    return out
+
+
+def _collect_tcolorbox_defs(source: str) -> tuple[dict[str, _TcbEnv], dict[str, str]]:
+    """``\\newtcolorbox`` environments and ``\\tcbset{name/.style={...}}`` styles."""
+    envs: dict[str, _TcbEnv] = {}
+    for m in _NEWTCB_HEAD_RE.finditer(source):
+        i = _skip_ws(source, m.end())
+        if i < len(source) and source[i] == "[":  # [init options]
+            _, i = _read_bracket(source, i)
+            i = _skip_ws(source, i)
+        if i >= len(source) or source[i] != "{":
+            continue
+        name, end = _braced_group(source, i)
+        i = _skip_ws(source, end + 1)
+        nargs, default = 0, None
+        if i < len(source) and source[i] == "[":
+            n, i = _read_bracket(source, i)
+            i = _skip_ws(source, i)
+            try:
+                nargs = int(n.strip())
+            except ValueError:
+                nargs = 0
+            if i < len(source) and source[i] == "[":
+                default, i = _read_bracket(source, i)
+                i = _skip_ws(source, i)
+        opts = _braced_group(source, i)[0] if i < len(source) and source[i] == "{" else ""
+        if name.strip():
+            envs[name.strip()] = _TcbEnv(nargs, default, opts)
+    styles: dict[str, str] = {}
+    for m in re.finditer(r"\\tcbset\s*\{", source):
+        body, _ = _braced_group(source, m.end() - 1)
+        for key, val in _kv_list(body):
+            if key.endswith("/.style") and val is not None:
+                styles[key[: -len("/.style")].strip()] = _strip_braces(val)
+    return envs, styles
+
+
+def _tcb_argspec(env: _TcbEnv) -> str:
+    """pylatexenc argument spec for a user tcolorbox env (``[`` = optional)."""
+    if env.nargs <= 0:
+        return ""
+    if env.default is not None:
+        return "[" + "{" * (env.nargs - 1)
+    return "{" * env.nargs
+
+
 # User-defined mdframed callout environments: \newmdenv[opts]{name},
 # \newmdtheoremenv[opts]{name}{caption}, \surroundwithmdframed[opts]{name}. The
 # option list may span lines (re.DOTALL). Rendered as set-off Quote blocks like
@@ -2162,7 +2376,10 @@ def _resolve_theorem_counters(
     return counters
 
 
-def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
+def _build_context(
+    extra_theorem_envs: tuple[str, ...] = (),
+    extra_env_specs: tuple[tuple[str, str], ...] = (),
+):
     """Augment pylatexenc's default DB with arg signatures it lacks."""
     ctx = get_default_latex_context_db()
     ctx.add_context_category(
@@ -2375,6 +2592,10 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             # boxed environments with an optional [options] argument
             EnvironmentSpec("mdframed", "["), EnvironmentSpec("tcolorbox", "["),
             EnvironmentSpec("leftbar", "["),
+        ] + [
+            # user \newtcolorbox envs that take arguments (\begin{box}{title}):
+            # declare them so the args are consumed, not parsed as body text.
+            EnvironmentSpec(name, spec) for name, spec in extra_env_specs if spec
         ],
         prepend=True,
     )
@@ -2565,15 +2786,21 @@ def parse_document(
     # scan those sources too so the theorem environments are recognised.
     theorem_src = expanded + "\n" + local_package_sources(source, base_dir)
     custom_theorems, unnumbered_theorems, shared_counters = _collect_newtheorems(theorem_src)
-    ctx = _build_context(tuple(custom_theorems))
+    tcb_envs, tcb_styles = _collect_tcolorbox_defs(theorem_src)
+    ctx = _build_context(
+        tuple(custom_theorems),
+        tuple((name, _tcb_argspec(env)) for name, env in tcb_envs.items()),
+    )
     walker = LatexWalker(body, latex_context=ctx, tolerant_parsing=True)
     nodes, _, _ = walker.get_latex_nodes()
 
     builder = _Builder(report)
+    builder.ctx = ctx
     builder.theorem_envs.update(custom_theorems)
     builder.unnumbered_theorems = unnumbered_theorems
     builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
     builder.box_envs = _collect_tcolorbox_envs(theorem_src)  # \newtcolorbox callouts
+    builder.tcb_envs, builder.tcb_styles = tcb_envs, tcb_styles
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
     builder.box_envs |= set(builder.box_styles)
     builder.book_mode = _is_book_class(expanded)

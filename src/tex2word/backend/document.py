@@ -206,7 +206,7 @@ class DocumentWriter:
         elif isinstance(block, ir.CodeBlock):
             self._code_block(block, body)
         elif isinstance(block, ir.Quote):
-            if block.shade or block.border:
+            if block.shade or block.border or block.title:
                 self._callout(block, body)
             else:
                 for inner in block.blocks:
@@ -891,6 +891,16 @@ class DocumentWriter:
         for side, w in (("top", "60"), ("bottom", "60"), ("left", "108"), ("right", "108")):
             sub(cellmar, f"w:{side}", **{"w:w": w, "w:type": "dxa"})
         sub(sub(tbl, "w:tblGrid"), "w:gridCol")
+        if block.title:
+            # tcolorbox title bar: its own shaded row above the body
+            ttc = sub(sub(tbl, "w:tr"), "w:tc")
+            if block.title_shade:
+                ttcpr = sub(ttc, "w:tcPr")
+                sub(ttcpr, "w:shd", **{"w:val": "clear", "w:color": "auto",
+                                        "w:fill": block.title_shade})
+            tp = self._styled_paragraph("Normal")
+            self._inlines(block.title, tp)
+            ttc.append(tp)
         tc = sub(sub(tbl, "w:tr"), "w:tc")
         if block.shade:
             tcpr = sub(tc, "w:tcPr")

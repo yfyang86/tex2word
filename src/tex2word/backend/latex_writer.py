@@ -198,7 +198,8 @@ class LatexWriter:
         if isinstance(block, ir.CodeBlock):
             return f"\\begin{{verbatim}}\n{block.text}\n\\end{{verbatim}}"
         if isinstance(block, ir.Quote):
-            return f"\\begin{{quote}}\n{self._blocks(block.blocks)}\n\\end{{quote}}"
+            head = f"\\textbf{{{self._inlines(block.title)}}}\n\n" if block.title else ""
+            return f"\\begin{{quote}}\n{head}{self._blocks(block.blocks)}\n\\end{{quote}}"
         if isinstance(block, ir.Theorem):
             return self._theorem(block)
         if isinstance(block, ir.Algorithm):

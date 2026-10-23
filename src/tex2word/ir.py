@@ -333,6 +333,9 @@ class Quote(Node):
     shade: str | None = None
     #: border colour (6-hex) for a callout box, or None. From ``linecolor``.
     border: str | None = None
+    #: a callout's title bar (tcolorbox ``title=``), and its background colour.
+    title: list[Inline] | None = None
+    title_shade: str | None = None
 
 
 @dataclass
