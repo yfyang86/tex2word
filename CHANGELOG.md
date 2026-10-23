@@ -7,6 +7,44 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.9 — box-built figures, tcolorbox styling & title-page fidelity
+
+Driven by a real paper whose figures are built from tcolorboxes and whose
+title page uses a custom class.
+
+### Added
+
+- **Graphic-less figures keep their body.** A `figure` with no
+  `\includegraphics` and no drawing environment (tcolorboxes, minipage text, a
+  framed box, a listing) dropped everything but its caption; the body now
+  renders above the caption. Sibling minipages joined by `\hfill` & co. become
+  a borderless side-by-side layout row. TikZ figures stay on the compile path.
+- **tcolorbox styling.** `\newtcolorbox{name}[n][default]{opts}` and
+  `\tcbset{name/.style={…}}` are read: box arguments are consumed and
+  substituted into the options (`title={#1}`), and
+  `colback`/`colframe`/`colbacktitle`/`coltitle`/`fonttitle`/`boxrule` give a
+  coloured callout with a shaded title bar. Unset colours use tcolorbox's
+  defaults.
+- **`\captionof{figure}{…}`** inside a center/minipage makes a numbered,
+  labelled figure.
+- **Preamble teaser figures** (`\pretitlefigure`, `\teaserfigure`,
+  `\titlefigure`) are recovered and lead the body.
+- `\setheadertext`, `\titlerunning` and `\runningtitle` set the running head.
+
+### Fixed
+
+- **TeX spacing glue.** `\vskip -1mm`, `\kern2pt`, … printed the command and
+  its length as text; they are now dropped together with their glue.
+- **Icons.** Font Awesome icons (`\faEnvelope[regular]`, `\faIcon{star}`) map
+  to a Unicode stand-in or are dropped instead of leaking; bbding marks
+  (`\CheckmarkBold`, `\XSolidBrush`) render.
+- **Redefined `\today`.** With no `\date`, the default title date now uses the
+  document's own `\renewcommand{\today}{…}` rather than the real date.
+- **Affiliation markers.** Base-less scripts such as `$^{*1}$`, `$^\dagger$`,
+  `$^{1,2}$` are superscript text runs instead of empty-base OMML, which
+  LibreOffice and other importers dropped. Real math stays OMML.
+- `\quad`/`\qquad` are one/two em spaces instead of a single space.
+
 ## 1.0.8 — issue sprint (#37–#41)
 
 Fixes for five reported issues, each with a repro.
