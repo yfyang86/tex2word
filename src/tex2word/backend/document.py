@@ -206,7 +206,7 @@ class DocumentWriter:
         elif isinstance(block, ir.CodeBlock):
             self._code_block(block, body)
         elif isinstance(block, ir.Quote):
-            if block.shade or block.border:
+            if block.shade or block.border or block.title:
                 self._callout(block, body)
             else:
                 for inner in block.blocks:
@@ -409,13 +409,22 @@ class DocumentWriter:
     def _table(self, block: ir.Table, body: _Element) -> None:
         tbl = el("w:tbl")
         tpr = sub(tbl, "w:tblPr")
-        sub(tpr, "w:tblW", **{"w:w": "0", "w:type": "auto"})
-        borders = sub(tpr, "w:tblBorders")
-        for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
-            sub(borders, f"w:{side}", **{"w:val": "single", "w:sz": "4", "w:color": "auto"})
         ncols = max((sum(c.colspan for c in r.cells) for r in block.rows), default=1)
-        # p{width} column widths -> twips (dxa); 914400 EMU = 1440 twips.
-        widths = [int(w / 635) if w else None for w in block.colwidths]
+        if block.layout:
+            # side-by-side minipages: a borderless grid spanning the text column
+            sub(tpr, "w:tblW", **{"w:w": "5000", "w:type": "pct"})
+            borders = sub(tpr, "w:tblBorders")
+            for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+                sub(borders, f"w:{side}", **{"w:val": "nil"})
+            col_tw = int(self.text_width_emu / 635 / max(ncols, 1))
+            widths: list[int | None] = [col_tw] * ncols
+        else:
+            sub(tpr, "w:tblW", **{"w:w": "0", "w:type": "auto"})
+            borders = sub(tpr, "w:tblBorders")
+            for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+                sub(borders, f"w:{side}", **{"w:val": "single", "w:sz": "4", "w:color": "auto"})
+            # p{width} column widths -> twips (dxa); 914400 EMU = 1440 twips.
+            widths = [int(w / 635) if w else None for w in block.colwidths]
         grid = sub(tbl, "w:tblGrid")
         for i in range(ncols):
             w = widths[i] if i < len(widths) else None
@@ -500,6 +509,11 @@ class DocumentWriter:
         content = sub(sdt, "w:sdtContent")
         if block.subfigures:
             self._subfigures(block, content)
+        elif block.image is None and block.blocks:
+            # a graphic-less figure (boxes, text, a tabular, …): its body *is*
+            # the figure content, rendered above the caption.
+            for inner in block.blocks:
+                self._block(inner, content)
         elif block.image is None:
             # No convertible graphic (e.g. a TikZ picture): compile it to an image
             # if a TeX engine is available, else fall back to a caption-only figure
@@ -877,6 +891,16 @@ class DocumentWriter:
         for side, w in (("top", "60"), ("bottom", "60"), ("left", "108"), ("right", "108")):
             sub(cellmar, f"w:{side}", **{"w:w": w, "w:type": "dxa"})
         sub(sub(tbl, "w:tblGrid"), "w:gridCol")
+        if block.title:
+            # tcolorbox title bar: its own shaded row above the body
+            ttc = sub(sub(tbl, "w:tr"), "w:tc")
+            if block.title_shade:
+                ttcpr = sub(ttc, "w:tcPr")
+                sub(ttcpr, "w:shd", **{"w:val": "clear", "w:color": "auto",
+                                        "w:fill": block.title_shade})
+            tp = self._styled_paragraph("Normal")
+            self._inlines(block.title, tp)
+            ttc.append(tp)
         tc = sub(sub(tbl, "w:tr"), "w:tc")
         if block.shade:
             tcpr = sub(tc, "w:tcPr")

@@ -303,3 +303,95 @@ def test_cap_is_text_column_not_six_inches(tmp_path):
     assert cx16 == 16.0
     cx20, _ = _extent_cm(tmp_path, "width=20cm")
     assert 16.0 < cx20 < 16.7  # the real text column, not 15.24
+
+
+# -- graphic-less figures render their body (boxes / minipages / text) -------- #
+
+
+def test_graphicless_figure_keeps_its_body():
+    # a figure holding only text/boxes (no \includegraphics, no TikZ) used to
+    # drop everything but the caption; the body now renders above the caption.
+    src = (
+        r"\documentclass{article}\begin{document}\begin{figure}\centering"
+        r"\fbox{Inside the figure}\caption{Cap}\label{fig:x}\end{figure}\end{document}"
+    )
+    res = convert_source(src)
+    fig = next(b for b in res.document.blocks if isinstance(b, ir.Figure))
+    assert fig.image is None and fig.blocks and fig.label == "fig:x"
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "Inside the figure" in d
+    assert "\\caption" not in d  # the caption is the figure's, not leaked body text
+    assert d.count("SEQ Figure") == 1
+    assert not any(w.construct == "figure" for w in res.report.warnings)
+
+
+def test_side_by_side_minipages_become_a_layout_row():
+    src = (
+        r"\documentclass{article}\begin{document}\begin{figure}"
+        r"\begin{minipage}[t]{0.48\textwidth}Left panel\end{minipage}\hfill"
+        r"\begin{minipage}[t]{0.48\textwidth}Right panel\end{minipage}"
+        r"\caption{Two panels}\end{figure}\end{document}"
+    )
+    res = convert_source(src)
+    fig = next(b for b in res.document.blocks if isinstance(b, ir.Figure))
+    rows = [b for b in fig.blocks if isinstance(b, ir.Table)]
+    assert len(rows) == 1 and rows[0].layout
+    assert len(rows[0].rows[0].cells) == 2
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "Left panel" in d and "Right panel" in d
+    # borderless layout grid, not a ruled data table
+    tbl = d[d.find("<w:tbl>"):d.find("</w:tbl>")]
+    assert 'w:val="nil"' in tbl and 'w:val="single"' not in tbl.split("<w:tr")[0]
+
+
+def test_tikz_figure_stays_on_compile_path():
+    # a drawing figure must not be parsed as text (it compiles to an image)
+    src = (
+        r"\documentclass{article}\usepackage{tikz}\begin{document}\begin{figure}"
+        r"\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}\caption{T}"
+        r"\end{figure}\end{document}"
+    )
+    fig = next(b for b in convert_source(src).document.blocks if isinstance(b, ir.Figure))
+    assert fig.blocks == [] and "tikzpicture" in fig.source
+
+
+# -- \captionof non-floating figures + preamble teaser figures ---------------- #
+
+
+def test_captionof_in_center_is_a_numbered_figure(tmp_path):
+    _make_png(tmp_path / "t.png", 60, 40)
+    src = (
+        r"\documentclass{article}\usepackage{graphicx,caption}\begin{document}"
+        r"\begin{center}\includegraphics[width=3cm]{t.png}"
+        r"\captionof{figure}{A non-floating figure}\label{fig:nf}\end{center}"
+        r"See \ref{fig:nf}.\end{document}"
+    )
+    res = convert_source(src, base_dir=str(tmp_path))
+    fig = next(b for b in res.document.blocks if isinstance(b, ir.Figure))
+    assert fig.image is not None and fig.label == "fig:nf"
+    assert "".join(getattr(i, "value", "") for i in fig.caption) == "A non-floating figure"
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "SEQ Figure" in d and "\\captionof" not in d
+    assert not any("captionof" in w.construct for w in res.report.warnings)
+
+
+def test_preamble_pretitlefigure_is_recovered_first(tmp_path):
+    _make_png(tmp_path / "teaser.png", 80, 40)
+    src = (
+        r"\documentclass{thuc3i}\usepackage{graphicx}\title{T}"
+        r"\pretitlefigure{\begin{center}\includegraphics{teaser.png}"
+        r"\captionof{figure}{Teaser}\label{fig:teaser}\end{center}\vskip4pt}"
+        r"\begin{document}\maketitle"
+        r"\begin{figure}\includegraphics{teaser.png}\caption{Second}\end{figure}"
+        r"\end{document}"
+    )
+    res = convert_source(src, base_dir=str(tmp_path))
+    figs = [b for b in res.document.blocks if isinstance(b, ir.Figure)]
+    assert [f.label for f in figs][:1] == ["fig:teaser"]  # leads the body
+    caps = ["".join(getattr(i, "value", "") for i in f.caption) for f in figs]
+    assert caps == ["Teaser", "Second"]
+
+
+def test_setheadertext_sets_running_head():
+    src = r"\setheadertext{Short Title}\title{Long Title}\begin{document}x\end{document}"
+    assert convert_source(src).document.meta.running_head == "Short Title"

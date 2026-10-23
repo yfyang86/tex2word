@@ -83,3 +83,74 @@ def test_newmdenv_callout_renders_as_shaded_box():
 
 def test_valid():
     assert validate_docx(_conv(r"\begin{tcolorbox}[title=X]Body.\end{tcolorbox}").docx) == []
+
+
+# -- tcolorbox styling: \newtcolorbox args, \tcbset styles, defaults ---------- #
+
+
+def _quote(src):
+    return next(b for b in convert_source(src).document.blocks if type(b).__name__ == "Quote")
+
+
+def _title_text(q):
+    def walk(inls):
+        return "".join(getattr(i, "value", "") or walk(getattr(i, "inlines", [])) for i in inls)
+    return walk(q.title or [])
+
+
+def test_newtcolorbox_argument_becomes_title():
+    # \newtcolorbox{box}[1]{title={#1},...}: the \begin{box}{...} argument is
+    # consumed (not leaked as a body paragraph) and substituted into the title.
+    src = (
+        r"\definecolor{hd}{HTML}{1F2A6E}"
+        r"\newtcolorbox{tplbox}[1]{colback=white,colframe=hd,colbacktitle=hd,"
+        r"coltitle=white,fonttitle=\bfseries,title={#1}}"
+        r"\begin{document}\begin{tplbox}{(a) Base template}Body text\end{tplbox}\end{document}"
+    )
+    q = _quote(src)
+    assert _title_text(q) == "(a) Base template"
+    assert (q.shade, q.border, q.title_shade) == ("FFFFFF", "1F2A6E", "1F2A6E")
+    body = "".join(getattr(i, "value", "") for i in q.blocks[0].inlines)
+    assert "Base template" not in body and "Body text" in body
+
+
+def test_tcbset_style_and_override():
+    src = (
+        r"\definecolor{lo}{HTML}{faa755}"
+        r"\tcbset{ex/.style={colback=orange!6,colframe=lo,title=Example}}"
+        r"\begin{document}\begin{tcolorbox}[ex, title=Worked]X\end{tcolorbox}\end{document}"
+    )
+    q = _quote(src)
+    assert q.border == "FAA755" and q.shade == "FFF7F0"
+    assert _title_text(q) == "Worked"  # a later key overrides the style's title
+
+
+def test_plain_tcolorbox_uses_tcolorbox_defaults():
+    q = _quote(r"\begin{document}\begin{tcolorbox}Plain\end{tcolorbox}\end{document}")
+    assert (q.shade, q.border) == ("F2F2F2", "404040")
+
+
+def test_boxrule_zero_hides_the_frame():
+    src = (
+        r"\definecolor{bg}{HTML}{EEEFF9}"
+        r"\newtcolorbox{inp}{colback=bg,colframe=black,boxrule=0pt}"
+        r"\begin{document}\begin{inp}x\end{inp}\end{document}"
+    )
+    q = _quote(src)
+    assert q.border == q.shade == "EEEFF9"
+
+
+def test_titled_callout_renders_title_bar():
+    src = (
+        r"\newtcolorbox{tb}[1]{colframe=black,colbacktitle=black,title={#1}}"
+        r"\begin{document}\begin{tb}{Takeaways}Body\end{tb}\end{document}"
+    )
+    conv = convert_source(src)
+    assert validate_docx(conv.docx) == []
+    import zipfile
+    from io import BytesIO
+
+    d = zipfile.ZipFile(BytesIO(conv.docx)).read("word/document.xml").decode()
+    tbl = d[d.find("<w:tbl>"):d.find("</w:tbl>")]
+    assert tbl.count("<w:tr>") == 2            # title row + body row
+    assert 'w:fill="000000"' in tbl and "Takeaways" in tbl

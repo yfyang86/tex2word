@@ -198,7 +198,8 @@ class LatexWriter:
         if isinstance(block, ir.CodeBlock):
             return f"\\begin{{verbatim}}\n{block.text}\n\\end{{verbatim}}"
         if isinstance(block, ir.Quote):
-            return f"\\begin{{quote}}\n{self._blocks(block.blocks)}\n\\end{{quote}}"
+            head = f"\\textbf{{{self._inlines(block.title)}}}\n\n" if block.title else ""
+            return f"\\begin{{quote}}\n{head}{self._blocks(block.blocks)}\n\\end{{quote}}"
         if isinstance(block, ir.Theorem):
             return self._theorem(block)
         if isinstance(block, ir.Algorithm):
@@ -293,6 +294,8 @@ class LatexWriter:
             if sub.label:
                 lines.append(f"\\label{{{sub.label}}}")
             lines.append("\\end{subfigure}")
+        if block.image is None and block.blocks:
+            lines.append(self._blocks(block.blocks).rstrip("\n"))
         if block.caption:
             star = "" if block.caption_numbered else "*"
             lines.append(f"\\caption{star}{{{self._inlines(block.caption)}}}")

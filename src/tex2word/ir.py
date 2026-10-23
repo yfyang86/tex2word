@@ -276,6 +276,9 @@ class Table(Node):
     colwidths: list[float | None] = field(default_factory=list)  # per-column EMU (p{})
     caption_numbered: bool = True  # False for \caption* (unnumbered caption)
     spanning: bool = False  # table* -> span the full page width in a multi-column body
+    #: a borderless, full-width layout grid (side-by-side minipages), not a data
+    #: table: no rules, equal-width columns across the text column.
+    layout: bool = False
 
 
 @dataclass
@@ -294,6 +297,9 @@ class Figure(Node):
     subfigures: list[SubFigure] = field(default_factory=list)
     caption_numbered: bool = True  # False for \caption* (unnumbered caption)
     spanning: bool = False  # figure* -> span the full page width in a multi-column body
+    #: non-graphic body content (boxes, text, tabulars, …) for a figure with no
+    #: \includegraphics and no drawing environment; rendered above the caption.
+    blocks: list[Block] = field(default_factory=list)
 
 
 @dataclass
@@ -327,6 +333,9 @@ class Quote(Node):
     shade: str | None = None
     #: border colour (6-hex) for a callout box, or None. From ``linecolor``.
     border: str | None = None
+    #: a callout's title bar (tcolorbox ``title=``), and its background colour.
+    title: list[Inline] | None = None
+    title_shade: str | None = None
 
 
 @dataclass

@@ -171,3 +171,41 @@ def test_newcommand_unbraced_single_token_body():
     assert r"\mathcal E" in expand_macros(r"\newcommand\CAL\mathcal $\CAL E$")
     # the braced form still works and isn't disturbed
     assert r"\mathbb R" in expand_macros(r"\newcommand{\BB}{\mathbb} $\BB R$")
+
+
+def test_spacing_primitives_drop_their_glue():
+    # \vskip/\kern take an unbraced glue; it must not print as text ("-1mm")
+    from tex2word.frontend.preprocess import normalize_spacing_and_icons as norm
+
+    for src in (r"a\vskip -1mm b", r"a\vskip4pt b", r"a\vskip 0.5\baselineskip b",
+                r"a\vskip 2pt plus 1pt minus 1pt b", r"a\kern-0.1em b"):
+        assert norm(src).split() == ["a", "b"], src
+    assert norm(r"\fancyhead{x}") == r"\fancyhead{x}"  # not an icon / primitive
+    verb = r"\begin{verbatim}\vskip 1mm \faGithub\end{verbatim}"
+    assert norm(verb) == verb  # code is left alone
+
+
+def test_fontawesome_icons_map_or_drop():
+    import io
+    import zipfile
+
+    from tex2word import convert_source
+
+    src = (r"\begin{document}\faEnvelope[regular] mail \faGithub~code "
+           r"\faIcon{star} five\end{document}")
+    res = convert_source(src)
+    d = zipfile.ZipFile(io.BytesIO(res.docx)).read("word/document.xml").decode()
+    assert "✉" in d and "★" in d
+    assert "faGithub" not in d and "[regular]" not in d
+    assert not any("\\fa" in w.construct for w in res.report.warnings)
+
+
+def test_bbding_symbols():
+    import io
+    import zipfile
+
+    from tex2word import convert_source
+
+    src = r"\begin{document}\CheckmarkBold{} and \XSolidBrush{}\end{document}"
+    d = zipfile.ZipFile(io.BytesIO(convert_source(src).docx)).read("word/document.xml").decode()
+    assert "✔" in d and "✘" in d

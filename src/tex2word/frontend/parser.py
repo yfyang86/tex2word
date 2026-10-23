@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import dataclass
 
 from pylatexenc.latexwalker import (
     LatexCharsNode,
@@ -29,7 +30,7 @@ from ..report import ConversionReport
 from . import siunitx
 from .colors import ColorTable
 from .macros import expand_macros, local_package_sources
-from .preprocess import preprocess, replace_inline_tikz
+from .preprocess import normalize_spacing_and_icons, preprocess, replace_inline_tikz
 
 # --------------------------------------------------------------------------- #
 # Static maps
@@ -149,11 +150,16 @@ _TEXT_SYMBOLS = {
     "textmho": "℧", "textdiv": "÷", "texttimes": "×", "textpm": "±",
     "textminus": "−", "textperiodcentered": "·", "textdaggerdbl": "‡",
     "textdagger": "†", "checkmark": "✓", "slash": "/", "nobreakspace": " ",
+    # bbding dingbats (\greencheck-style macros expand to these)
+    "Checkmark": "✓", "CheckmarkBold": "✔", "XSolid": "✗", "XSolidBold": "✘",
+    "XSolidBrush": "✘", "Cross": "✗", "CrossBold": "✘", "HandRight": "☞",
+    "HandLeft": "☜", "PencilRight": "✎", "Envelope": "✉", "Phone": "☎",
     # gensymb package text/math symbols
     "degree": "°", "celsius": "℃", "ohm": "Ω", "micro": "µ", "perthousand": "‰",
     "&": "&", "_": "_", "#": "#", "$": "$", "{": "{", "}": "}",
     " ": " ", ",": " ", ";": " ", ":": " ", "!": "", "@": "",
-    "quad": " ", "qquad": "  ", "hfill": " ", "newline": "\n",
+    # \quad = 1em, \qquad = 2em: em spaces, so "A \quad B" stays visibly apart
+    "quad": " ", "qquad": "  ", "hfill": " ", "newline": "\n",
     # \xspace re-inserts the space pylatexenc gobbles after a control word,
     # so adjacent words don't fuse ("Cache\\xspace Practical").
     "xspace": " ",
@@ -374,6 +380,153 @@ def _today_text() -> str:
     return f"{t:%B} {t.day}, {t.year}"
 
 
+def _default_date(source: str, builder: _Builder) -> list[ir.Inline]:
+    """The date \\maketitle shows when no \\date is given: the document's own
+    ``\\today`` if it redefines it (``\\renewcommand{\\today}{2026-09-04}``),
+    else the current date."""
+    from .macros import collect_macros, expand
+
+    macros, _ = collect_macros(source)
+    if "today" in macros:
+        text = expand("\\today", macros).strip()
+        if text and "\\today" not in text:
+            inl = builder._fragment_inlines(text)
+            if inl:
+                return inl
+    return [ir.Text(_today_text())]
+
+
+def _has_opaque_env(source: str) -> bool:
+    """True if a figure source holds a drawing environment (TikZ & co.), which
+    stays on the compile-to-image path rather than being parsed as text."""
+    return any(f"\\begin{{{env}}}" in source for env in _OPAQUE_ENVS)
+
+
+def _is_blank_paragraph(block: ir.Block) -> bool:
+    """A paragraph with no visible content (only whitespace / line breaks)."""
+    if not isinstance(block, ir.Paragraph):
+        return False
+    for node in block.inlines:
+        if isinstance(node, ir.LineBreak):
+            continue
+        if isinstance(node, ir.Text) and not node.value.strip():
+            continue
+        return False
+    return True
+
+
+def _is_minipage(node: object) -> bool:
+    return isinstance(node, LatexEnvironmentNode) and node.environmentname == "minipage"
+
+
+#: math symbols that commonly serve as affiliation / footnote markers.
+_MARKER_SYMBOLS = {
+    "dagger": "†", "ddagger": "‡", "dag": "†", "ddag": "‡", "ast": "∗", "star": "⋆",
+    "S": "§", "P": "¶", "natural": "♮", "sharp": "♯", "flat": "♭", "prime": "′",
+    "bullet": "•", "diamond": "⋄", "triangle": "△", "clubsuit": "♣",
+    "spadesuit": "♠", "heartsuit": "♡", "diamondsuit": "♢", "sim": "∼",
+    "#": "#", "&": "&", "%": "%", ",": "", ";": "", "!": "",
+}
+#: font wrappers whose argument is just text (``^{\mathrm{th}}`` -> "th").
+_MARKER_WRAPPERS = {"mathrm", "text", "textrm", "mathit", "mathbf", "textbf", "mathsf",
+                    "textit", "textup", "mathnormal"}
+_MARKER_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*,.;:+-()'/=|!? "
+)
+
+
+def _marker_text(body: str) -> str | None:
+    """Plain text for a script body made only of marker characters/symbols, or
+    None if it holds real math structure (fractions, nested scripts, …)."""
+    out: list[str] = []
+    i, n = 0, len(body)
+    while i < n:
+        c = body[i]
+        if c == "\\":
+            m = re.match(r"\\([A-Za-z]+|.)", body[i:])
+            name = m.group(1) if m else ""
+            i += m.end() if m else 1
+            if name in _MARKER_SYMBOLS:
+                out.append(_MARKER_SYMBOLS[name])
+            elif name in _MARKER_WRAPPERS:
+                while i < n and body[i] == " ":
+                    i += 1
+                if i < n and body[i] == "{":
+                    inner, end = _braced_group(body, i)
+                    sub = _marker_text(inner)
+                    if sub is None:
+                        return None
+                    out.append(sub)
+                    i = end + 1
+            else:
+                return None
+        elif c in "{}":
+            i += 1
+        elif c in _MARKER_CHARS:
+            out.append("−" if c == "-" else c)
+            i += 1
+        else:
+            return None
+    text = "".join(out).strip()
+    return text or None
+
+
+def _script_marker(latex: str) -> tuple[str, str] | None:
+    """``^{*1}`` -> ("superscript", "*1"); ``_{a}`` -> ("subscript", "a");
+    ``^\\circ`` -> ("plain", "°"). None unless the math is *only* a base-less
+    script whose content is marker text."""
+    s = latex.strip()
+    if len(s) < 2 or s[0] not in "^_":
+        return None
+    kind = "superscript" if s[0] == "^" else "subscript"
+    rest = s[1:].lstrip()
+    if rest.startswith("{"):
+        body, end = _braced_group(rest, 0)
+        tail = rest[end + 1:]
+    else:
+        m = re.match(r"\\[A-Za-z]+|\\.|.", rest)
+        if m is None:
+            return None
+        body, tail = m.group(0), rest[m.end():]
+    if tail.strip():  # more after the script (^a_b, ^1 x): leave it as math
+        return None
+    if kind == "superscript" and body.strip() in ("\\circ", "{\\circ}"):
+        return ("plain", "°")  # $^\circ$ is a degree sign, already raised
+    text = _marker_text(body)
+    return (kind, text) if text is not None else None
+
+
+def _has_captionof(nodes: list, kind: str) -> bool:
+    """True if ``nodes`` (one level, plus groups) hold ``\\captionof{kind}``."""
+    for n in nodes:
+        if isinstance(n, LatexMacroNode) and n.macroname == "captionof":
+            groups = [
+                a for a in (n.nodeargd.argnlist if n.nodeargd else [])
+                if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "{"
+            ]
+            if groups and _chars_of(groups[0].nodelist).strip() == kind:
+                return True
+        elif isinstance(n, LatexGroupNode) and _has_captionof(n.nodelist, kind):
+            return True
+    return False
+
+
+#: horizontal glue that can sit between side-by-side minipages without breaking
+#: the row (they don't produce content of their own).
+_LAYOUT_GLUE_MACROS = {
+    "hfill", "hspace", "hskip", "quad", "qquad", "enspace", "thinspace", "centering",
+    "noindent", "hss", "hfil", ",", " ", "~",
+}
+
+
+def _is_layout_glue(node: object) -> bool:
+    if isinstance(node, LatexCharsNode):
+        return not node.chars.strip()
+    if isinstance(node, LatexCommentNode):
+        return True
+    return isinstance(node, LatexMacroNode) and node.macroname in _LAYOUT_GLUE_MACROS
+
+
 def _latex_of(nodes: list) -> str:
     """The verbatim LaTeX source of a node list (for \\ensuremath bodies)."""
     return "".join(n.latex_verbatim() for n in nodes).strip()
@@ -410,6 +563,15 @@ class _Builder:
         self.theorem_counters: dict[str, str] = {}
         # user \newtcolorbox / \newmdenv callout environments -> Quote blocks
         self.box_envs: set[str] = set()
+        #: \newtcolorbox definitions and \tcbset{name/.style=...} styles, used to
+        #: give tcolorbox callouts their colours and title bar.
+        self.tcb_envs: dict[str, _TcbEnv] = {}
+        self.tcb_styles: dict[str, str] = {}
+        #: the pylatexenc context (for parsing option fragments such as a title)
+        self.ctx = None
+        #: True while parsing a graphic-less figure body (its \caption is the
+        #: figure's, already collected -> suppress it there).
+        self._in_figure_body = False
         #: env name -> (backgroundcolor, linecolor) names for coloured callouts
         self.box_styles: dict[str, tuple[str | None, str | None]] = {}
 
@@ -475,6 +637,19 @@ class _Builder:
             return
         if isinstance(node, LatexMathNode):
             latex = _strip_math_delims(node.latex_verbatim(), "math")
+            marker = _script_marker(latex) if node.displaytype == "inline" else None
+            if marker is not None:
+                # $^{*1}$ / $^\dagger$ / 1$^{st}$: a base-less script is a text
+                # marker, not math -- an empty-base OMML superscript is dropped by
+                # LibreOffice and other importers, a superscript run is not.
+                kind, text = marker
+                if kind == "plain":
+                    out.append(ir.Text(text))
+                elif kind == "subscript":
+                    out.append(ir.Emphasis([ir.Text(text)], "subscript"))
+                else:
+                    out.append(ir.Emphasis([ir.Text(text)], "superscript"))
+                return
             out.append(ir.Math(latex))
             return
         if isinstance(node, LatexGroupNode):
@@ -561,6 +736,8 @@ class _Builder:
             if self._labelable is not None and label:
                 self._labelable.label = label
             return
+        if self._in_figure_body and name in ("caption", "captionof"):
+            return  # the enclosing figure's caption, collected separately
         if name in ("href", "url"):
             self._inline_link(node, out)
             return
@@ -1091,6 +1268,9 @@ class _Builder:
         ):
             out.append(self._tabular(node))
             return
+        if base == "tcolorbox" or base in self.tcb_envs:
+            out.append(self._tcolorbox_quote(node, base))
+            return
         if base in (
             "quote", "quotation", "verse", "displayquote", "displaycquote",
             # boxed-content environments -> a set-off Quote block (the closest IR)
@@ -1106,6 +1286,13 @@ class _Builder:
             return
         if base == "abstract":
             self.meta.abstract = self.blocks(node.nodelist)
+            return
+        if base in ("center", "flushleft", "flushright", "minipage") and _has_captionof(
+            node.nodelist, "figure"
+        ):
+            # a non-floating figure: \includegraphics + \captionof{figure}{…}
+            # inside a center/minipage is numbered and captioned like a figure.
+            self._figure(node, out)
             return
         if base in ("center", "flushleft", "flushright"):
             align = {"center": "center", "flushleft": "left", "flushright": "right"}[base]
@@ -1283,7 +1470,12 @@ class _Builder:
         self._collect_figure_parts(node.nodelist, fig, top=True, panels=panels)
         img_panels = [p for p in panels if p[0] is not None]
         if fig.subfigures or len(img_panels) <= 1:
-            if fig.image is None and not fig.subfigures:
+            if fig.image is None and not fig.subfigures and not _has_opaque_env(fig.source):
+                # No graphic and no drawing env: the figure *is* its body
+                # (tcolorboxes, minipage text, a tabular, a listing, …). Render
+                # that content above the caption instead of dropping it.
+                fig.blocks = self._figure_body_blocks(node.nodelist)
+            if fig.image is None and not fig.subfigures and not fig.blocks:
                 self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
             self._labelable = fig
             out.append(fig)
@@ -1299,6 +1491,133 @@ class _Builder:
                 caption=caption, label=label, caption_numbered=numbered,
             ))
         self._labelable = None  # a trailing \label would be ambiguous across panels
+
+    def _figure_body_blocks(self, nodes: list) -> list[ir.Block]:
+        """Parse a graphic-less figure body into blocks. The caption/label were
+        already collected, so ``\\caption`` is suppressed and the label target is
+        detached (a body ``\\label`` must not re-attach to an earlier block);
+        layout-only paragraphs (``\\\\[4pt]``, ``\\hfill``) are dropped."""
+        prev_flag, prev_target = self._in_figure_body, self._labelable
+        self._in_figure_body, self._labelable = True, None
+        try:
+            blocks: list[ir.Block] = []
+            segment: list = []
+            i, n = 0, len(nodes)
+            while i < n:
+                if _is_minipage(nodes[i]):
+                    # a run of sibling minipages (joined only by \hfill & co.)
+                    # sits side by side in LaTeX -> one borderless layout row.
+                    run, k, last = [nodes[i]], i + 1, i
+                    while k < n and (_is_minipage(nodes[k]) or _is_layout_glue(nodes[k])):
+                        if _is_minipage(nodes[k]):
+                            run.append(nodes[k])
+                            last = k
+                        k += 1
+                    if len(run) >= 2:
+                        blocks.extend(self.blocks(segment))
+                        segment = []
+                        blocks.append(self._minipage_row(run))
+                        i = last + 1
+                        continue
+                segment.append(nodes[i])
+                i += 1
+            blocks.extend(self.blocks(segment))
+        finally:
+            self._in_figure_body, self._labelable = prev_flag, prev_target
+        return [b for b in blocks if not _is_blank_paragraph(b)]
+
+    def _minipage_row(self, minipages: list) -> ir.Table:
+        """Side-by-side minipages -> a one-row borderless layout table, one cell
+        per minipage holding its parsed body."""
+        cells = [
+            ir.TableCell(blocks=[b for b in self.blocks(mp.nodelist) if not _is_blank_paragraph(b)])
+            for mp in minipages
+        ]
+        return ir.Table(rows=[ir.TableRow(cells)], colspec=["left"] * len(cells), layout=True)
+
+    def _tcolorbox_quote(self, node: LatexEnvironmentNode, base: str) -> ir.Quote:
+        """A ``tcolorbox`` (or a ``\\newtcolorbox`` env) -> a coloured callout.
+
+        Options are resolved in tcolorbox order: the env definition (with its
+        ``#1..#n`` replaced by the ``\\begin{box}{…}`` arguments), then any
+        ``\\begin{tcolorbox}[…]`` options; bare keys naming a ``\\tcbset`` style
+        expand that style. Unset colours fall back to tcolorbox's defaults."""
+        texts: list[str] = []
+        env = self.tcb_envs.get(base)
+        if env is not None:
+            opts = env.opts
+            for k, arg in enumerate(self._env_arg_texts(node, env), 1):
+                opts = opts.replace(f"#{k}", arg)
+            texts.append(opts)
+        if base == "tcolorbox":
+            texts.append(_graphics_option_text(node))
+        eff = self._tcb_resolve(texts)
+
+        def colour(key: str, default: str) -> str | None:
+            spec = eff.get(key) or default
+            return self.colors.resolve(spec, None)
+
+        shade = colour("colback", "black!5!white")
+        border = colour("colframe", "black!75!white")
+        if _length_to_emu(eff.get("boxrule", "1pt")) == 0:
+            border = shade  # boxrule=0pt: no visible frame
+        title = None
+        title_shade = None
+        if eff.get("title"):
+            title = self._fragment_inlines(eff["title"])
+            if "\\bfseries" in eff.get("fonttitle", ""):
+                title = [ir.Emphasis(title, "bold")]
+            title = [ir.Colored(title, fg=colour("coltitle", "white"))]
+            title_shade = colour("colbacktitle", eff.get("colframe") or "black!75!white")
+        return ir.Quote(
+            self.blocks(node.nodelist), shade=shade, border=border,
+            title=title, title_shade=title_shade,
+        )
+
+    def _env_arg_texts(self, node: LatexEnvironmentNode, env: _TcbEnv) -> list[str]:
+        """Raw LaTeX of a user env's ``\\begin`` arguments (optional first arg
+        falls back to its declared default)."""
+        args = list(node.nodeargd.argnlist) if node.nodeargd else []
+        texts: list[str] = []
+        for a in args[: env.nargs]:
+            if a is None:
+                texts.append("")
+                continue
+            v = a.latex_verbatim().strip()
+            if v[:1] in "{[" and v[-1:] in "}]":
+                v = v[1:-1]
+            texts.append(v)
+        if env.default is not None and (not texts or not texts[0]):
+            texts[:1] = [env.default]
+        return texts
+
+    def _tcb_resolve(self, texts: list[str]) -> dict[str, str]:
+        eff: dict[str, str] = {}
+
+        def apply(raw: str, depth: int) -> None:
+            if depth > 8:  # guard against self-referencing styles
+                return
+            for key, val in _kv_list(raw):
+                if val is None:
+                    if key in self.tcb_styles:
+                        apply(self.tcb_styles[key], depth + 1)
+                elif key in _TCB_KEYS:
+                    eff[key] = _strip_braces(val)
+
+        for t in texts:
+            if t:
+                apply(t, 0)
+        return eff
+
+    def _fragment_inlines(self, latex: str) -> list[ir.Inline]:
+        """Parse a LaTeX fragment (e.g. a box title) into inlines."""
+        try:
+            nodes, _, _ = LatexWalker(
+                latex, latex_context=self.ctx, tolerant_parsing=True
+            ).get_latex_nodes()
+        except Exception:  # never let a title abort the conversion
+            return [ir.Text(latex)]
+        return _clean_inlines(self.inlines(nodes), trim=True)
 
     def _collect_figure_parts(
         self, nodes: list, fig: ir.Figure, top: bool, panels: list | None = None
@@ -1323,7 +1642,7 @@ class _Builder:
                     fig.image = img
                     if panels is not None:
                         panels.append([img, None, None, True])
-                elif child.macroname == "caption":
+                elif child.macroname in ("caption", "captionof"):
                     cap = self.inlines(_group_nodes(child))
                     numbered = not _has_star(child)
                     fig.caption = cap
@@ -1972,6 +2291,126 @@ def _collect_tcolorbox_envs(source: str) -> set[str]:
     return {m.group(1).strip() for m in _NEWTCOLORBOX_RE.finditer(source) if m.group(1).strip()}
 
 
+@dataclass
+class _TcbEnv:
+    """A ``\\newtcolorbox{name}[nargs][default]{options}`` definition."""
+
+    nargs: int = 0
+    default: str | None = None  # default of an optional first argument
+    opts: str = ""              # raw option text (may reference #1..#n)
+
+
+_NEWTCB_HEAD_RE = re.compile(r"\\(?:re)?newtcolorbox(?![A-Za-z])")
+#: tcolorbox keys that shape the rendered callout; everything else is layout.
+_TCB_KEYS = frozenset({
+    "colback", "colframe", "colbacktitle", "coltitle", "title", "fonttitle", "boxrule",
+})
+
+
+def _skip_ws(s: str, i: int) -> int:
+    while i < len(s) and s[i] in " \t\r\n":
+        i += 1
+    return i
+
+
+def _read_bracket(s: str, i: int) -> tuple[str, int]:
+    """Read a brace-aware ``[...]`` group at ``s[i] == '['``; (inner, index-after)."""
+    depth = 0
+    for j in range(i + 1, len(s)):
+        c = s[j]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == "]" and depth == 0:
+            return s[i + 1:j], j + 1
+    return s[i + 1:], len(s)
+
+
+def _strip_braces(value: str) -> str:
+    """Drop one level of braces wrapping a whole value (``{#1}`` -> ``#1``)."""
+    v = value.strip()
+    if len(v) >= 2 and v[0] == "{" and v[-1] == "}":
+        inner, end = _braced_group(v, 0)
+        if end == len(v) - 1:
+            return inner.strip()
+    return v
+
+
+def _kv_list(opts: str) -> list[tuple[str, str | None]]:
+    """Split a ``key=value,flag,...`` option list on top-level commas,
+    preserving order and case (later keys override earlier ones)."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for ch in opts:
+        if ch in "{[":
+            depth += 1
+        elif ch in "}]":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    parts.append("".join(buf))
+    out: list[tuple[str, str | None]] = []
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        if "=" in part:
+            key, _, val = part.partition("=")
+            out.append((key.strip(), val.strip()))
+        else:
+            out.append((part, None))
+    return out
+
+
+def _collect_tcolorbox_defs(source: str) -> tuple[dict[str, _TcbEnv], dict[str, str]]:
+    """``\\newtcolorbox`` environments and ``\\tcbset{name/.style={...}}`` styles."""
+    envs: dict[str, _TcbEnv] = {}
+    for m in _NEWTCB_HEAD_RE.finditer(source):
+        i = _skip_ws(source, m.end())
+        if i < len(source) and source[i] == "[":  # [init options]
+            _, i = _read_bracket(source, i)
+            i = _skip_ws(source, i)
+        if i >= len(source) or source[i] != "{":
+            continue
+        name, end = _braced_group(source, i)
+        i = _skip_ws(source, end + 1)
+        nargs, default = 0, None
+        if i < len(source) and source[i] == "[":
+            n, i = _read_bracket(source, i)
+            i = _skip_ws(source, i)
+            try:
+                nargs = int(n.strip())
+            except ValueError:
+                nargs = 0
+            if i < len(source) and source[i] == "[":
+                default, i = _read_bracket(source, i)
+                i = _skip_ws(source, i)
+        opts = _braced_group(source, i)[0] if i < len(source) and source[i] == "{" else ""
+        if name.strip():
+            envs[name.strip()] = _TcbEnv(nargs, default, opts)
+    styles: dict[str, str] = {}
+    for m in re.finditer(r"\\tcbset\s*\{", source):
+        body, _ = _braced_group(source, m.end() - 1)
+        for key, val in _kv_list(body):
+            if key.endswith("/.style") and val is not None:
+                styles[key[: -len("/.style")].strip()] = _strip_braces(val)
+    return envs, styles
+
+
+def _tcb_argspec(env: _TcbEnv) -> str:
+    """pylatexenc argument spec for a user tcolorbox env (``[`` = optional)."""
+    if env.nargs <= 0:
+        return ""
+    if env.default is not None:
+        return "[" + "{" * (env.nargs - 1)
+    return "{" * env.nargs
+
+
 # User-defined mdframed callout environments: \newmdenv[opts]{name},
 # \newmdtheoremenv[opts]{name}{caption}, \surroundwithmdframed[opts]{name}. The
 # option list may span lines (re.DOTALL). Rendered as set-off Quote blocks like
@@ -2070,7 +2509,10 @@ def _resolve_theorem_counters(
     return counters
 
 
-def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
+def _build_context(
+    extra_theorem_envs: tuple[str, ...] = (),
+    extra_env_specs: tuple[tuple[str, str], ...] = (),
+):
     """Augment pylatexenc's default DB with arg signatures it lacks."""
     ctx = get_default_latex_context_db()
     ctx.add_context_category(
@@ -2086,6 +2528,8 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             MacroSpec("chapter", "*[{"),
             MacroSpec("part", "*[{"),
             MacroSpec("caption", "*[{"),
+            # \captionof*{type}[short]{long} (caption / capt-of packages)
+            MacroSpec("captionof", "*{[{"),
             # layout / front-matter commands: consume their args so they don't
             # leak as text (e.g. full-page cover \AddToShipoutPicture{\put...}).
             MacroSpec("AddToShipoutPicture", "*{"),
@@ -2283,6 +2727,10 @@ def _build_context(extra_theorem_envs: tuple[str, ...] = ()):
             # boxed environments with an optional [options] argument
             EnvironmentSpec("mdframed", "["), EnvironmentSpec("tcolorbox", "["),
             EnvironmentSpec("leftbar", "["),
+        ] + [
+            # user \newtcolorbox envs that take arguments (\begin{box}{title}):
+            # declare them so the args are consumed, not parsed as body text.
+            EnvironmentSpec(name, spec) for name, spec in extra_env_specs if spec
         ],
         prepend=True,
     )
@@ -2308,12 +2756,34 @@ def _split_document(source: str) -> tuple[str, str]:
     return body, preamble
 
 
+#: preamble commands some classes use to place a captioned teaser figure on the
+#: title page (thuc3i's \pretitlefigure, a few arXiv templates' \teaserfigure).
+_TEASER_MACROS = ("pretitlefigure", "teaserfigure", "titlefigure")
+
+
+def _preamble_teaser_blocks(preamble: str, ctx, builder: _Builder) -> list[ir.Block]:
+    """Parse a preamble teaser-figure command's body into blocks (best effort)."""
+    out: list[ir.Block] = []
+    for macro in _TEASER_MACROS:
+        content = _braced_content(preamble, macro)
+        if not content:
+            continue
+        try:
+            nodes, _, _ = LatexWalker(content, latex_context=ctx, tolerant_parsing=True
+                                      ).get_latex_nodes()
+        except Exception:  # never let a class-specific teaser abort the conversion
+            continue
+        out.extend(b for b in builder.blocks(nodes) if not _is_blank_paragraph(b))
+    return out
+
+
 def _running_head_from_preamble(preamble: str) -> str | None:
     """Recover a running head declared in the preamble (best effort, plain text)."""
     m = re.search(r"\\title\s*\[([^\]]*)\]", preamble)  # \title[short]{long}
     if m:
         return _normalize_ws(m.group(1)).strip() or None
-    for macro in ("runninghead", "shorttitle", "markright"):
+    for macro in ("runninghead", "shorttitle", "markright", "setheadertext",
+                  "titlerunning", "runningtitle"):
         content = _braced_content(preamble, macro)
         if content:
             return _normalize_ws(content).strip() or None
@@ -2467,35 +2937,46 @@ def parse_document(
     """
     report = ConversionReport()
     expanded = replace_inline_tikz(expand_macros(preprocess(source, base_dir), base_dir))
+    # after expansion, so macro-generated \vskip/\faX are cleaned up too
+    expanded = normalize_spacing_and_icons(expanded)
     body, preamble = _split_document(expanded)
     # \newtheorem declarations may live in a \usepackage'd local .sty (e.g. a
     # paper's MyPreamble.sty), which macro expansion harvests but doesn't inline;
     # scan those sources too so the theorem environments are recognised.
     theorem_src = expanded + "\n" + local_package_sources(source, base_dir)
     custom_theorems, unnumbered_theorems, shared_counters = _collect_newtheorems(theorem_src)
-    ctx = _build_context(tuple(custom_theorems))
+    tcb_envs, tcb_styles = _collect_tcolorbox_defs(theorem_src)
+    ctx = _build_context(
+        tuple(custom_theorems),
+        tuple((name, _tcb_argspec(env)) for name, env in tcb_envs.items()),
+    )
     walker = LatexWalker(body, latex_context=ctx, tolerant_parsing=True)
     nodes, _, _ = walker.get_latex_nodes()
 
     builder = _Builder(report)
+    builder.ctx = ctx
     builder.theorem_envs.update(custom_theorems)
     builder.unnumbered_theorems = unnumbered_theorems
     builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
     builder.box_envs = _collect_tcolorbox_envs(theorem_src)  # \newtcolorbox callouts
+    builder.tcb_envs, builder.tcb_styles = tcb_envs, tcb_styles
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
     builder.box_envs |= set(builder.box_styles)
     builder.book_mode = _is_book_class(expanded)
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)
     _collect_glossary_entries(expanded, builder.glossary)  # \newglossaryentry terms
-    blocks = builder.blocks(nodes)
+    # A class-level teaser figure declared in the preamble (\pretitlefigure{…}):
+    # it is page-1 content, so parse it first and lead the body with it.
+    teaser = _preamble_teaser_blocks(preamble, ctx, builder)
+    blocks = teaser + builder.blocks(nodes)
     doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode)
 
     _fill_meta_from_preamble(doc, preamble, ctx, report)
     # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
     # title is present but no \date was given (an explicit \date{} stays empty).
     if doc.meta.date is None and doc.meta.title:
-        doc.meta.date = [ir.Text(_today_text())]
+        doc.meta.date = _default_date(source, builder)
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
     if doc.meta.language is None:
