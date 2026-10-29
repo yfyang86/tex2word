@@ -296,6 +296,13 @@ D("theorem-ref-numbering", r"\begin{theorem}\label{t1}A\end{theorem}\begin{lemma
   r"\end{lemma}\ref{t1} \ref{l1}",
   pre=r"\newtheorem{theorem}{Theorem}\newtheorem{lemma}[theorem]{Lemma}",
   texts=["Theorem 1", "Lemma 2"], note="a lemma sharing the theorem counter is number 2")
+D("cached-ref-numbers", r"\section{A}\section{B}\label{sb}\subsection{C}\label{sc}"
+  r"\begin{figure}\includegraphics[width=1cm]{img.png}\caption{F1}\end{figure}"
+  r"\begin{figure}\includegraphics[width=1cm]{img.png}\caption{F2}\label{f2}\end{figure}"
+  r"\begin{equation}a\label{e1}\end{equation}\begin{equation}b\label{e2}\end{equation}"
+  r"Refs \ref{sb}/\ref{sc}/\ref{f2}/\eqref{e2}.",
+  texts=["Refs 2/2.1/2/(2).", "Figure 2: F2"],
+  note="cached field results are real numbers (static viewers show them as-is)")
 D("theorem-per-section", r"\section{S}\begin{theorem}A\end{theorem}",
   pre=r"\newtheorem{theorem}{Theorem}[section]", texts=["Theorem 1.1"])
 D("theorem-unnumbered", r"\begin{remark}KEEP1\end{remark}",

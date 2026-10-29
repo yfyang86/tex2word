@@ -247,6 +247,7 @@ class ItemList(Node):
     ordered: bool
     items: list[ListItem]
     description: bool = False  # a `description` list (term + definition)
+    start: int = 1  # first number of an ordered list (enumitem start=, \setcounter{enumi})
 
 
 TableAlign = Literal["left", "center", "right"]

@@ -215,11 +215,6 @@
     "warning:\\thecnt"
    ]
   },
-  "doc/theorem-ref-numbering": {
-   "signatures": [
-    "expect-text:Lemma 2"
-   ]
-  },
   "math/backslash-setminus@display": {
    "signatures": [
     "expect-text:∖",

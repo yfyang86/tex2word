@@ -21,7 +21,7 @@ from ..report import ConversionReport
 from . import fields, images, raster
 from .numbering import (
     BULLET_NUM_ID,
-    DECIMAL_NUM_ID,
+    FIRST_LIST_NUM_ID,
     HEADING_APPENDIX_NUM_ID,
     HEADING_NUM_ID,
     PART_NUM_ID,
@@ -103,6 +103,12 @@ class DocumentWriter:
         self._comment_counter = 0
         self.math = MathCascade(report, image_renderer=image_math_renderer)
         fields.reset_bookmark_ids()
+        #: (numId, ilvl, start) of every ordered list's own numbering instance
+        self.list_restarts: list[tuple[int, int, int]] = []
+        #: number of Heading 1 paragraphs so far, and per SEQ counter the value it
+        #: had at that counter's last section-relative number
+        self._section_epoch = 0
+        self._seq_epoch: dict[str, int] = {}
 
     # -- public ----------------------------------------------------------- #
 
@@ -117,6 +123,13 @@ class DocumentWriter:
                 self._cite_items = {e.id: e for e in block.entries}
         body = el("w:body")
         self._emit_body(doc, body)
+        # real cached numbers for SEQ/STYLEREF/REF (viewers that don't update
+        # fields would otherwise show "Figure 1" everywhere and "see 0")
+        from .field_results import fill_field_results
+        from .numbering import numbering_xml
+
+        fill_field_results(body, numbering_xml(self.list_restarts),
+                           notes=[*self._footnotes, *self._endnotes])
         document = el("w:document", body)
         return serialize(document)
 
@@ -240,6 +253,8 @@ class DocumentWriter:
 
     def _heading(self, block: ir.Heading, body: _Element) -> None:
         style = _HEADING_STYLE.get(block.level, "Heading5")
+        if style == "Heading1":
+            self._section_epoch += 1
         p = self._styled_paragraph(style)
         if block.part and block.numbered:
             ppr = p.find(_qn("w:pPr"))
@@ -315,19 +330,31 @@ class DocumentWriter:
         if line_label:
             start = fields.bookmark_start(_bookmark_for(line_label))
             p.append(start)
-        for run in fields.number_field("Equation", self.number_by_section):
+        for run in self._number_runs("Equation", self.number_by_section):
             p.append(run)
         if start is not None:
             p.append(fields.bookmark_end_for(start))
         p.append(self._run(")"))
         return p
 
-    def _list(self, block: ir.ItemList, body: _Element, level: int = 0) -> None:
+    def _list(
+        self, block: ir.ItemList, body: _Element, level: int = 0,
+        parent_num: int | None = None,
+    ) -> None:
         if block.description:
             for item in block.items:
                 self._description_item(item, body, level)
             return
-        num_id = DECIMAL_NUM_ID if block.ordered else BULLET_NUM_ID
+        if not block.ordered:
+            num_id = BULLET_NUM_ID
+        elif parent_num is not None and block.start == 1:
+            # nested in an ordered list: the parent's instance, whose deeper
+            # level restarts at each parent item -- (a), (b) under every item
+            num_id = parent_num
+        else:
+            # its own instance, so the list restarts at 1 (or at its start=)
+            num_id = FIRST_LIST_NUM_ID + len(self.list_restarts)
+            self.list_restarts.append((num_id, level, block.start))
         for item in block.items:
             self._list_item(item, body, level, num_id)
 
@@ -354,9 +381,11 @@ class DocumentWriter:
             self._bookmark_list_item(item, p)
             body.append(p)
             marked = True
+        ordered_parent = num_id != BULLET_NUM_ID
         for inner in item.blocks:
             if isinstance(inner, ir.ItemList):
-                self._list(inner, body, level + 1)
+                self._list(inner, body, level + 1,
+                           parent_num=num_id if ordered_parent else None)
                 continue
             if not isinstance(inner, ir.Paragraph):
                 self._block(inner, body)
@@ -832,6 +861,14 @@ class DocumentWriter:
             p.append(run)
         body.append(p)
 
+    def _number_runs(self, counter: str, by_section: bool) -> list[_Element]:
+        """``fields.number_field`` plus an explicit restart on the first
+        section-relative number of each counter after a new Heading 1."""
+        restart = by_section and self._seq_epoch.get(counter) != self._section_epoch
+        if by_section:
+            self._seq_epoch[counter] = self._section_epoch
+        return fields.number_field(counter, by_section, restart=restart)
+
     def _caption(
         self,
         counter: str,
@@ -851,7 +888,7 @@ class DocumentWriter:
         if name:
             start = fields.bookmark_start(name)
             p.append(start)
-        for run in fields.number_field(counter, self.number_by_section):
+        for run in self._number_runs(counter, self.number_by_section):
             p.append(run)
         if start is not None:
             p.append(fields.bookmark_end_for(start))
@@ -964,7 +1001,7 @@ class DocumentWriter:
             if block.label:
                 start = fields.bookmark_start(_bookmark_for(block.label))
                 cap.append(start)
-            for run in fields.number_field("Algorithm", self.number_by_section):
+            for run in self._number_runs("Algorithm", self.number_by_section):
                 cap.append(run)
             if start is not None:
                 cap.append(fields.bookmark_end_for(start))
@@ -1017,7 +1054,7 @@ class DocumentWriter:
             # \newtheorem{thm}{Theorem}[section] numbers "section.n" even
             # when the document's figures/equations are numbered flat
             by_section = self.number_by_section or block.within in ("section", "chapter")
-            for run in fields.number_field(block.counter, by_section):
+            for run in self._number_runs(block.counter, by_section):
                 p.append(run)
             if start is not None:
                 p.append(fields.bookmark_end_for(start))

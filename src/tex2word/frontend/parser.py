@@ -625,6 +625,20 @@ _TABLE_WRAP_ENVS = frozenset({
 })
 
 
+def _list_start(node: LatexEnvironmentNode) -> int:
+    """First number of an ordered list: enumitem ``[start=5]``, or a
+    ``\\setcounter{enumi}{4}`` before the first ``\\item`` (LaTeX steps the
+    counter before printing, so that also starts at 5)."""
+    for a in node.nodeargd.argnlist if node.nodeargd else []:
+        if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+            m = re.search(r"\bstart\s*=\s*(\d+)", a.latex_verbatim())
+            if m:
+                return int(m.group(1))
+    m = re.search(r"\\setcounter\s*\{enum[iv]+\}\s*\{\s*(\d+)\s*\}",
+                  node.latex_verbatim().split("\\item", 1)[0])
+    return int(m.group(1)) + 1 if m else 1
+
+
 def _has_caption(nodes: list) -> bool:
     for n in nodes:
         if isinstance(n, LatexMacroNode) and n.macroname in ("caption", "captionof"):
@@ -1726,7 +1740,8 @@ class _Builder(FrontMatterMixin):
             # content before the first \item is discarded (it isn't an item)
         if started:
             flush_item()
-        return ir.ItemList(ordered=ordered, items=items, description=description)
+        return ir.ItemList(ordered=ordered, items=items, description=description,
+                           start=_list_start(node) if ordered else 1)
 
     def _cite_locators(self, node: LatexMacroNode) -> tuple[str | None, str | None]:
         """Extract ``\\citep[pre][post]{key}`` locators.

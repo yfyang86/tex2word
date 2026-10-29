@@ -28,6 +28,23 @@ def _tokens(p: Probe) -> list[str]:
     return toks
 
 
+def _field_paragraphs(docx: bytes) -> list[str]:
+    """Text of the body paragraphs that hold a SEQ/REF/STYLEREF field."""
+    import io
+    import zipfile
+
+    xml = zipfile.ZipFile(io.BytesIO(docx)).read("word/document.xml").decode("utf-8")
+    out = []
+    for para in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S):
+        if not re.search(r"<w:instrText[^>]*>\s*(SEQ|REF|STYLEREF)\b", para):
+            continue
+        text = "".join(re.findall(r"<w:t(?: [^>]*)?>([^<]*)</w:t>", para))
+        text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+        if text.strip():
+            out.append(text.replace("\u00a0", " "))
+    return out
+
+
 def render_check(probes: dict[str, Probe], results: list[Result]) -> None:
     soffice = shutil.which("soffice") or shutil.which("libreoffice")
     try:
@@ -42,6 +59,7 @@ def render_check(probes: dict[str, Probe], results: list[Result]) -> None:
     todo = [p for p in probes.values() if p.id in by_id and _tokens(p)]
     with tempfile.TemporaryDirectory(prefix="t2w-render-") as tmp:
         names: dict[str, Probe] = {}
+        field_lines: dict[str, list[str]] = {}
         for i, p in enumerate(todo):
             d = os.path.join(tmp, f"src{i}")
             os.makedirs(d)
@@ -54,6 +72,7 @@ def render_check(probes: dict[str, Probe], results: list[Result]) -> None:
             with open(os.path.join(tmp, name + ".docx"), "wb") as fh:
                 fh.write(docx)
             names[name] = p
+            field_lines[name] = _field_paragraphs(docx)
         files = sorted(names)
         for start in range(0, len(files), _BATCH):
             batch = [os.path.join(tmp, f + ".docx") for f in files[start:start + _BATCH]]
@@ -72,3 +91,10 @@ def render_check(probes: dict[str, Probe], results: list[Result]) -> None:
             for tok in _tokens(p):
                 if tok not in flat:
                     r.findings.append(Finding("render-missing", f"{tok!r} not in the PDF text"))
+            # cached field results (numbers, references) must equal what
+            # LibreOffice computes when it updates the fields on load
+            for line in field_lines.get(name, []):
+                if re.sub(r"\s+", "", line) not in flat:
+                    r.findings.append(Finding("render-field-mismatch",
+                                              f"cached {line!r} differs from the render"))
+                    break

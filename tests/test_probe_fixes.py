@@ -109,7 +109,7 @@ def test_theorem_numbered_within_section():
     r = _doc(r"\section{S}\begin{theorem}A\end{theorem}",
              r"\newtheorem{theorem}{Theorem}[section]\newtheorem{lemma}[theorem]{Lemma}")
     xml = zipfile.ZipFile(io.BytesIO(r.docx)).read("word/document.xml").decode()
-    assert "STYLEREF 1" in xml and "SEQ Theorem \\s 1" in xml
+    assert "STYLEREF 1 \\n" in xml and "SEQ Theorem \\r 1 \\s 1" in xml
     thm = next(b for b in r.document.blocks if isinstance(b, ir.Theorem))
     assert thm.within == "section"
 

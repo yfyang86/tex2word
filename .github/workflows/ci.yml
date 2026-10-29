@@ -118,7 +118,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Render CJK .docx through LibreOffice and check the Chinese text
-        run: uv run pytest tests/test_cjk_render.py tests/test_cjk_context.py -q -rs
+        run: uv run pytest tests/test_cjk_render.py tests/test_cjk_context.py tests/test_field_results.py -q -rs
 
   tikz-render:
     name: TikZ render (TeX engine)

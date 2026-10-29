@@ -130,7 +130,7 @@ def convert_source(
     package = DocxPackage(
         document_xml=document_xml,
         styles_xml=styles_xml,
-        numbering_xml=numbering_xml(),
+        numbering_xml=numbering_xml(writer.list_restarts),
         document_rels=writer.document_rels + hf_rels,
         media=writer.media,
         footnotes=writer.footnotes_xml(),

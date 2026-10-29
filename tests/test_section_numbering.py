@@ -29,8 +29,10 @@ def test_flat_numbering_is_default():
 
 def test_by_section_uses_styleref_and_reset_seq():
     instrs = _instrs(convert_source(SRC, number_by_section=True).docx)
-    assert "STYLEREF 1 \\s" in instrs
-    assert "SEQ Equation \\s 1" in instrs
+    # \n = the heading's paragraph number (LibreOffice reads \s as its text);
+    # the first number of a section also restarts explicitly (\r 1)
+    assert "STYLEREF 1 \\n" in instrs
+    assert "SEQ Equation \\r 1 \\s 1" in instrs
 
 
 def test_number_field_helper_flat():
@@ -60,7 +62,7 @@ def test_by_section_ref_bookmark_wraps_full_number():
         "//w:p[.//w:bookmarkStart]//w:instrText/text()", namespaces=NS
     )
     joined = " ".join(instrs_in_bookmarked)
-    assert "STYLEREF 1 \\s" in joined and "SEQ Equation \\s 1" in joined
+    assert "STYLEREF 1 \\n" in joined and "SEQ Equation" in joined
 
 
 def test_output_valid_in_both_modes():
