@@ -33,13 +33,44 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Lint (ruff)
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests tools
 
       - name: Type check (mypy)
-        run: uv run mypy src
+        run: uv run mypy src tools
 
       - name: Tests (pytest)
         run: uv run pytest -q
+
+  synthetic-probes:
+    name: synthetic probes (full catalog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Verify every probe against the baseline
+        run: uv run python -m tools.synth verify
+
+      - name: Triage report
+        if: always()
+        run: uv run python -m tools.synth triage --out probe-report.md
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-report
+          path: probe-report.md
 
   build:
     name: build sdist + wheel
