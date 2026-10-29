@@ -1,0 +1,71 @@
+\pdfoutput=1
+% Synthetic acceptance fixture (MIT, part of rstex2word). It mirrors the
+% constructs of AI-assisted arXiv papers such as arXiv:2610.32813: TikZ
+% figures kept in \input files, stacked pictures in one figure*, captions
+% built with \protect\input, nested \input paths relative to the main file,
+% headings with several \label keys, url-package \path, and the end-matter
+% commands of a two-column layout.
+\documentclass[10pt,twocolumn,letterpaper]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{times}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hyphens]{url}
+\usepackage{booktabs,amsmath,amssymb,graphicx}
+\usepackage{tikz}
+\usepackage{balance}
+\usetikzlibrary{positioning,arrows.meta,fit,calc,plotmarks}
+\usepackage[colorlinks,allcolors=blue]{hyperref}
+\newcommand{\ours}{\textup{Fixture}}
+\title{Rendering TikZ in Word: an acceptance fixture}
+\author{A. Author}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\ours{} checks that every TikZ picture of a figure reaches the document.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+Figure~\ref{fig:pipeline} shows the pipeline; Table~\ref{tab:results}
+lists the results and Appendix~\ref{sec:alias} the protocol. Raw data are
+in \path{generated/results_raw.json}. We follow prior work~\citep{knuth1984}.
+
+\begin{figure*}[t]
+\centering
+\input{figures/pipeline}
+\caption{Pipeline overview. \protect\input{generated/pipeline_caption}}
+\label{fig:pipeline}
+\end{figure*}
+
+\section{Results}
+\input{generated/results_provenance}
+
+\begin{figure*}[t]
+\centering
+\input{generated/bars_quality}
+\par\vspace{2mm}
+\input{generated/bars_cost}
+\caption{\protect\input{generated/bars_caption}}
+\label{fig:bars}
+\end{figure*}
+
+Figure~\ref{fig:bars} stacks two pictures; the cost model is $c = n\,t$
+\citep{lamport1994}.
+
+\clearpage
+\nobalance
+\typeout{MAIN_BODY_NEXT_PAGE=\thepage}
+{\small
+\bibliographystyle{plainnat}
+\bibliography{refs}
+}
+
+\clearpage
+\onecolumn
+\appendix
+\input{appendix_protocol}
+\end{document}

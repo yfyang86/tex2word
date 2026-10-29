@@ -1,0 +1,11 @@
+\begin{tikzpicture}[x=1cm,y=1cm,font=\scriptsize]
+\definecolor{bar}{RGB}{37,99,235}
+\draw[black!20,rounded corners=1mm] (0,0.75) rectangle (17.1,-1.30);
+\node[anchor=west,font=\bfseries\footnotesize] at (.16,.50) {Success (\%) $\uparrow$};
+\foreach \label/\value/\y in {Full/93.77/0, Without reuse/81.20/-0.36, Without callbacks/64.05/-0.72} {
+  \node[anchor=west] at (.16,\y) {\label};
+  \fill[black!4] (5.15,\y-0.085) rectangle (15.15,\y+0.085);
+  \fill[bar] (5.15,\y-0.085) rectangle ({5.15+\value/10},\y+0.085);
+  \node[anchor=west] at ({5.20+\value/10},\y) {\value};
+}
+\end{tikzpicture}
