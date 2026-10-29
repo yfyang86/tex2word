@@ -13,7 +13,7 @@ import itertools
 
 from lxml import etree
 
-from .ooxml import el, preserve_space, sub, text_el
+from .ooxml import el, preserve_space, sub, text_el, xml_safe
 
 _Element = etree._Element
 _bookmark_ids = itertools.count(1)
@@ -39,7 +39,7 @@ def _instr_run(code: str) -> _Element:
     r = el("w:r")
     instr = sub(r, "w:instrText")
     preserve_space(instr)
-    instr.text = code
+    instr.text = xml_safe(code)
     return r
 
 

@@ -53,7 +53,7 @@ _DROP_MACROS = {"phantom", "hphantom", "vphantom", "rule"}
 # box wrappers that are visually transparent: emit the (last) content group
 _TRANSPARENT_BOX = {
     "mbox", "fbox", "framebox", "makebox", "raisebox", "rotatebox", "resizebox",
-    "scalebox", "makecell", "thead",
+    "scalebox", "makecell", "thead", "parbox", "foreignlanguage", "otherlanguage",
 }
 # IEEEtran author-block wrappers: render their content (name / affiliation text).
 _AUTHOR_BLOCK = {"IEEEauthorblockN", "IEEEauthorblockA"}
@@ -122,7 +122,8 @@ _CITE_MODES = {
 }
 
 _REF_KINDS = {
-    "ref": "generic", "eqref": "equation", "pageref": "page",
+    "ref": "generic", "eqref": "equation", "pageref": "page", "vpageref": "page",
+    "cpageref": "page", "Cpageref": "page",
     "autoref": "generic", "cref": "generic", "Cref": "generic", "vref": "generic",
     "crefrange": "generic", "Crefrange": "generic", "labelcref": "generic",
     "nameref": "name", "Nameref": "name",
@@ -134,6 +135,13 @@ _REF_STYLE = {
 }
 
 _TEXT_SYMBOLS = {
+    # non-ASCII letters (T1/OT1 text commands)
+    "ss": "ß", "SS": "SS", "o": "ø", "O": "Ø", "aa": "å", "AA": "Å", "l": "ł", "L": "Ł",
+    "ae": "æ", "AE": "Æ", "oe": "œ", "OE": "Œ", "i": "ı", "j": "ȷ", "dh": "ð", "DH": "Ð",
+    "th": "þ", "TH": "Þ", "ng": "ŋ", "NG": "Ŋ", "dj": "đ", "DJ": "Đ",
+    # babel/csquotes-style German and French quotes
+    "glqq": "„", "grqq": "“", "glq": "‚", "grq": "‘", "flqq": "«", "frqq": "»",
+    "flq": "‹", "frq": "›", "quotedblbase": "„", "quotesinglbase": "‚",
     "LaTeX": "LaTeX", "TeX": "TeX", "ldots": "…", "dots": "…",
     "textellipsis": "…", "textemdash": "—", "textendash": "–",
     "textasciitilde": "~", "textbackslash": "\\", "textasciicircum": "^",
@@ -200,6 +208,25 @@ _TRANSPARENT_ENVS = {
     "subequations", "samepage", "sloppypar", "spacing", "singlespace",
     "doublespace", "onehalfspace", "noindent", "raggedright", "raggedleft",
     "small", "footnotesize", "large", "Large", "flushleftright",
+    # page/column layout and language switches: the content is all that matters
+    "multicols", "landscape", "titlepage", "otherlanguage", "adjustbox", "fullwidth",
+    "frontmatter", "columns", "column", "alltt",
+}
+
+#: tabular-like environments (all parsed by ``_tabular``)
+_TABULAR_ENVS = frozenset({
+    "tabular", "array", "tabularx", "tabulary", "longtable", "supertabular", "xtabular",
+    "mpsupertabular",
+})
+
+#: environments whose content is not part of the document
+_DROPPED_ENVS = {"comment", "CCSXML", "filecontents"}
+
+#: acknowledgment environments -> an unnumbered heading over their content
+_ACK_ENVS = {
+    "acknowledgments": "Acknowledgments", "acknowledgements": "Acknowledgements",
+    "acknowledgment": "Acknowledgment", "acknowledgement": "Acknowledgement",
+    "acks": "Acknowledgments",
 }
 
 # theorem-like environment name -> display name. proof is handled specially.
@@ -245,6 +272,7 @@ _IGNORE_MACROS = {
     "newcounter", "addtocounter", "refstepcounter", "stepcounter",
     # ACM/IEEE front-matter + layout macros with no body-visible output. The
     # affiliation sub-fields take an argument (consumed by their MacroSpec below).
+    "makeatletter", "makeatother", "selectlanguage",
     "authornote", "authornotemark", "balance", "nobalance", "acmnote",
     "onecolumn", "twocolumn", "typeout",
     "institution", "department", "city", "state", "country",
@@ -364,6 +392,26 @@ def _verbatim_inner(env: LatexEnvironmentNode) -> str:
     first = env.nodelist[0]
     last = env.nodelist[-1]
     return env.parsing_state.s[first.pos : last.pos + last.len]
+
+
+def _url_text(nodes: list) -> str:
+    """A URL argument verbatim (``~``, ``#``, ``%`` are part of it), with TeX
+    escapes such as ``\\#``, ``\\%``, ``\\_`` undone."""
+    raw = "".join(n.latex_verbatim() for n in nodes).strip()
+    return re.sub(r"\\([#%_&~$])", r"\1", raw)
+
+
+def _flat_text(inlines: list) -> str:
+    """Plain text of rendered inlines (styles dropped, a no-break space kept)."""
+    out: list[str] = []
+    for n in inlines:
+        if isinstance(n, ir.Text):
+            out.append(n.value)
+        elif isinstance(n, ir.LineBreak):
+            out.append(" ")
+        elif hasattr(n, "inlines"):
+            out.append(_flat_text(n.inlines))
+    return "".join(out).strip()
 
 
 def _chars_of(nodes: list) -> str:
@@ -552,6 +600,20 @@ _BIB_BLOCK_MACROS = frozenset({
 _SUBJCLASS_NAME_RE = re.compile(r"\\@namedef\s*\{subjclassname@([^}]*)\}\s*\{([^{}]*)\}")
 
 
+def _has_block_content(nodes: list) -> bool:
+    """True if ``nodes`` hold an environment or a paragraph break."""
+    for n in nodes:
+        if isinstance(n, LatexEnvironmentNode):
+            return True
+        if isinstance(n, LatexCharsNode) and re.search(r"\n[ \t]*\n", n.chars):
+            return True
+        if isinstance(n, LatexMacroNode) and n.macroname == "par":
+            return True
+        if isinstance(n, LatexGroupNode) and _has_block_content(n.nodelist):
+            return True
+    return False
+
+
 #: scaling/rotation wrappers whose last {} argument is their content
 _BOX_WRAPPERS = ("resizebox", "scalebox", "rotatebox")
 
@@ -611,6 +673,7 @@ class _Builder:
         self.unnumbered_theorems: set[str] = set()  # \newtheorem*-defined names
         # env name -> counter display title (shared counters resolve here)
         self.theorem_counters: dict[str, str] = {}
+        self.theorem_within: dict[str, str] = {}  # env -> division its counter resets in
         # user \newtcolorbox / \newmdenv callout environments -> Quote blocks
         self.box_envs: set[str] = set()
         #: \newtcolorbox definitions and \tcbset{name/.style=...} styles, used to
@@ -711,6 +774,31 @@ class _Builder:
         if isinstance(node, LatexMacroNode):
             self._inline_macro(node, out)
             return
+        if isinstance(node, LatexEnvironmentNode):
+            self._inline_env(node, out)
+            return
+
+    def _inline_env(self, node: LatexEnvironmentNode, out: list[ir.Inline]) -> None:
+        """An environment inside a macro argument (a caption, a heading, \\fbox,
+        \\textbf, ...). Word cannot put a table inside a run, so a tabular keeps
+        its text: rows on separate lines, cells separated by spaces. Any other
+        environment contributes its content."""
+        base = node.environmentname.rstrip("*")
+        if base in _TABULAR_ENVS:
+            table = self._tabular(node)
+            for ri, row in enumerate(table.rows):
+                if ri:
+                    out.append(ir.LineBreak())
+                for ci, cell in enumerate(row.cells):
+                    if ci:
+                        out.append(ir.Text("  "))
+                    for b in cell.blocks:
+                        if isinstance(b, ir.Paragraph):
+                            out.extend(b.inlines)
+            return
+        if base in _OPAQUE_ENVS or base in _DROPPED_ENVS:
+            return
+        out.extend(self._scoped_inlines(node.nodelist))
 
     def _inline_special(self, node: LatexSpecialsNode, out: list[ir.Inline]) -> None:
         spec = node.specials_chars
@@ -808,7 +896,7 @@ class _Builder:
         if name in ("footnote", "thanks", "marginpar", "sidenote"):
             # \thanks (title/author note), \marginpar/\sidenote (margin asides)
             # all degrade to a Word footnote -- the closest aside Word offers.
-            out.append(ir.Footnote(self.inlines(_group_nodes(node))))
+            out.append(self._note(_group_nodes(node)))
             return
         if name == "footnotemark":
             # split footnote: a mark here, its text supplied later by \footnotetext.
@@ -942,8 +1030,15 @@ class _Builder:
         if name in _IGNORE_MACROS:
             return
         if _accent_char(name) is not None:
-            base = _chars_of(_group_nodes(node))
+            # render the base: \"{\i} has a macro (dotless i) as its base
+            base = _flat_text(self.inlines(_group_nodes(node)))
             out.append(ir.Text(_apply_text_accent(name, base)))
+            return
+        if name in ("MakeUppercase", "MakeLowercase", "uppercase", "lowercase",
+                    "MakeTextUppercase", "MakeTextLowercase"):
+            inner = self.inlines(_group_nodes(node))
+            _change_case(inner, upper="pper" in name)
+            out.extend(inner)
             return
         # graceful degradation
         self.report.warn(f"\\{name}", f"unsupported inline macro \\{name}")
@@ -1023,13 +1118,13 @@ class _Builder:
         argd = node.nodeargd
         groups = [a for a in (argd.argnlist if argd else []) if isinstance(a, LatexGroupNode)]
         if node.macroname == "url" and groups:
-            url = _chars_of(groups[0].nodelist)
+            url = _url_text(groups[0].nodelist)
             out.append(ir.Link([ir.Text(url)], url))
         elif len(groups) >= 2:
-            url = _chars_of(groups[0].nodelist)
+            url = _url_text(groups[0].nodelist)
             out.append(ir.Link(self.inlines(groups[1].nodelist), url))
         elif groups:
-            url = _chars_of(groups[0].nodelist)
+            url = _url_text(groups[0].nodelist)
             out.append(ir.Link([ir.Text(url)], url))
 
     # -- blocks ----------------------------------------------------------- #
@@ -1127,6 +1222,13 @@ class _Builder:
             if isinstance(node, LatexMacroNode) and node.macroname == "subjclass":
                 flush()
                 out.append(self._subjclass(node))
+                continue
+            if (
+                isinstance(node, LatexMacroNode) and node.macroname == "parbox"
+                and _brace_groups(node) and _has_block_content(_brace_groups(node)[-1])
+            ):
+                flush()
+                out.extend(self.blocks(_brace_groups(node)[-1]))
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname in _BOX_WRAPPERS:
                 # box-scaling wrappers are transparent: process their content as
@@ -1339,6 +1441,18 @@ class _Builder:
         codes = self.inlines(groups[-1]) if groups else []
         return ir.Paragraph([ir.Emphasis([ir.Text(f"{label}: ")], "bold"), *codes])
 
+    def _note(self, nodes: list) -> ir.Footnote:
+        """A footnote; lists, quotes, tables or paragraph breaks inside it make
+        it a block note (inline parsing would drop the environments)."""
+        if not _has_block_content(nodes):
+            return ir.Footnote(self.inlines(nodes))
+        saved = self._labelable
+        try:
+            blocks = self.blocks(nodes)
+        finally:
+            self._labelable = saved
+        return ir.Footnote([], blocks=blocks)
+
     def _set_label(self, label: str) -> None:
         """Attach ``\\label{label}`` to the current target.
 
@@ -1373,10 +1487,7 @@ class _Builder:
         if base in ("table", "wraptable"):
             self._table_float(node, out, spanning=starred)
             return
-        if base in (
-            "tabular", "array", "tabularx", "tabulary", "longtable",
-            "supertabular", "xtabular", "mpsupertabular",
-        ):
+        if base in _TABULAR_ENVS:
             out.append(self._tabular(node))
             return
         if base == "tcolorbox" or base in self.tcb_envs:
@@ -1444,6 +1555,43 @@ class _Builder:
         if base in _TRANSPARENT_ENVS:
             out.extend(self.blocks(node.nodelist))
             return
+        if base in _DROPPED_ENVS:
+            return
+        if base in ("IEEEbiography", "IEEEbiographynophoto"):
+            # \begin{IEEEbiography}[photo]{Name} text -> a bold run-in name
+            groups = [
+                a for a in (node.nodeargd.argnlist if node.nodeargd else [])
+                if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "{"
+            ]
+            body = self.blocks(node.nodelist)
+            if groups:
+                lead: list[ir.Inline] = [ir.Emphasis(self.inlines(groups[-1].nodelist), "bold"),
+                                         ir.Text(" ")]
+                if body and isinstance(body[0], ir.Paragraph):
+                    body[0].inlines[:0] = lead
+                else:
+                    body.insert(0, ir.Paragraph(lead))
+            out.extend(body)
+            return
+        if base in _ACK_ENVS:
+            out.append(ir.Heading(1, [ir.Text(_ACK_ENVS[base])], numbered=False))
+            out.extend(self.blocks(node.nodelist))
+            return
+        if base in ("IEEEkeywords", "keyword", "keywords"):
+            # IEEEtran / elsarticle keyword blocks (elsarticle separates with \sep)
+            parts: list[list] = [[]]
+            for n in node.nodelist:
+                if isinstance(n, LatexMacroNode) and n.macroname == "sep":
+                    parts.append([])
+                else:
+                    parts[-1].append(n)
+            keywords: list[ir.Inline] = []
+            for i, part in enumerate(parts):
+                if i:
+                    keywords.append(ir.Text("; "))
+                keywords.extend(self.inlines(part))
+            self.meta.keywords = _clean_inlines(keywords, trim=True)
+            return
         # Otherwise treat the unknown environment as a transparent wrapper so its
         # content is preserved (boxes, algorithm, subfig, ...).
         self.report.warn(name, f"unknown environment {name}: treated as transparent")
@@ -1459,7 +1607,8 @@ class _Builder:
         # a shared-counter env (\newtheorem{LEM}[THM]{Lemma}) numbers against the
         # counter it shares (THM's "Theorem"), so they form one running sequence.
         counter = None if unnumbered else self.theorem_counters.get(base, display)
-        theorem = ir.Theorem(kind=display, blocks=[], title=title, counter=counter)
+        theorem = ir.Theorem(kind=display, blocks=[], title=title, counter=counter,
+                             within=self.theorem_within.get(base) if counter else None)
         # become the label target *before* parsing the body, so a \label at the
         # start of the environment attaches here, not to the preceding block.
         self._labelable = theorem
@@ -1554,8 +1703,9 @@ class _Builder:
         (pre, post).
         """
         argd = node.nodeargd
+        # rendered, not raw: p.~3 -> "p. 3", \S~2 -> "§ 2"
         opts = [
-            _chars_of(a.nodelist)
+            _flat_text(self.inlines(a.nodelist))
             for a in (argd.argnlist if argd else [])
             if isinstance(a, LatexGroupNode) and a.delimiters == ("[", "]")
         ]
@@ -2406,7 +2556,18 @@ def _apply_text_accent(name: str, base: str) -> str:
     comb = _ACCENT_COMBINING.get(name, "")
     if not base:
         return comb
-    return unicodedata.normalize("NFC", base[0] + comb + base[1:])
+    # \"{\i} is an i with a diaeresis: the dotless form exists only to take one
+    first = {"ı": "i", "ȷ": "j"}.get(base[0], base[0])
+    return unicodedata.normalize("NFC", first + comb + base[1:])
+
+
+def _change_case(inlines: list, *, upper: bool) -> None:
+    """Upper-/lower-case the text of ``inlines`` in place (math is left alone)."""
+    for n in inlines:
+        if isinstance(n, ir.Text):
+            n.value = n.value.upper() if upper else n.value.lower()
+        elif hasattr(n, "inlines") and not isinstance(n, ir.Footnote):
+            _change_case(n.inlines, upper=upper)
 
 
 # User-defined tcolorbox callout environments -> rendered as set-off Quote blocks.
@@ -2581,7 +2742,7 @@ def _collect_mdframed_envs(source: str) -> dict[str, tuple[str | None, str | Non
 # and clean the result below.
 _NEWTHEOREM_RE = re.compile(
     r"\\newtheorem(\*?)\s*\{([^}]*)\}\s*(?:\[([^\]]*)\])?\s*"
-    r"\{((?:[^{}]|\{[^{}]*\})*)\}"
+    r"\{((?:[^{}]|\{[^{}]*\})*)\}(?:[ \t]*\[([^\]]*)\])?"
 )
 # Font/format declarations to peel off a \newtheorem display title.
 _TITLE_DECL_RE = re.compile(
@@ -2620,6 +2781,28 @@ def _collect_newtheorems(
             if m.group(1):  # \newtheorem* -> unnumbered
                 unnumbered.add(name)
     return envs, unnumbered, shared
+
+
+def _collect_theorem_within(source: str) -> dict[str, str]:
+    """Theorem env -> the division its counter resets in
+    (``\\newtheorem{thm}{Theorem}[section]`` -> ``{"thm": "section"}``); an env
+    sharing another's counter inherits its reset."""
+    within: dict[str, str] = {}
+    shared: dict[str, str] = {}
+    for m in _NEWTHEOREM_RE.finditer(source):
+        name = m.group(2).strip()
+        if m.group(3):
+            shared[name] = m.group(3).strip()
+        elif m.group(5):
+            within[name] = m.group(5).strip()
+    for name, root in shared.items():
+        seen = {name}
+        while root in shared and root not in seen:
+            seen.add(root)
+            root = shared[root]
+        if root in within:
+            within[name] = within[root]
+    return within
 
 
 def _resolve_theorem_counters(
@@ -2708,6 +2891,11 @@ def _build_context(
             MacroSpec("crefrange", "{{"),
             MacroSpec("Crefrange", "{{"),
             MacroSpec("eqref", "{"),
+            # \pageref (and the cleveref/varioref page/label variants) had no
+            # spec: the label was left behind as text and the ref unresolved
+            MacroSpec("pageref", "*{"), MacroSpec("vref", "*{"), MacroSpec("vpageref", "*{"),
+            MacroSpec("cpageref", "{"), MacroSpec("Cpageref", "{"),
+            MacroSpec("labelcref", "{"),
             MacroSpec("hypersetup", "{"),
             MacroSpec("graphicspath", "{"),
             MacroSpec("definecolor", "{{{"),
@@ -2771,6 +2959,11 @@ def _build_context(
             MacroSpec("resizebox", "{{{"),
             MacroSpec("scalebox", "{[{"),
             MacroSpec("rotatebox", "[{{"),
+            MacroSpec("parbox", "[[[{{"),
+            MacroSpec("foreignlanguage", "[{{"),
+            MacroSpec("selectlanguage", "{"),
+            MacroSpec("MakeUppercase", "{"), MacroSpec("MakeLowercase", "{"),
+            MacroSpec("MakeTextUppercase", "{"), MacroSpec("MakeTextLowercase", "{"),
             MacroSpec("makecell", "[{"),
             MacroSpec("thead", "[{"),
             MacroSpec("path", "{"),
@@ -2867,6 +3060,12 @@ def _build_context(
             # boxed environments with an optional [options] argument
             EnvironmentSpec("mdframed", "["), EnvironmentSpec("tcolorbox", "["),
             EnvironmentSpec("leftbar", "["),
+            # adjustbox env: \begin{adjustbox}{width=\textwidth} -- the keys are
+            # not content; multicols: \begin{multicols}{2}[heading]
+            EnvironmentSpec("adjustbox", "{"), EnvironmentSpec("multicols", "{["),
+            EnvironmentSpec("multicols*", "{["), EnvironmentSpec("otherlanguage", "{"),
+            EnvironmentSpec("otherlanguage*", "{"), EnvironmentSpec("IEEEbiography", "[{"),
+            EnvironmentSpec("IEEEbiographynophoto", "{"),
         ] + [
             # user \newtcolorbox envs that take arguments (\begin{box}{title}):
             # declare them so the args are consumed, not parsed as body text.
@@ -3098,6 +3297,7 @@ def parse_document(
     builder.theorem_envs.update(custom_theorems)
     builder.unnumbered_theorems = unnumbered_theorems
     builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
+    builder.theorem_within = _collect_theorem_within(theorem_src)
     builder.box_envs = _collect_tcolorbox_envs(theorem_src)  # \newtcolorbox callouts
     builder.tcb_envs, builder.tcb_styles = tcb_envs, tcb_styles
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)

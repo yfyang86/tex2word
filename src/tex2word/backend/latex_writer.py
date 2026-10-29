@@ -358,6 +358,8 @@ class LatexWriter:
         if isinstance(node, ir.LineBreak):
             return "\\\\"
         if isinstance(node, ir.Footnote):
+            if node.blocks:
+                return f"\\footnote{{{self._blocks(node.blocks).strip()}}}"
             return f"\\footnote{{{self._inlines(node.inlines)}}}"
         if isinstance(node, ir.Endnote):
             return f"\\endnote{{{self._inlines(node.inlines)}}}"

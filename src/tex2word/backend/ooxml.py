@@ -9,6 +9,7 @@ cannot create natively.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from lxml import etree
@@ -64,9 +65,18 @@ def _set_attrs(node: etree._Element, attrs: dict[str, Any]) -> None:
         node.set(qn(key) if ":" in key else key, str(value))
 
 
+#: characters XML 1.0 forbids (C0 controls except tab/newline/CR, and U+FFFE/FFFF)
+_XML_ILLEGAL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
+
+
+def xml_safe(text: str) -> str:
+    """``text`` without the control characters XML cannot carry."""
+    return _XML_ILLEGAL.sub("", text) if text else text
+
+
 def text_el(tag: str, text: str, **attrs: Any) -> etree._Element:
     node = el(tag, **attrs)
-    node.text = text
+    node.text = xml_safe(text)
     return node
 
 

@@ -264,6 +264,9 @@ D("nocite-star", r"KEEP1\nocite{*}\bibliographystyle{plain}\bibliography{refs}",
   texts=["KEEP1", "Knuth", "Laibson", "Tversky"])
 D("cite-missing-key", r"\cite{nokey} KEEP1\bibliographystyle{plain}\bibliography{refs}",
   texts=["KEEP1"], allow_warnings=["nokey"])
+D("cite-notes-no-bib", r"\citep[see][p.~3]{undefinedkey} KEEP1", pre=r"\usepackage{natbib}",
+  texts=["see", "p. 3", "KEEP1"], allow_warnings=["undefinedkey"],
+  note="without a bibliography the fallback [key] marker drops the pre/post notes")
 D("natbib-numbers", r"\citep{tk1991}\bibliographystyle{plainnat}\bibliography{refs}",
   pre=r"\usepackage[numbers]{natbib}", texts=["[1]"])
 D("cite-in-footnote", r"Text\footnote{See \citet{laibson1997}.}"
@@ -350,6 +353,8 @@ D("missing-end-env", r"\begin{itemize}\item KEEP1", texts=["KEEP1"], allow_warni
   allow_raw=True, allow_backslash=True, allow_braces=True)
 D("unknown-env", r"\begin{weirdenv}KEEP1\end{weirdenv}", texts=["KEEP1"],
   allow_warnings=["weirdenv"])
+D("solution-env-article", r"\begin{solution}KEEP1\end{solution}", texts=["KEEP1"],
+  allow_warnings=["solution"], note="only the exam class hides solutions (UAT ProblemSet)")
 D("text-after-end-document", "", raw_source="\\documentclass{article}\n\\begin{document}\n"
   "KEEP1\n\\end{document}\nDROP1 junk\n", texts=["KEEP1"], absent=["DROP1"])
 D("deep-nesting", "{" * 200 + "KEEP1" + "}" * 200, texts=["KEEP1"],

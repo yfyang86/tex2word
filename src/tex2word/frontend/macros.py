@@ -483,9 +483,153 @@ def local_package_sources(
     return "\n".join(p for p in parts if p)
 
 
+# ----------------------------------------------------------------------------
+# User environments: \newenvironment / \NewDocumentEnvironment
+# ----------------------------------------------------------------------------
+
+_NEWENV_RE = re.compile(
+    r"\\(?P<kind>new|renew|provide)environment\s*\*?\s*\{(?P<name>[A-Za-z@*]+)\}"
+    r"(?:\s*\[(?P<nargs>\d+)\])?(?:\s*\[(?P<default>[^\]]*)\])?\s*"
+)
+_XENV_RE = re.compile(
+    r"\\(?P<kind>New|Renew|Provide|Declare)DocumentEnvironment\s*\{(?P<name>[A-Za-z@*]+)\}\s*"
+)
+#: environments the parser handles itself: a user (re)definition of one is
+#: usually cosmetic (spacing, fonts) and expanding it would lose the structure
+_NATIVE_ENVS = frozenset({
+    "document", "abstract", "figure", "figure*", "table", "table*", "itemize", "enumerate",
+    "description", "equation", "equation*", "align", "align*", "gather", "multline",
+    "verbatim", "lstlisting", "minted", "tabular", "tabularx", "longtable", "center",
+    "flushleft", "flushright", "quote", "quotation", "verse", "minipage",
+    "thebibliography", "proof", "theorem", "lemma", "definition", "list", "trivlist",
+    "titlepage", "array", "math", "displaymath",
+})
+#: begin/end code the static expander cannot follow (list internals, kernel @-macros)
+_ENV_UNSAFE_RE = re.compile(r"\\(?:list|endlist|trivlist|endtrivlist|item\b)|@")
+
+
+@dataclass
+class Env:
+    name: str
+    nargs: int
+    default: str | None
+    begin: str
+    end: str
+    argspec: list[tuple[str, str | None]] | None = field(default=None)
+
+
+def collect_environments(source: str) -> tuple[dict[str, Env], str]:
+    """Find ``\\newenvironment``-style definitions; return them and the source
+    with the definitions removed."""
+    envs: dict[str, Env] = {}
+    out: list[str] = []
+    i = 0
+    while True:
+        m = _NEWENV_RE.search(source, i)
+        x = _XENV_RE.search(source, i)
+        hit = min((h for h in (m, x) if h), key=lambda h: h.start(), default=None)
+        if hit is None:
+            out.append(source[i:])
+            break
+        out.append(source[i:hit.start()])
+        j = hit.end()
+        argspec = None
+        if hit is x:
+            if j >= len(source) or source[j] != "{":
+                out.append(source[hit.start():j])
+                i = j
+                continue
+            spec, j = _read_balanced(source, j)
+            argspec = parse_argspec(spec)
+        bodies = []
+        for _ in range(2):
+            while j < len(source) and source[j] in " \n\t":
+                j += 1
+            if j >= len(source) or source[j] != "{":
+                break
+            body, j = _read_balanced(source, j)
+            bodies.append(body)
+        if len(bodies) != 2:
+            out.append(source[hit.start():j])
+            i = j
+            continue
+        name = hit.group("name")
+        kind = hit.group("kind").lower()
+        safe = not (_ENV_UNSAFE_RE.search(bodies[0]) or _ENV_UNSAFE_RE.search(bodies[1]))
+        replaces_native = name in _NATIVE_ENVS
+        if safe and not replaces_native and not (kind == "provide" and name in envs):
+            nargs = int(hit.group("nargs") or 0) if hit is m else len(argspec or [])
+            default = hit.group("default") if hit is m else None
+            envs[name] = Env(name, nargs, default, bodies[0], bodies[1], argspec)
+        i = j
+    return envs, "".join(out)
+
+
+def expand_environments(source: str, envs: dict[str, Env], _depth: int = 0) -> str:
+    """Replace ``\\begin{name}args BODY\\end{name}`` by begin code + body + end code."""
+    if not envs or _depth > 16:
+        return source
+    pattern = re.compile(
+        r"\\begin\s*\{(" + "|".join(re.escape(n) for n in envs) + r")\}"
+    )
+    out: list[str] = []
+    i = 0
+    changed = False
+    while True:
+        m = pattern.search(source, i)
+        if m is None:
+            out.append(source[i:])
+            break
+        env = envs[m.group(1)]
+        close = _matching_end(source, m.end(), env.name)
+        if close is None:
+            out.append(source[i:m.end()])
+            i = m.end()
+            continue
+        out.append(source[i:m.start()])
+        j = m.end()
+        if env.argspec is not None:
+            args, j = _read_xparse_args(env.argspec, source, j)
+        else:
+            args = []
+            remaining = env.nargs
+            if env.nargs and env.default is not None:
+                opt, j = _read_optional(source, j)
+                args.append(opt if opt is not None else env.default)
+                remaining -= 1
+            for _ in range(remaining):
+                arg, j = _read_arg(source, j)
+                args.append(arg)
+        inner_start, end_start, end_stop = j, close[0], close[1]
+        begin, end = env.begin, env.end
+        for idx, arg in enumerate(args, start=1):
+            begin = begin.replace(f"#{idx}", arg)
+            end = end.replace(f"#{idx}", arg)
+        if env.argspec is not None:
+            begin, end = _resolve_conditionals(begin), _resolve_conditionals(end)
+        out.append(begin + source[inner_start:end_start] + end)
+        i = end_stop
+        changed = True
+    result = "".join(out)
+    return expand_environments(result, envs, _depth + 1) if changed else result
+
+
+def _matching_end(source: str, start: int, name: str) -> tuple[int, int] | None:
+    """(start, stop) of the ``\\end{name}`` closing a ``\\begin{name}`` (nesting-aware)."""
+    tok = re.compile(r"\\(begin|end)\s*\{" + re.escape(name) + r"\}")
+    depth = 1
+    for t in tok.finditer(source, start):
+        depth += 1 if t.group(1) == "begin" else -1
+        if depth == 0:
+            return t.start(), t.end()
+    return None
+
+
 def expand_macros(source: str, base_dir: str = ".") -> str:
     """Collect user macros (incl. local ``.sty`` packages) and expand them."""
     pkg_macros = _load_local_package_macros(source, base_dir)
+    envs, source = collect_environments(source)
+    source = expand_environments(source, envs)
     macros, stripped = collect_macros(source)
     # A document redefining a structural command through LaTeX internals
     # (\def\paragraph{\@startsection{paragraph}...} inside \makeatletter) only

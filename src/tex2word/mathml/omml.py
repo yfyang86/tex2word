@@ -12,7 +12,7 @@ import re
 
 from lxml import etree
 
-from ..backend.ooxml import el, preserve_space, qn, sub
+from ..backend.ooxml import el, preserve_space, qn, sub, xml_safe
 from . import latex_math as L
 from .latex_math import MathUnsupported
 
@@ -88,7 +88,7 @@ def _run(
         elif script:
             sub(rpr, "m:sty", **{"m:val": "p"})
     t = sub(r, "m:t")
-    t.text = text
+    t.text = xml_safe(text)
     preserve_space(t)
     return r
 

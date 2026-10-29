@@ -5,12 +5,13 @@ from __future__ import annotations
 import os
 import re
 
+from .conditionals import resolve_conditionals
+
 # A TeX comment runs from an unescaped ``%`` to the end of the line *and*
 # consumes the line-ending newline plus the next line's leading whitespace.
 # Eating the newline is essential: otherwise a full-line ``% comment`` collapses
 # to a blank line and is misread as a paragraph break (LaTeX soft newlines and
 # comment lines do NOT start a new paragraph -- only a blank line / \par does).
-_COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*(?:\n[ \t]*)?")
 _INPUT_RE = re.compile(r"\\(?:input|include)\s*\{([^}]+)\}")
 # import package: \import{dir/}{file}, \subimport{dir/}{file} (and *from variants)
 _IMPORT_RE = re.compile(
@@ -21,9 +22,90 @@ _IMPORT_RE = re.compile(
 _CMIDRULE_TRIM_RE = re.compile(r"(\\cmidrule)\s*\([lr]*\)")
 
 
+#: environments whose body is verbatim: a ``%`` there is text, not a comment
+_VERBATIM_ENVS = (
+    "verbatim", "verbatim*", "Verbatim", "Verbatim*", "BVerbatim", "LVerbatim",
+    "lstlisting", "minted", "alltt", "filecontents", "filecontents*", "comment",
+    "spverbatim", "boxedverbatim",
+)
+_COMMENT_SCAN_RE = re.compile(
+    r"\\begin\s*\{(?P<env>" + "|".join(re.escape(e) for e in _VERBATIM_ENVS) + r")\}"
+    r"|\\(?P<inline>verb\*?|lstinline|url|path|nolinkurl)(?![A-Za-z])"
+    r"|\\[\\%]"  # \\ and \% are not comment starts
+    r"|%"
+)
+
+
 def strip_comments(source: str) -> str:
-    """Remove LaTeX line comments, preserving escaped ``\\%``."""
-    return _COMMENT_RE.sub("", source)
+    """Remove LaTeX line comments, preserving escaped ``\\%`` and the bodies of
+    verbatim environments, ``\\verb``/``\\lstinline`` and ``\\url``/``\\path``
+    arguments, where ``%`` is literal text."""
+    if "%" not in source:
+        return source
+    out: list[str] = []
+    pos = 0
+    n = len(source)
+    while True:
+        m = _COMMENT_SCAN_RE.search(source, pos)
+        if m is None:
+            out.append(source[pos:])
+            break
+        start = m.start()
+        if m.group("env"):
+            end_tag = "\\end{" + m.group("env") + "}"
+            stop = source.find(end_tag, m.end())
+            stop = n if stop < 0 else stop + len(end_tag)
+            out.append(source[pos:stop])
+            pos = stop
+        elif m.group("inline"):
+            stop = _inline_verbatim_end(source, m.end(), m.group("inline"))
+            out.append(source[pos:stop])
+            pos = stop
+        elif m.group(0) == "%":
+            out.append(source[pos:start])
+            line_end = source.find("\n", start)
+            if line_end < 0:
+                pos = n
+                break
+            # a comment eats its newline and the next line's indentation
+            pos = line_end + 1
+            while pos < n and source[pos] in " \t":
+                pos += 1
+        else:  # \\ or \%
+            out.append(source[pos:m.end()])
+            pos = m.end()
+    return "".join(out)
+
+
+def _inline_verbatim_end(s: str, i: int, cmd: str) -> int:
+    """End index of the argument of ``\\verb|..|``, ``\\lstinline[..]{..}``,
+    ``\\url{..}`` & co. that starts at ``i`` (``i`` itself if there is none)."""
+    n = len(s)
+    if cmd == "lstinline" and i < n and s[i] == "[":
+        close = s.find("]", i)
+        i = n if close < 0 else close + 1
+    if i >= n:
+        return n
+    if s[i] == "{" and cmd != "verb" and cmd != "verb*":
+        depth = 0
+        for j in range(i, n):
+            if s[j] == "{":
+                depth += 1
+            elif s[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return j + 1
+            elif s[j] == "\n" and cmd in ("url", "path", "nolinkurl"):
+                return j  # never let a broken \url swallow the document
+        return n
+    delim = s[i]
+    if delim.isspace() or delim.isalpha():
+        return i
+    close = s.find(delim, i + 1)
+    line_end = s.find("\n", i + 1)
+    if close < 0 or (0 <= line_end < close):
+        return i  # not a well-formed inline verbatim: treat normally
+    return close + 1
 
 
 def flatten_inputs(
@@ -42,7 +124,7 @@ def flatten_inputs(
 
     def _inline(path: str, nested: list[str]) -> str:
         with open(path, encoding="utf-8") as fh:
-            inner = strip_comments(fh.read())
+            inner = strip_comments(_control_chars(fh.read()))
         return flatten_inputs(inner, base_dir, _depth + 1, _dedupe(nested))
 
     def _find(name: str, search: list[str]) -> str | None:
@@ -402,13 +484,22 @@ def _inject_exam_title(source: str) -> str:
     return re.sub(r"\\begin\{document\}", lambda m: m.group(0) + block, source, count=1)
 
 
+_CONTROL_RE = re.compile("[\x00-\x08\x0b\x0e-\x1f\x7f]")
+
+
+def _control_chars(source: str) -> str:
+    """LaTeX reads a form feed (^^L) as ``\\par``; other C0 control characters
+    have no output (and cannot be written to XML)."""
+    return _CONTROL_RE.sub("", source.replace("\x0c", "\n\n"))
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
     # Otherwise a code listing pulled in via \input keeps its raw lstlisting form
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
-    source = flatten_inputs(strip_comments(source), base_dir)
+    source = flatten_inputs(strip_comments(_control_chars(source)), base_dir)
     if _uses_exam_class(source, base_dir):
         source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
         source = _inject_exam_title(source)  # recover the fancyhdr title block
@@ -416,7 +507,9 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     source = _TIKZSTYLE_RE.sub("", source)  # drop \tikzstyle{…}=[…] declarations
     source = _recover_tikz_boxes(source)  # cheatsheet content-box tikz -> text
     source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}
-    source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
+    # \iffalse blocks, \newif switches, \ifdefined, \ifthenelse, etoolbox
+    # toggles, \IfFileExists, \@ifpackageloaded: keep the branch TeX would take
+    source = resolve_conditionals(source, base_dir)
     source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)

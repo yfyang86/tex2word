@@ -50,7 +50,7 @@ def test_zotero_citation_json_valid(tmp_path):
     item = payload["citationItems"][0]
     assert item["itemData"]["title"] == "Zur Elektrodynamik"
     assert item["itemData"]["type"] == "article-journal"
-    assert item["locator"] == "p.5"
+    assert item["locator"] == "p. 5"  # \citep[p.~5]: the tie is a space
     assert payload["properties"]["formattedCitation"].startswith("(Einstein")
 
 

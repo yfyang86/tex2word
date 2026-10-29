@@ -118,6 +118,9 @@ class LineBreak(Node):
 @dataclass
 class Footnote(Node):
     inlines: list[Inline]
+    #: block content (lists, quotes, tables, several paragraphs); when set, the
+    #: note is these blocks and ``inlines`` is empty
+    blocks: list[Block] = field(default_factory=list)
 
 
 @dataclass
@@ -352,6 +355,9 @@ class Theorem(Node):
     title: list[Inline] | None = None
     label: str | None = None
     counter: str | None = None
+    #: the counter resets within this division (``\newtheorem{thm}{Theorem}[section]``)
+    #: -> numbered "section.n"
+    within: str | None = None
 
 
 @dataclass

@@ -3,16 +3,13 @@
  "known": {
   "class/acmart-sigconf": {
    "signatures": [
-    "expect-absent:DROPCCS",
     "expect-text:KCITY",
     "expect-text:KCOUNTRY",
     "expect-text:KUNIA",
     "expect-text:KUNIB",
     "raw-ir:\\ccsdesc",
     "tex-leak:\\ccsdesc",
-    "warning:CCSXML",
-    "warning:\\ccsdesc",
-    "warning:acks"
+    "warning:\\ccsdesc"
    ]
   },
   "class/amsart-address": {
@@ -52,7 +49,6 @@
     "warning:\\frametitle",
     "warning:\\textwidth",
     "warning:\\titlepage",
-    "warning:columns",
     "warning:frame"
    ]
   },
@@ -61,17 +57,12 @@
     "raw-ir:\\corref",
     "raw-ir:\\cortext",
     "raw-ir:\\ead",
-    "raw-ir:\\sep",
     "tex-leak:\\correfcor",
     "tex-leak:\\cortext",
     "tex-leak:\\eada@b",
-    "tex-leak:\\sep",
     "warning:\\corref",
     "warning:\\cortext",
-    "warning:\\ead",
-    "warning:\\sep",
-    "warning:frontmatter",
-    "warning:keyword"
+    "warning:\\ead"
    ]
   },
   "class/icml-style": {
@@ -100,11 +91,6 @@
     "warning:icmlauthorlist"
    ]
   },
-  "class/ieeetran-conference": {
-   "signatures": [
-    "warning:IEEEkeywords"
-   ]
-  },
   "class/ieeetran-journal": {
    "signatures": [
     "raw-ir:\\IEEEmembership",
@@ -114,8 +100,6 @@
     "tex-leak:\\IEEEmembershipMember",
     "tex-leak:\\IEEEpeerreviewmaketitle",
     "tex-leak:\\appendices",
-    "warning:IEEEbiography",
-    "warning:IEEEkeywords",
     "warning:\\IEEEmembership",
     "warning:\\IEEEpeerreviewmaketitle",
     "warning:\\appendices"
@@ -202,16 +186,6 @@
     "warning:\\And"
    ]
   },
-  "class/report-thesis": {
-   "signatures": [
-    "warning:titlepage"
-   ]
-  },
-  "class/revtex": {
-   "signatures": [
-    "warning:acknowledgments"
-   ]
-  },
   "class/springer-nature": {
    "signatures": [
     "expect-text:KCITY",
@@ -246,42 +220,12 @@
    "signatures": [
     "raw-ir:\\marginnote",
     "tex-leak:\\marginnoteKMARGIN",
-    "warning:\\marginnote",
-    "warning:fullwidth"
-   ]
-  },
-  "doc/acknowledgments-env": {
-   "signatures": [
-    "warning:acknowledgements",
-    "warning:acknowledgments"
+    "warning:\\marginnote"
    ]
   },
   "doc/acronym-pkg": {
    "signatures": [
     "warning:acronym"
-   ]
-  },
-  "doc/alltt": {
-   "signatures": [
-    "warning:alltt"
-   ]
-  },
-  "doc/babel-german-quotes": {
-   "signatures": [
-    "raw-ir:\\glqq",
-    "raw-ir:\\grqq",
-    "tex-leak:\\glqq",
-    "tex-leak:\\grqq",
-    "warning:\\glqq",
-    "warning:\\grqq"
-   ]
-  },
-  "doc/babel-shorthand": {
-   "signatures": [
-    "expect-text:Größe",
-    "raw-ir:\\ss",
-    "tex-leak:\\ss",
-    "warning:\\ss"
    ]
   },
   "doc/centerline": {
@@ -291,15 +235,16 @@
     "warning:\\centerline"
    ]
   },
+  "doc/cite-notes-no-bib": {
+   "signatures": [
+    "expect-text:p. 3",
+    "expect-text:see"
+   ],
+   "note": "accepted: unresolved-key fallback drops locators; low priority"
+  },
   "doc/colspec-at-and-bold": {
    "signatures": [
     "style:w:b"
-   ]
-  },
-  "doc/comment-env": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "warning:comment"
    ]
   },
   "doc/counter-value": {
@@ -362,73 +307,6 @@
     "warning:includegraphics"
    ]
   },
-  "doc/ifdefined": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\else",
-    "raw-ir:\\fi",
-    "raw-ir:\\ifdefined",
-    "raw-ir:\\undefinedthing",
-    "tex-leak:\\else",
-    "tex-leak:\\fi",
-    "tex-leak:\\ifdefined",
-    "tex-leak:\\undefinedthing",
-    "warning:\\else",
-    "warning:\\fi",
-    "warning:\\ifdefined",
-    "warning:\\undefinedthing"
-   ]
-  },
-  "doc/iffileexists": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\IfFileExists",
-    "tex-leak:\\IfFileExistsrefs",
-    "warning:\\IfFileExists"
-   ]
-  },
-  "doc/ifpackageloaded": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\makeatletter",
-    "raw-ir:\\makeatother",
-    "tex-leak:\\makeatletterifpackageloadedhyperrefKEEP",
-    "tex-leak:\\makeatother",
-    "warning:\\makeatletter",
-    "warning:\\makeatother"
-   ]
-  },
-  "doc/ifthenelse": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\boolean",
-    "raw-ir:\\ifthenelse",
-    "raw-ir:\\newboolean",
-    "raw-ir:\\setboolean",
-    "tex-leak:\\booleanlongKEEP",
-    "tex-leak:\\ifthenelse",
-    "tex-leak:\\newbooleanlong",
-    "tex-leak:\\setbooleanlongtrue",
-    "warning:\\boolean",
-    "warning:\\ifthenelse",
-    "warning:\\newboolean",
-    "warning:\\setboolean"
-   ]
-  },
-  "doc/iftrue-block": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\else",
-    "raw-ir:\\fi",
-    "raw-ir:\\iftrue",
-    "tex-leak:\\else",
-    "tex-leak:\\fi",
-    "tex-leak:\\iftrue",
-    "warning:\\else",
-    "warning:\\fi",
-    "warning:\\iftrue"
-   ]
-  },
   "doc/input-no-braces": {
    "signatures": [
     "expect-text:KEEP1",
@@ -465,80 +343,15 @@
   "doc/makeatletter-macro": {
    "signatures": [
     "raw-ir:\\makeatletterx",
-    "raw-ir:\\makeatother",
     "tex-leak:\\makeatletterxKEEP",
-    "tex-leak:\\makeatother",
-    "warning:\\makeatletterx",
-    "warning:\\makeatother"
+    "warning:\\makeatletterx"
    ]
   },
   "doc/multicols-columnbreak": {
    "signatures": [
     "raw-ir:\\columnbreak",
     "tex-leak:\\columnbreak",
-    "warning:\\columnbreak",
-    "warning:multicols"
-   ]
-  },
-  "doc/newenvironment": {
-   "signatures": [
-    "expect-text:Note:",
-    "warning:note"
-   ]
-  },
-  "doc/newenvironment-args": {
-   "signatures": [
-    "warning:boxed"
-   ]
-  },
-  "doc/newif-false": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\draftfalse",
-    "raw-ir:\\else",
-    "raw-ir:\\fi",
-    "raw-ir:\\ifdraft",
-    "raw-ir:\\newif",
-    "tex-leak:\\draftfalse",
-    "tex-leak:\\else",
-    "tex-leak:\\fi",
-    "tex-leak:\\ifdraft",
-    "tex-leak:\\newif",
-    "warning:\\draftfalse",
-    "warning:\\else",
-    "warning:\\fi",
-    "warning:\\ifdraft",
-    "warning:\\newif"
-   ]
-  },
-  "doc/newif-true": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\drafttrue",
-    "raw-ir:\\else",
-    "raw-ir:\\fi",
-    "raw-ir:\\ifdraft",
-    "raw-ir:\\newif",
-    "tex-leak:\\drafttrue",
-    "tex-leak:\\else",
-    "tex-leak:\\fi",
-    "tex-leak:\\ifdraft",
-    "tex-leak:\\newif",
-    "warning:\\drafttrue",
-    "warning:\\else",
-    "warning:\\fi",
-    "warning:\\ifdraft",
-    "warning:\\newif"
-   ]
-  },
-  "doc/nul-and-control-chars": {
-   "signatures": [
-    "crash:ValueError@apihelpers.pxi:lxml.etree._utf8"
-   ]
-  },
-  "doc/otherlanguage": {
-   "signatures": [
-    "warning:otherlanguage"
+    "warning:\\columnbreak"
    ]
   },
   "doc/proof-named": {
@@ -568,14 +381,6 @@
     "raw-ir:\\addcontentsline",
     "tex-leak:\\addcontentslinetocsectionDROP",
     "warning:\\addcontentsline"
-   ]
-  },
-  "doc/selectlanguage": {
-   "signatures": [
-    "brace-leak",
-    "raw-ir:\\selectlanguage",
-    "tex-leak:\\selectlanguage",
-    "warning:\\selectlanguage"
    ]
   },
   "doc/setlength-silent": {
@@ -627,289 +432,9 @@
     "warning:\\thecnt"
    ]
   },
-  "doc/theorem-per-section": {
-   "signatures": [
-    "expect-text:Theorem 1.1"
-   ]
-  },
   "doc/theorem-ref-numbering": {
    "signatures": [
     "expect-text:Lemma 2"
-   ]
-  },
-  "doc/titlepage-env": {
-   "signatures": [
-    "warning:titlepage"
-   ]
-  },
-  "doc/url-specials": {
-   "signatures": [
-    "expect-text:~user/a_b#frag"
-   ]
-  },
-  "doc/verb-percent": {
-   "signatures": [
-    "expect-text:50% {x}",
-    "expect-text:KEEP1",
-    "raw-ir:\\verb",
-    "tex-leak:\\verb",
-    "warning:\\verb"
-   ]
-  },
-  "doc/verbatim-specials": {
-   "signatures": [
-    "expect-text:KEEP1 % not a comment {}\\foo $x$ & #"
-   ]
-  },
-  "doc/xparse-environment": {
-   "signatures": [
-    "warning:card"
-   ]
-  },
-  "found/plain@fbox-parbox+pcol-cell": {
-   "signatures": [
-    "dropped",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "found/plain@fbox-parbox+tabularx-cell": {
-   "signatures": [
-    "dropped",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "found/plain@footnote+adjustbox-table": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+definition": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+description-body": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+description-label": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+enumerate-deep": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+enumitem-label": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+flushright": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+framed": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+itemize": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+itemize-in-theorem": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+makecell-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+minipage": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+minipage-row": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+multicolumn-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+multirow-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+pcol-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+proof": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+quotation": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+quote": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+table-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+table-header": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+table-in-itemize": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+tabularx-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@footnote+tcolorbox": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+adjustbox-table": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+definition": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+enumerate-deep": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+enumitem-label": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+itemize": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+itemize-in-theorem": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+list-in-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+makecell-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+mdframed": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+minipage-row": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+multicols": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+multicolumn-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+multirow-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+pcol-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+proof": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+quotation": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+quote": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+table-header": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+table-in-itemize": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+tabularx-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+tcolorbox": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "found/plain@marginpar+theorem": {
-   "signatures": [
-    "dropped"
    ]
   },
   "math/atop@display": {
@@ -1144,16 +669,6 @@
     "tex-leak:\\imath",
     "tex-leak:\\jmath",
     "warning:math"
-   ]
-  },
-  "math/mbox-math@display": {
-   "signatures": [
-    "expect-text:for all"
-   ]
-  },
-  "math/mbox-math@inline": {
-   "signatures": [
-    "expect-text:for all"
    ]
   },
   "math/middle@display": {
@@ -1462,26 +977,6 @@
     "warning:math"
    ]
   },
-  "math/text-hyphen@display": {
-   "signatures": [
-    "math-roundtrip"
-   ]
-  },
-  "math/text-hyphen@inline": {
-   "signatures": [
-    "math-roundtrip"
-   ]
-  },
-  "math/text-in-math@display": {
-   "signatures": [
-    "expect-text: if "
-   ]
-  },
-  "math/text-in-math@inline": {
-   "signatures": [
-    "expect-text: if "
-   ]
-  },
   "math/therefore-because@display": {
    "signatures": [
     "expect-text:∴",
@@ -1522,722 +1017,33 @@
     "warning:math"
    ]
   },
-  "matrix/MakeUppercase@abstract": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@adjustbox-table": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\MakeUppercaseqx",
-    "tex-leak:\\textwidth",
-    "warning:\\MakeUppercase",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/MakeUppercase@algorithmic-state": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@appendix-section": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@author": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-algorithm": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-below-table": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-figure": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-figure-star": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-short": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-table": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@caption-wrapfigure": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@captionof": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@center": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@color-decl-group": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@date": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@definition": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@description-body": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@description-label": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@emph-span": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@enumerate-deep": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@enumitem-label": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@fbox": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@fbox-parbox": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "raw-ir:\\parbox",
-    "tex-leak:\\MakeUppercaseqx",
-    "tex-leak:\\parbox",
-    "warning:\\MakeUppercase",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/MakeUppercase@figure-text-body": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@flushright": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@footnote": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@framed": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@href-text": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@itemize": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@itemize-in-theorem": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@landscape": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase",
-    "warning:landscape"
-   ]
-  },
-  "matrix/MakeUppercase@list-in-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@longtable-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@makecell-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@marginpar": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@mbox": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@mdframed": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@minipage": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@minipage-row": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@multicols": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase",
-    "warning:multicols"
-   ]
-  },
-  "matrix/MakeUppercase@multicolumn-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@multirow-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@para": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@paragraph-head": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@parbox": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "raw-ir:\\parbox",
-    "tex-leak:\\MakeUppercaseqx",
-    "tex-leak:\\parbox",
-    "warning:\\MakeUppercase",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/MakeUppercase@pcol-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@proof": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@quotation": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@quote": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@resizebox-table": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@section": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@section-star": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
   "matrix/MakeUppercase@side-by-side-tables": {
    "signatures": [
     "brace-leak",
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
     "raw-ir:\\caption",
-    "tex-leak:\\MakeUppercaseqx",
     "tex-leak:\\caption",
-    "warning:\\MakeUppercase",
     "warning:\\caption"
    ]
   },
   "matrix/MakeUppercase@sidewaystable-cell": {
    "signatures": [
     "brace-leak",
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
     "raw-ir:\\caption",
-    "tex-leak:\\MakeUppercaseqx",
     "tex-leak:\\caption",
-    "warning:\\MakeUppercase",
     "warning:\\caption",
     "warning:sidewaystable"
-   ]
-  },
-  "matrix/MakeUppercase@size-group": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@subcaption": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@subsection": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@table-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@table-float-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@table-header": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@table-in-itemize": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@table-star-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@tabularx-cell": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@tcolorbox": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@tcolorbox-title": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@textbf-span": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@textcolor-span": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@thanks": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@theorem": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/MakeUppercase@theorem-title": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
    ]
   },
   "matrix/MakeUppercase@threeparttable-note": {
    "signatures": [
     "brace-leak",
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
     "raw-ir:\\caption",
     "raw-ir:\\tnote",
-    "tex-leak:\\MakeUppercaseqx",
     "tex-leak:\\caption",
     "tex-leak:\\tnotea",
-    "warning:\\MakeUppercase",
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/MakeUppercase@title": {
-   "signatures": [
-    "dropped:QX7K",
-    "expect-text:QX7K",
-    "raw-ir:\\MakeUppercase",
-    "tex-leak:\\MakeUppercaseqx",
-    "warning:\\MakeUppercase"
-   ]
-  },
-  "matrix/accent-acute@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/accent-acute@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/accent-acute@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/accent-acute@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/accent-acute@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/accent-acute@side-by-side-tables": {
@@ -2269,287 +1075,9 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/accent-braced@abstract": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@adjustbox-table": {
-   "signatures": [
-    "expect-text:naïve",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/accent-braced@algorithmic-state": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@appendix-section": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@author": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-algorithm": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-below-table": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-figure": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-figure-star": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-short": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-table": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@caption-wrapfigure": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@captionof": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@center": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@color-decl-group": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@date": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@definition": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@description-body": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@description-label": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@emph-span": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@enumerate-deep": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@enumitem-label": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@fbox": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@fbox-parbox": {
-   "signatures": [
-    "expect-text:naïve",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/accent-braced@figure-text-body": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@flushright": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@footnote": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@framed": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@href-text": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@itemize": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@itemize-in-theorem": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@landscape": {
-   "signatures": [
-    "expect-text:naïve",
-    "warning:landscape"
-   ]
-  },
-  "matrix/accent-braced@list-in-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@longtable-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@makecell-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@marginpar": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@mbox": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@mdframed": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@minipage": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@minipage-row": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@multicols": {
-   "signatures": [
-    "expect-text:naïve",
-    "warning:multicols"
-   ]
-  },
-  "matrix/accent-braced@multicolumn-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@multirow-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@para": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@paragraph-head": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@parbox": {
-   "signatures": [
-    "expect-text:naïve",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/accent-braced@pcol-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@proof": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@quotation": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@quote": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@resizebox-table": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@section": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@section-star": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
   "matrix/accent-braced@side-by-side-tables": {
    "signatures": [
     "brace-leak",
-    "expect-text:naïve",
     "raw-ir:\\caption",
     "tex-leak:\\caption",
     "warning:\\caption"
@@ -2558,97 +1086,15 @@
   "matrix/accent-braced@sidewaystable-cell": {
    "signatures": [
     "brace-leak",
-    "expect-text:naïve",
     "raw-ir:\\caption",
     "tex-leak:\\caption",
     "warning:\\caption",
     "warning:sidewaystable"
    ]
   },
-  "matrix/accent-braced@size-group": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@subcaption": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@subsection": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@table-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@table-float-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@table-header": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@table-in-itemize": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@table-star-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@tabularx-cell": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@tcolorbox": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@tcolorbox-title": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@textbf-span": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@textcolor-span": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@thanks": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@theorem": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-braced@theorem-title": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
   "matrix/accent-braced@threeparttable-note": {
    "signatures": [
     "brace-leak",
-    "expect-text:naïve",
     "raw-ir:\\caption",
     "raw-ir:\\tnote",
     "tex-leak:\\caption",
@@ -2656,43 +1102,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/accent-braced@title": {
-   "signatures": [
-    "expect-text:naïve"
-   ]
-  },
-  "matrix/accent-caron@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/accent-caron@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/accent-caron@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/accent-caron@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/accent-caron@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/accent-caron@side-by-side-tables": {
@@ -2724,38 +1133,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/accent-cedilla@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/accent-cedilla@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/accent-cedilla@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/accent-cedilla@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/accent-cedilla@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/accent-cedilla@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -2783,38 +1160,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/accent-tilde@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/accent-tilde@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/accent-tilde@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/accent-tilde@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/accent-tilde@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/accent-tilde@side-by-side-tables": {
@@ -2846,38 +1191,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/autoref@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/autoref@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/autoref@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/autoref@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/autoref@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/autoref@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -2905,38 +1218,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/bf-decl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/bf-decl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/bf-decl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/bf-decl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/bf-decl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/bf-decl@side-by-side-tables": {
@@ -2968,38 +1249,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/bold-italic@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/bold-italic@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/bold-italic@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/bold-italic@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/bold-italic@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/bold-italic@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -3027,38 +1276,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/braces@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/braces@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/braces@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/braces@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/braces@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/braces@side-by-side-tables": {
@@ -3104,38 +1321,6 @@
     "warning:sidewaystable"
    ]
   },
-  "matrix/checkmark@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/checkmark@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/checkmark@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/checkmark@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/checkmark@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/checkmark@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -3163,38 +1348,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/cite-multi@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/cite-multi@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/cite-multi@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/cite-multi@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/cite-multi@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/cite-multi@side-by-side-tables": {
@@ -3233,11 +1386,7 @@
   },
   "matrix/citealp@adjustbox-table": {
    "signatures": [
-    "expect-absent:(Tversky",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
+    "expect-absent:(Tversky"
    ]
   },
   "matrix/citealp@algorithmic-state": {
@@ -3347,10 +1496,7 @@
   },
   "matrix/citealp@fbox-parbox": {
    "signatures": [
-    "expect-absent:(Tversky",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
+    "expect-absent:(Tversky"
    ]
   },
   "matrix/citealp@figure-text-body": {
@@ -3390,8 +1536,7 @@
   },
   "matrix/citealp@landscape": {
    "signatures": [
-    "expect-absent:(Tversky",
-    "warning:landscape"
+    "expect-absent:(Tversky"
    ]
   },
   "matrix/citealp@list-in-cell": {
@@ -3436,8 +1581,7 @@
   },
   "matrix/citealp@multicols": {
    "signatures": [
-    "expect-absent:(Tversky",
-    "warning:multicols"
+    "expect-absent:(Tversky"
    ]
   },
   "matrix/citealp@multicolumn-cell": {
@@ -3462,10 +1606,7 @@
   },
   "matrix/citealp@parbox": {
    "signatures": [
-    "expect-absent:(Tversky",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
+    "expect-absent:(Tversky"
    ]
   },
   "matrix/citealp@pcol-cell": {
@@ -3620,38 +1761,6 @@
     "expect-absent:(Tversky"
    ]
   },
-  "matrix/citeauthor@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/citeauthor@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/citeauthor@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/citeauthor@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/citeauthor@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/citeauthor@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -3681,287 +1790,9 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/citep-notes@abstract": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@adjustbox-table": {
-   "signatures": [
-    "expect-text:p. 3",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/citep-notes@algorithmic-state": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@appendix-section": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@author": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-algorithm": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-below-table": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-figure": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-figure-star": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-short": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-table": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@caption-wrapfigure": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@captionof": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@center": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@color-decl-group": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@date": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@definition": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@description-body": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@description-label": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@emph-span": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@enumerate-deep": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@enumitem-label": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@fbox": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@fbox-parbox": {
-   "signatures": [
-    "expect-text:p. 3",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/citep-notes@figure-text-body": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@flushright": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@footnote": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@framed": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@href-text": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@itemize": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@itemize-in-theorem": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@landscape": {
-   "signatures": [
-    "expect-text:p. 3",
-    "warning:landscape"
-   ]
-  },
-  "matrix/citep-notes@list-in-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@longtable-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@makecell-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@marginpar": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@mbox": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@mdframed": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@minipage": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@minipage-row": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@multicols": {
-   "signatures": [
-    "expect-text:p. 3",
-    "warning:multicols"
-   ]
-  },
-  "matrix/citep-notes@multicolumn-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@multirow-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@para": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@paragraph-head": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@parbox": {
-   "signatures": [
-    "expect-text:p. 3",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/citep-notes@pcol-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@proof": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@quotation": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@quote": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@resizebox-table": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@section": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@section-star": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
   "matrix/citep-notes@side-by-side-tables": {
    "signatures": [
     "brace-leak",
-    "expect-text:p. 3",
     "raw-ir:\\caption",
     "tex-leak:\\caption",
     "warning:\\caption"
@@ -3970,97 +1801,15 @@
   "matrix/citep-notes@sidewaystable-cell": {
    "signatures": [
     "brace-leak",
-    "expect-text:p. 3",
     "raw-ir:\\caption",
     "tex-leak:\\caption",
     "warning:\\caption",
     "warning:sidewaystable"
    ]
   },
-  "matrix/citep-notes@size-group": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@subcaption": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@subsection": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@table-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@table-float-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@table-header": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@table-in-itemize": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@table-star-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@tabularx-cell": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@tcolorbox": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@tcolorbox-title": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@textbf-span": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@textcolor-span": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@thanks": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@theorem": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep-notes@theorem-title": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
   "matrix/citep-notes@threeparttable-note": {
    "signatures": [
     "brace-leak",
-    "expect-text:p. 3",
     "raw-ir:\\caption",
     "raw-ir:\\tnote",
     "tex-leak:\\caption",
@@ -4068,43 +1817,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/citep-notes@title": {
-   "signatures": [
-    "expect-text:p. 3"
-   ]
-  },
-  "matrix/citep@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/citep@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/citep@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/citep@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/citep@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/citep@side-by-side-tables": {
@@ -4136,38 +1848,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/citet@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/citet@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/citet@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/citet@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/citet@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/citet@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4195,38 +1875,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/citeyear@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/citeyear@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/citeyear@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/citeyear@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/citeyear@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/citeyear@side-by-side-tables": {
@@ -4258,38 +1906,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/color-decl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/color-decl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/color-decl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/color-decl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/color-decl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/color-decl@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4317,38 +1933,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/colorbox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/colorbox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/colorbox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/colorbox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/colorbox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/colorbox@side-by-side-tables": {
@@ -4380,38 +1964,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/cref@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/cref@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/cref@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/cref@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/cref@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/cref@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4439,38 +1991,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/dashes@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/dashes@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/dashes@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/dashes@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/dashes@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/dashes@side-by-side-tables": {
@@ -4502,38 +2022,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/dots@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/dots@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/dots@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/dots@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/dots@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/dots@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4561,38 +2049,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/emph-nested@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/emph-nested@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/emph-nested@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/emph-nested@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/emph-nested@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/emph-nested@side-by-side-tables": {
@@ -4624,38 +2080,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/emph@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/emph@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/emph@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/emph@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/emph@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/emph@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4683,38 +2107,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/enquote@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/enquote@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/enquote@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/enquote@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/enquote@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/enquote@side-by-side-tables": {
@@ -4746,38 +2138,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/ensuremath@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/ensuremath@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/ensuremath@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/ensuremath@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/ensuremath@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/ensuremath@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4805,38 +2165,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/eqref@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/eqref@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/eqref@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/eqref@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/eqref@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/eqref@side-by-side-tables": {
@@ -4868,38 +2196,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/fbox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/fbox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/fbox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/fbox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/fbox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/fbox@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -4927,38 +2223,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/footnote-protect@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/footnote-protect@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/footnote-protect@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/footnote-protect@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/footnote-protect@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/footnote-protect@side-by-side-tables": {
@@ -4990,38 +2254,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/footnote@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/footnote@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/footnote@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/footnote@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/footnote@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/footnote@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -5051,576 +2283,33 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/foreignlanguage@abstract": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "tex-leak:\\textwidth",
-    "warning:\\foreignlanguage",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/foreignlanguage@algorithmic-state": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@appendix-section": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@author": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-algorithm": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-below-table": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-figure": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-figure-star": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-short": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-table": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@caption-wrapfigure": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@captionof": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@center": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@color-decl-group": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@date": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@definition": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@description-body": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@description-label": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@emph-span": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@enumerate-deep": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@enumitem-label": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@fbox": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "raw-ir:\\parbox",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "tex-leak:\\parbox",
-    "warning:\\foreignlanguage",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/foreignlanguage@figure-text-body": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@flushright": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@footnote": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@framed": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@href-text": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@itemize": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@itemize-in-theorem": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@landscape": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage",
-    "warning:landscape"
-   ]
-  },
-  "matrix/foreignlanguage@list-in-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@longtable-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@makecell-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@marginpar": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@mbox": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@mdframed": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@minipage": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@minipage-row": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@multicols": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage",
-    "warning:multicols"
-   ]
-  },
-  "matrix/foreignlanguage@multicolumn-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@multirow-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@para": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@paragraph-head": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@parbox": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "raw-ir:\\parbox",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "tex-leak:\\parbox",
-    "warning:\\foreignlanguage",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/foreignlanguage@pcol-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@proof": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@quotation": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@quote": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@resizebox-table": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@section": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@section-star": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
   "matrix/foreignlanguage@side-by-side-tables": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
-    "raw-ir:\\foreignlanguage",
     "tex-leak:\\caption",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\caption",
-    "warning:\\foreignlanguage"
+    "warning:\\caption"
    ]
   },
   "matrix/foreignlanguage@sidewaystable-cell": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
-    "raw-ir:\\foreignlanguage",
     "tex-leak:\\caption",
-    "tex-leak:\\foreignlanguagefrenchQx",
     "warning:\\caption",
-    "warning:\\foreignlanguage",
     "warning:sidewaystable"
-   ]
-  },
-  "matrix/foreignlanguage@size-group": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@subcaption": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@subsection": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@table-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@table-float-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@table-header": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@table-in-itemize": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@table-star-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@tabularx-cell": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@tcolorbox": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@tcolorbox-title": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@textbf-span": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@textcolor-span": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@thanks": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@theorem": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/foreignlanguage@theorem-title": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
    ]
   },
   "matrix/foreignlanguage@threeparttable-note": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
-    "raw-ir:\\foreignlanguage",
     "raw-ir:\\tnote",
     "tex-leak:\\caption",
-    "tex-leak:\\foreignlanguagefrenchQx",
     "tex-leak:\\tnotea",
     "warning:\\caption",
-    "warning:\\foreignlanguage",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/foreignlanguage@title": {
-   "signatures": [
-    "raw-ir:\\foreignlanguage",
-    "tex-leak:\\foreignlanguagefrenchQx",
-    "warning:\\foreignlanguage"
-   ]
-  },
-  "matrix/hfill@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/hfill@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/hfill@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/hfill@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/hfill@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/hfill@side-by-side-tables": {
@@ -5652,38 +2341,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/hl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/hl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/hl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/hl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/hl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/hl@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -5711,38 +2368,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/href-mail@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/href-mail@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/href-mail@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/href-mail@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/href-mail@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/href-mail@side-by-side-tables": {
@@ -5774,38 +2399,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/href@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/href@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/href@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/href@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/href@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/href@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -5833,38 +2426,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/hspace@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/hspace@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/hspace@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/hspace@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/hspace@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/hspace@side-by-side-tables": {
@@ -5896,38 +2457,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/hyperref-text@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/hyperref-text@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/hyperref-text@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/hyperref-text@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/hyperref-text@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/hyperref-text@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -5955,38 +2484,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/index@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/index@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/index@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/index@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/index@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/index@side-by-side-tables": {
@@ -6018,154 +2515,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/inline-tabular@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/inline-tabular@algorithmic-state": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@appendix-section": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@author": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-algorithm": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-below-table": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-figure": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-figure-star": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-short": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-table": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@caption-wrapfigure": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@captionof": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@date": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@description-label": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@emph-span": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@fbox": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@fbox-parbox": {
-   "signatures": [
-    "dropped",
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/inline-tabular@footnote": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@href-text": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/inline-tabular@makecell-cell": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@marginpar": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@mbox": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/inline-tabular@paragraph-head": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/inline-tabular@section": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@section-star": {
-   "signatures": [
-    "dropped"
-   ]
-  },
   "matrix/inline-tabular@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6183,41 +2532,6 @@
     "warning:sidewaystable"
    ]
   },
-  "matrix/inline-tabular@subcaption": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@subsection": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@tcolorbox-title": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@textbf-span": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@textcolor-span": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@thanks": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/inline-tabular@theorem-title": {
-   "signatures": [
-    "dropped"
-   ]
-  },
   "matrix/inline-tabular@threeparttable-note": {
    "signatures": [
     "brace-leak",
@@ -6228,43 +2542,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/inline-tabular@title": {
-   "signatures": [
-    "dropped"
-   ]
-  },
-  "matrix/it-decl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/it-decl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/it-decl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/it-decl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/it-decl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/it-decl@side-by-side-tables": {
@@ -6296,38 +2573,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/label-inline@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/label-inline@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/label-inline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/label-inline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/label-inline@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/label-inline@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6357,30 +2602,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/linebreak-spacing@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/linebreak-spacing@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/linebreak-spacing@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/linebreak-spacing@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/linebreak-spacing@threeparttable-note": {
    "signatures": [
     "brace-leak",
@@ -6393,30 +2614,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/linebreak-star@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/linebreak-star@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/linebreak-star@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/linebreak-star@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/linebreak-star@threeparttable-note": {
    "signatures": [
     "brace-leak",
@@ -6427,38 +2624,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/logos@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/logos@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/logos@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/logos@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/logos@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/logos@side-by-side-tables": {
@@ -6490,16 +2655,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/lstinline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/lstinline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
   "matrix/lstinline@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6527,38 +2682,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/makebox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/makebox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/makebox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/makebox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/makebox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/makebox@side-by-side-tables": {
@@ -6590,38 +2713,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/makecell@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/makecell@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/makecell@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/makecell@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/makecell@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/makecell@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6649,38 +2740,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/math-inline@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/math-inline@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/math-inline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/math-inline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/math-inline@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/math-inline@side-by-side-tables": {
@@ -6712,38 +2771,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/math-paren@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/math-paren@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/math-paren@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/math-paren@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/math-paren@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/math-paren@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6773,38 +2800,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/math-text@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/math-text@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/math-text@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/math-text@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/math-text@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/math-text@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6832,38 +2827,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/mbox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/mbox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/mbox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/mbox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/mbox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/mbox@side-by-side-tables": {
@@ -6912,38 +2875,6 @@
     "warning:sidewaystable"
    ]
   },
-  "matrix/nameref@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/nameref@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/nameref@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/nameref@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/nameref@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/nameref@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -6971,38 +2902,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/newline@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/newline@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/newline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/newline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/newline@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/newline@side-by-side-tables": {
@@ -7034,38 +2933,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/nolinkurl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/nolinkurl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/nolinkurl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/nolinkurl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/nolinkurl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/nolinkurl@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -7095,344 +2962,12 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/pageref@abstract": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "unresolved-ref",
-    "warning:\\ref",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/pageref@algorithmic-state": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@appendix-section": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@author": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-algorithm": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-below-table": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-figure": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-figure-star": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-short": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-table": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@caption-wrapfigure": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@captionof": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@center": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@color-decl-group": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@date": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@definition": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@description-body": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@description-label": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@emph-span": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@enumerate-deep": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@enumitem-label": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@fbox": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "unresolved-ref",
-    "warning:\\parbox",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@figure-text-body": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@flushright": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@footnote": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@framed": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@href-text": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@itemize": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@itemize-in-theorem": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@landscape": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref",
-    "warning:landscape"
-   ]
-  },
-  "matrix/pageref@list-in-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@longtable-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@makecell-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@marginpar": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@mbox": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@mdframed": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@minipage": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@minipage-row": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@multicols": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref",
-    "warning:multicols"
-   ]
-  },
-  "matrix/pageref@multicolumn-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@multirow-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@para": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@paragraph-head": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "unresolved-ref",
-    "warning:\\parbox",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@pcol-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@proof": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@quotation": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@quote": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@resizebox-table": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@section": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@section-star": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
   "matrix/pageref@side-by-side-tables": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
     "tex-leak:\\caption",
-    "unresolved-ref",
-    "warning:\\caption",
-    "warning:\\ref"
+    "warning:\\caption"
    ]
   },
   "matrix/pageref@sidewaystable-cell": {
@@ -7440,106 +2975,8 @@
     "brace-leak",
     "raw-ir:\\caption",
     "tex-leak:\\caption",
-    "unresolved-ref",
     "warning:\\caption",
-    "warning:\\ref",
     "warning:sidewaystable"
-   ]
-  },
-  "matrix/pageref@size-group": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@subcaption": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@subsection": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@table-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@table-float-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@table-header": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@table-in-itemize": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@table-star-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@tabularx-cell": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@tcolorbox": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@tcolorbox-title": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@textbf-span": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@textcolor-span": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@thanks": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@theorem": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/pageref@theorem-title": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
    ]
   },
   "matrix/pageref@threeparttable-note": {
@@ -7549,583 +2986,38 @@
     "raw-ir:\\tnote",
     "tex-leak:\\caption",
     "tex-leak:\\tnotea",
-    "unresolved-ref",
     "warning:\\caption",
-    "warning:\\ref",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/pageref@title": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "matrix/parbox@abstract": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\parbox",
-    "tex-leak:\\textwidth",
-    "warning:\\parbox",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/parbox@algorithmic-state": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@appendix-section": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@author": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-algorithm": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-below-table": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-figure": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-figure-star": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-short": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-table": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@caption-wrapfigure": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@captionof": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@center": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@color-decl-group": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@date": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@definition": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@description-body": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@description-label": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@emph-span": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@enumerate-deep": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@enumitem-label": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@fbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@figure-text-body": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@flushright": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@footnote": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@framed": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@href-text": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@itemize": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@itemize-in-theorem": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@landscape": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox",
-    "warning:landscape"
-   ]
-  },
-  "matrix/parbox@list-in-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@longtable-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@makecell-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@marginpar": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@mbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@mdframed": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@minipage": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@minipage-row": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@multicols": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox",
-    "warning:multicols"
-   ]
-  },
-  "matrix/parbox@multicolumn-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@multirow-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@para": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@paragraph-head": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@pcol-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@proof": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@quotation": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@quote": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@resizebox-table": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@section": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@section-star": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/parbox@side-by-side-tables": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
-    "raw-ir:\\parbox",
     "tex-leak:\\caption",
-    "tex-leak:\\parbox",
-    "warning:\\caption",
-    "warning:\\parbox"
+    "warning:\\caption"
    ]
   },
   "matrix/parbox@sidewaystable-cell": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
-    "raw-ir:\\parbox",
     "tex-leak:\\caption",
-    "tex-leak:\\parbox",
     "warning:\\caption",
-    "warning:\\parbox",
     "warning:sidewaystable"
-   ]
-  },
-  "matrix/parbox@size-group": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@subcaption": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@subsection": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@table-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@table-float-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@table-header": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@table-in-itemize": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@table-star-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@tabularx-cell": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@tcolorbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@tcolorbox-title": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@textbf-span": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@textcolor-span": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@thanks": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@theorem": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/parbox@theorem-title": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/parbox@threeparttable-note": {
    "signatures": [
     "brace-leak",
     "raw-ir:\\caption",
-    "raw-ir:\\parbox",
     "raw-ir:\\tnote",
     "tex-leak:\\caption",
-    "tex-leak:\\parbox",
     "tex-leak:\\tnotea",
     "warning:\\caption",
-    "warning:\\parbox",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/parbox@title": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/phantom@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/phantom@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/phantom@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/phantom@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/phantom@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/phantom@side-by-side-tables": {
@@ -8157,38 +3049,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/plain@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/plain@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/plain@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/plain@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/plain@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/plain@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8216,38 +3076,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/pounds-euro@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/pounds-euro@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/pounds-euro@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/pounds-euro@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/pounds-euro@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/pounds-euro@side-by-side-tables": {
@@ -8279,38 +3107,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/protect@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/protect@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/protect@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/protect@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/protect@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/protect@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8338,38 +3134,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/quad@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/quad@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/quad@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/quad@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/quad@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/quad@side-by-side-tables": {
@@ -8401,38 +3165,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/quotes@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/quotes@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/quotes@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/quotes@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/quotes@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/quotes@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8460,38 +3192,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/raisebox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/raisebox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/raisebox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/raisebox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/raisebox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/raisebox@side-by-side-tables": {
@@ -8523,38 +3223,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/ref@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/ref@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/ref@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/ref@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/ref@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/ref@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8582,38 +3250,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/resizebox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/resizebox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/resizebox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/resizebox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/resizebox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/resizebox@side-by-side-tables": {
@@ -8645,38 +3281,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/rotatebox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/rotatebox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/rotatebox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/rotatebox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/rotatebox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/rotatebox@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8704,38 +3308,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/scalebox@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/scalebox@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/scalebox@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/scalebox@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/scalebox@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/scalebox@side-by-side-tables": {
@@ -8767,38 +3339,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/shortstack@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/shortstack@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/shortstack@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/shortstack@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/shortstack@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/shortstack@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8826,38 +3366,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/siunitx-SI@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/siunitx-SI@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/siunitx-SI@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/siunitx-SI@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/siunitx-SI@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/siunitx-SI@side-by-side-tables": {
@@ -8889,38 +3397,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/siunitx-num@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/siunitx-num@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/siunitx-num@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/siunitx-num@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/siunitx-num@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/siunitx-num@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -8948,38 +3424,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/siunitx-qty@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/siunitx-qty@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/siunitx-qty@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/siunitx-qty@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/siunitx-qty@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/siunitx-qty@side-by-side-tables": {
@@ -9011,38 +3455,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/siunitx-range@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/siunitx-range@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/siunitx-range@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/siunitx-range@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/siunitx-range@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/siunitx-range@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -9070,38 +3482,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/siunitx-si@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/siunitx-si@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/siunitx-si@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/siunitx-si@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/siunitx-si@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/siunitx-si@side-by-side-tables": {
@@ -9133,38 +3513,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/small-decl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/small-decl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/small-decl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/small-decl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/small-decl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/small-decl@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -9192,38 +3540,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/sout@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/sout@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/sout@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/sout@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/sout@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/sout@side-by-side-tables": {
@@ -9255,1817 +3571,33 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/special-letters@abstract": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@adjustbox-table": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "raw-ir:\\textwidth",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "tex-leak:\\textwidth",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/special-letters@algorithmic-state": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@appendix-section": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@author": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-algorithm": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-below-table": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-figure": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-figure-star": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-short": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-table": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@caption-wrapfigure": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@captionof": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@center": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@color-decl-group": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@date": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@definition": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@description-body": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@description-label": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@emph-span": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@enumerate-deep": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@enumitem-label": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@fbox": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@fbox-parbox": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\parbox",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\parbox",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\parbox",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@figure-text-body": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@flushright": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@footnote": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@framed": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@href-text": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@itemize": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@itemize-in-theorem": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@landscape": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss",
-    "warning:landscape"
-   ]
-  },
-  "matrix/special-letters@list-in-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@longtable-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@makecell-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@marginpar": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@mbox": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@mdframed": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@minipage": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@minipage-row": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@multicols": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss",
-    "warning:multicols"
-   ]
-  },
-  "matrix/special-letters@multicolumn-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@multirow-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@para": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@paragraph-head": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@parbox": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\parbox",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\parbox",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\parbox",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@pcol-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@proof": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@quotation": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@quote": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@resizebox-table": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@section": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@section-star": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
   "matrix/special-letters@side-by-side-tables": {
    "signatures": [
     "brace-leak",
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
     "raw-ir:\\caption",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
     "tex-leak:\\caption",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\caption",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
+    "warning:\\caption"
    ]
   },
   "matrix/special-letters@sidewaystable-cell": {
    "signatures": [
     "brace-leak",
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
     "raw-ir:\\caption",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
     "tex-leak:\\caption",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
     "warning:\\caption",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss",
     "warning:sidewaystable"
-   ]
-  },
-  "matrix/special-letters@size-group": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@subcaption": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@subsection": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@table-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@table-float-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@table-header": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@table-in-itemize": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@table-star-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@tabularx-cell": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@tcolorbox": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@tcolorbox-title": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@textbf-span": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@textcolor-span": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@thanks": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@theorem": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/special-letters@theorem-title": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
    ]
   },
   "matrix/special-letters@threeparttable-note": {
    "signatures": [
     "brace-leak",
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
     "raw-ir:\\caption",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
     "raw-ir:\\tnote",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
     "tex-leak:\\caption",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
     "tex-leak:\\tnotea",
-    "warning:\\AE",
-    "warning:\\aa",
     "warning:\\caption",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/special-letters@title": {
-   "signatures": [
-    "expect-text:Æ",
-    "expect-text:ß",
-    "expect-text:å",
-    "expect-text:ø",
-    "expect-text:ł",
-    "raw-ir:\\AE",
-    "raw-ir:\\aa",
-    "raw-ir:\\l",
-    "raw-ir:\\o",
-    "raw-ir:\\ss",
-    "tex-leak:\\AE",
-    "tex-leak:\\aa",
-    "tex-leak:\\l",
-    "tex-leak:\\o",
-    "tex-leak:\\ss",
-    "warning:\\AE",
-    "warning:\\aa",
-    "warning:\\l",
-    "warning:\\o",
-    "warning:\\ss"
-   ]
-  },
-  "matrix/specials@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/specials@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/specials@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/specials@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/specials@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/specials@side-by-side-tables": {
@@ -11097,38 +3629,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/st@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/st@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/st@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/st@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/st@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/st@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11156,38 +3656,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/subscript@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/subscript@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/subscript@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/subscript@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/subscript@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/subscript@side-by-side-tables": {
@@ -11219,38 +3687,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/superscript@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/superscript@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/superscript@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/superscript@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/superscript@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/superscript@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11278,38 +3714,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/symbols@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/symbols@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/symbols@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/symbols@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/symbols@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/symbols@side-by-side-tables": {
@@ -11341,38 +3745,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/texorpdfstring@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/texorpdfstring@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/texorpdfstring@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/texorpdfstring@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/texorpdfstring@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/texorpdfstring@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11400,38 +3772,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/text-symbols@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/text-symbols@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/text-symbols@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/text-symbols@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/text-symbols@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/text-symbols@side-by-side-tables": {
@@ -11463,35 +3803,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/textbackslash@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textbackslash@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textbackslash@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textbackslash@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textbackslash@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/textbackslash@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11515,38 +3826,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/textbf@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textbf@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textbf@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textbf@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textbf@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/textbf@side-by-side-tables": {
@@ -11578,38 +3857,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/textcolor-mix@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textcolor-mix@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textcolor-mix@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textcolor-mix@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textcolor-mix@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/textcolor-mix@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11637,38 +3884,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/textcolor-rgb@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textcolor-rgb@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textcolor-rgb@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textcolor-rgb@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textcolor-rgb@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/textcolor-rgb@side-by-side-tables": {
@@ -11700,38 +3915,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/textcolor@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textcolor@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textcolor@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textcolor@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textcolor@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/textcolor@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11759,38 +3942,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/textit@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textit@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textit@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textit@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textit@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/textit@side-by-side-tables": {
@@ -11822,38 +3973,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/textsc@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textsc@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textsc@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textsc@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textsc@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/textsc@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -11881,38 +4000,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/textsf@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textsf@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textsf@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textsf@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textsf@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/textsf@side-by-side-tables": {
@@ -11944,38 +4031,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/textsl@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textsl@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textsl@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textsl@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textsl@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/textsl@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -12003,38 +4058,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/texttt@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/texttt@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/texttt@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/texttt@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/texttt@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/texttt@side-by-side-tables": {
@@ -12066,38 +4089,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/textup@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/textup@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/textup@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/textup@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/textup@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/textup@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -12125,38 +4116,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/tilde-space@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/tilde-space@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/tilde-space@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/tilde-space@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/tilde-space@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/tilde-space@side-by-side-tables": {
@@ -12188,38 +4147,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/today@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/today@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/today@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/today@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/today@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/today@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -12247,38 +4174,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/uline@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/uline@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/uline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/uline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/uline@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/uline@side-by-side-tables": {
@@ -12310,38 +4205,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/underline@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/underline@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/underline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/underline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/underline@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/underline@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -12369,38 +4232,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/unicode-direct@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/unicode-direct@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/unicode-direct@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/unicode-direct@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/unicode-direct@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/unicode-direct@side-by-side-tables": {
@@ -12432,38 +4263,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/url@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/url@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/url@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/url@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/url@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
   "matrix/url@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -12493,16 +4292,6 @@
     "warning:threeparttable"
    ]
   },
-  "matrix/verb-backslash@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/verb-backslash@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
   "matrix/verb-backslash@side-by-side-tables": {
    "signatures": [
     "brace-leak",
@@ -12526,16 +4315,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/verb@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/verb@multicols": {
-   "signatures": [
-    "warning:multicols"
    ]
   },
   "matrix/verb@side-by-side-tables": {
@@ -12565,38 +4344,6 @@
     "warning:\\caption",
     "warning:\\tnote",
     "warning:threeparttable"
-   ]
-  },
-  "matrix/vspace-inline@adjustbox-table": {
-   "signatures": [
-    "raw-ir:\\textwidth",
-    "tex-leak:\\textwidth",
-    "warning:\\textwidth",
-    "warning:adjustbox"
-   ]
-  },
-  "matrix/vspace-inline@fbox-parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
-   ]
-  },
-  "matrix/vspace-inline@landscape": {
-   "signatures": [
-    "warning:landscape"
-   ]
-  },
-  "matrix/vspace-inline@multicols": {
-   "signatures": [
-    "warning:multicols"
-   ]
-  },
-  "matrix/vspace-inline@parbox": {
-   "signatures": [
-    "raw-ir:\\parbox",
-    "tex-leak:\\parbox",
-    "warning:\\parbox"
    ]
   },
   "matrix/vspace-inline@side-by-side-tables": {

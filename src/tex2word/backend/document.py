@@ -1005,7 +1005,10 @@ class DocumentWriter:
             if block.label:
                 start = fields.bookmark_start(_bookmark_for(block.label))
                 p.append(start)
-            for run in fields.number_field(block.counter, self.number_by_section):
+            # \newtheorem{thm}{Theorem}[section] numbers "section.n" even
+            # when the document's figures/equations are numbered flat
+            by_section = self.number_by_section or block.within in ("section", "chapter")
+            for run in fields.number_field(block.counter, by_section):
                 p.append(run)
             if start is not None:
                 p.append(fields.bookmark_end_for(start))
@@ -1185,12 +1188,26 @@ class DocumentWriter:
         sub(rpr, "w:rStyle", **{"w:val": "FootnoteReference"})
         sub(r, "w:footnoteReference", **{"w:id": str(note_id)})
         p.append(r)
-        # the footnote content paragraph (lives in footnotes.xml)
-        fp = self._styled_paragraph("FootnoteText")
+        # the footnote content (lives in footnotes.xml)
         mark = el("w:r")
         mark_rpr = sub(mark, "w:rPr")
         sub(mark_rpr, "w:rStyle", **{"w:val": "FootnoteReference"})
         sub(mark, "w:footnoteRef")
+        if node.blocks:
+            footnote = el("w:footnote", **{"w:id": str(note_id)})
+            for block in node.blocks:
+                self._block(block, footnote, default_style="FootnoteText")
+            first = footnote.find(_qn("w:p"))
+            if first is None or footnote.index(first) != 0:
+                first = self._styled_paragraph("FootnoteText")
+                footnote.insert(0, first)
+            ppr = first.find(_qn("w:pPr"))
+            at = 0 if ppr is None else first.index(ppr) + 1
+            first.insert(at, mark)
+            first.insert(at + 1, self._run(" "))
+            self._footnotes.append(footnote)
+            return
+        fp = self._styled_paragraph("FootnoteText")
         fp.append(mark)
         fp.append(self._run(" "))
         self._inlines(node.inlines, fp)

@@ -9,6 +9,7 @@ unconvertible math as raw TeX.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from . import symbols as S
@@ -287,6 +288,14 @@ def tokenize(s: str) -> list[Token]:
                 i = k
                 while i < n and s[i] == " ":
                     i += 1
+                if s[j:k] in _TEXT_MODE and i < n and s[i] == "{":
+                    # text-mode argument: its spaces are text (\text{ if })
+                    end = _group_end(s, i)
+                    if end is not None:
+                        tokens.append(("{", None))
+                        tokens.extend(_tokenize_text(s[i + 1:end]))
+                        tokens.append(("}", None))
+                        i = end + 1
         elif c in "{}^_&":
             tokens.append((c, None))
             i += 1
@@ -302,6 +311,48 @@ def tokenize(s: str) -> list[Token]:
             tokens.append(("char", c))
             i += 1
     return tokens
+
+
+def _group_end(s: str, i: int) -> int | None:
+    """Index of the ``}`` closing the group that opens at ``s[i] == "{"``."""
+    depth = 0
+    k = i
+    while k < len(s):
+        c = s[k]
+        if c == "\\":
+            k += 2
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return k
+        k += 1
+    return None
+
+
+def _tokenize_text(s: str) -> list[Token]:
+    """Tokens of a text-mode argument: like ``tokenize``, but a run of spaces is
+    a space character (except right after a control word, where TeX eats it),
+    and ``$...$`` inside is math."""
+    out: list[Token] = []
+    for k, segment in enumerate(re.split(r"(?<!\\)\$", s)):
+        if k % 2:  # inside $...$
+            out.extend(tokenize(segment))
+            continue
+        prev = ""
+        # ASCII whitespace only: a thin space (U+2009, from \, or \pmod) is a glyph
+        for piece in re.split(r"([ \t\n]+)", segment):
+            if not piece:
+                continue
+            if not piece.strip(" \t\n"):
+                if not re.search(r"\\[A-Za-z]+$", prev):
+                    out.append(("char", " "))
+            else:
+                out.extend(tokenize(piece))
+            prev = piece
+    return out
 
 
 # --------------------------------------------------------------------------- #

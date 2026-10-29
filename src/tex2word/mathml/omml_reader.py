@@ -8,6 +8,8 @@ writer emits, so a forward+reverse pass round-trips the common math core.
 
 from __future__ import annotations
 
+import re
+
 from lxml import etree
 
 from ..backend.ooxml import NS
@@ -167,6 +169,12 @@ def _lit_latex(lit: L.Lit) -> str:
         return ""
     if lit.script in _SCRIPT_CMD:
         return f"\\{_SCRIPT_CMD[lit.script]}{{{text}}}"
+    # upright prose (spaces, hyphens: \text{ if }, \text{well-known}) -> \text
+    if lit.upright and len(text) > 1 and any(c.isalpha() for c in text) and not (
+        text.isalpha() or text.isalnum()
+    ):
+        body = re.sub(r"([{}%&#_$])", r"\\\1", text)
+        return f"\\textbf{{{body}}}" if lit.bold else f"\\text{{{body}}}"
     # genuine multi-letter upright text -> a function name or \mathrm{...}
     if lit.upright and len(text) > 1 and text.isalpha():
         if text in S.FUNCTIONS:
