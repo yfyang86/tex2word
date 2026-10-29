@@ -29,6 +29,8 @@ from .. import ir
 from ..report import ConversionReport
 from . import siunitx
 from .colors import ColorTable
+from .frontmatter import FRONT_MATTER, FrontMatterMixin, preamble_calls
+from .frontmatter import SPECS as _FRONT_SPECS
 from .macros import expand_macros, local_package_sources
 from .preprocess import normalize_spacing_and_icons, preprocess, replace_inline_tikz
 
@@ -275,8 +277,6 @@ _IGNORE_MACROS = {
     "makeatletter", "makeatother", "selectlanguage",
     "authornote", "authornotemark", "balance", "nobalance", "acmnote",
     "onecolumn", "twocolumn", "typeout",
-    "institution", "department", "city", "state", "country",
-    "postcode", "streetaddress", "position",
 }
 
 
@@ -644,10 +644,12 @@ def _latex_of(nodes: list) -> str:
 # --------------------------------------------------------------------------- #
 
 
-class _Builder:
+class _Builder(FrontMatterMixin):
     def __init__(self, report: ConversionReport) -> None:
         self.report = report
         self.meta = ir.DocumentMeta()
+        self.doc_class = "article"
+        self._fm_init()
         self.bib_files: list[str] = []
         self.bib_style: str = "plain"
         self.bibstyle_set: bool = False  # an explicit \bibliographystyle was seen
@@ -814,6 +816,8 @@ class _Builder:
 
     def _inline_macro(self, node: LatexMacroNode, out: list[ir.Inline]) -> None:  # noqa: C901
         name = node.macroname
+        if self.front_inline(node, out):
+            return
         if name in _FONT_RESET:  # \textrm/\textnormal/... -> upright passthrough
             out.extend(self.inlines(_group_nodes(node)))
             return
@@ -893,7 +897,7 @@ class _Builder:
             else:
                 out.extend(text)  # \hyperref{url}{cat}{name}{text} -> just the text
             return
-        if name in ("footnote", "thanks", "marginpar", "sidenote"):
+        if name in ("footnote", "thanks", "marginpar", "sidenote", "marginnote"):
             # \thanks (title/author note), \marginpar/\sidenote (margin asides)
             # all degrade to a Word footnote -- the closest aside Word offers.
             out.append(self._note(_group_nodes(node)))
@@ -1194,9 +1198,15 @@ class _Builder:
                 flush()
                 out.append(ir.TableOfContents(kind=_TOC_MACROS[node.macroname]))  # type: ignore[arg-type]
                 continue
+            if isinstance(node, LatexMacroNode) and node.macroname in FRONT_MATTER:
+                fm = self.front_matter(node)
+                if fm is not None:
+                    if fm:
+                        flush()
+                        out.extend(fm)
+                    continue
             if isinstance(node, LatexMacroNode) and node.macroname in (
-                "title", "author", "date", "keywords", "IEEEkeywords",
-                "institute", "affiliation", "affil", "address", "email", "orcid",
+                "title", "date", "IEEEkeywords",
                 "markboth", "markright", "runninghead", "shorttitle",
             ):
                 self._meta_macro(node)
@@ -1470,6 +1480,8 @@ class _Builder:
 
     def _environment(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:  # noqa: C901
         name = node.environmentname
+        if self.front_env(node, out):
+            return
         base = name.rstrip("*")
         starred = name.endswith("*")
         if base in _MATH_ENVS:
@@ -2932,12 +2944,6 @@ def _build_context(
             MacroSpec("numlist", "[{"),
             MacroSpec("SIlist", "[{{"),
             MacroSpec("qtylist", "[{{"),
-            MacroSpec("institute", "{"),
-            MacroSpec("affiliation", "[{"),
-            MacroSpec("affil", "[{"),
-            MacroSpec("address", "{"),
-            MacroSpec("email", "{"),
-            MacroSpec("orcid", "{"),
             MacroSpec("inst", "{"),
             MacroSpec("IEEEauthorrefmark", "{"),
             MacroSpec("IEEEauthorblockN", "{"),
@@ -2997,21 +3003,14 @@ def _build_context(
             MacroSpec("ensuremath", "{"),
             MacroSpec("ding", "{"),
             MacroSpec("shortstack", "[{"),
-            # ACM affiliation sub-fields: consume the {…} so it isn't body text.
-            MacroSpec("institution", "{"),
-            MacroSpec("department", "{"),
-            MacroSpec("city", "{"),
-            MacroSpec("state", "{"),
-            MacroSpec("country", "{"),
-            MacroSpec("postcode", "{"),
-            MacroSpec("streetaddress", "{"),
-            MacroSpec("position", "{"),
             MacroSpec("authornote", "{"),
             MacroSpec("texorpdfstring", "{{"),
             MacroSpec("labelcref", "{"),
             MacroSpec("nameref", "{"),
             MacroSpec("Nameref", "{"),
             MacroSpec("title", "[{"),  # \title[running head]{full title}
+            # journal-class front matter (frontend/frontmatter.py)
+            *(MacroSpec(n, a) for n, a in _FRONT_SPECS),
             MacroSpec("markboth", "{{"),
             MacroSpec("markright", "{"),
             MacroSpec("runninghead", "[{"),
@@ -3303,6 +3302,13 @@ def parse_document(
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
     builder.box_envs |= set(builder.box_styles)
     builder.book_mode = _is_book_class(expanded)
+    cls = re.search(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", expanded)
+    builder.doc_class = cls.group(1).strip() if cls else "article"
+    if builder.doc_class in ("letter", "moderncv"):
+        # sender address / signature / CV contact lines live in the preamble
+        _fill_meta_from_preamble_calls(preamble, ctx, builder, only=(
+            "address", "signature", "name", "title", "phone", "mobile", "homepage",
+            "social", "extrainfo", "email"))
     for m in _SUBJCLASS_NAME_RE.finditer(expanded):
         builder.subjclass_names[m.group(1).strip()] = m.group(2).strip()
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
@@ -3315,10 +3321,10 @@ def parse_document(
     doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode,
                       label_aliases=builder.label_aliases)
 
-    _fill_meta_from_preamble(doc, preamble, ctx, report)
+    _fill_meta_from_preamble(doc, preamble, ctx, report, builder)
     # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
     # title is present but no \date was given (an explicit \date{} stays empty).
-    if doc.meta.date is None and doc.meta.title:
+    if doc.meta.date is None and doc.meta.title and builder.doc_class != "moderncv":
         doc.meta.date = _default_date(source, builder)
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
@@ -3433,45 +3439,54 @@ def _collect_bib_resources(preamble: str, builder: _Builder) -> None:
 
 
 def _fill_meta_from_preamble(
-    doc: ir.Document, preamble: str, ctx, report: ConversionReport
+    doc: ir.Document, preamble: str, ctx, report: ConversionReport, builder: _Builder,
 ) -> None:
-    """Recover \\title/\\author/\\date/\\keywords defined in the preamble (best effort)."""
+    """Recover the title-page commands given in the preamble (best effort).
+
+    Every call counts (authblk lists several ``\\author``/``\\affil`` lines);
+    a kind of metadata the body already set is not overridden.
+    """
     if doc.meta.running_head is None:
         doc.meta.running_head = _running_head_from_preamble(preamble)
-    for macro in ("title", "author", "date", "keywords", "institute", "affiliation"):
-        if macro == "title" and doc.meta.title is not None:
-            continue
-        if macro == "author" and doc.meta.authors:
-            continue
-        if macro == "date" and doc.meta.date is not None:
-            continue
-        if macro == "keywords" and doc.meta.keywords is not None:
-            continue
-        if macro in ("institute", "affiliation") and doc.meta.affiliations:
-            continue
-        content = _braced_content(preamble, macro)
-        if content is None:
+    if builder.doc_class in ("letter", "moderncv"):
+        return  # read before the body (see parse_document)
+    meta = doc.meta
+    skip = set()
+    if meta.title is not None:
+        skip.add("title")
+    if meta.authors:
+        skip.add("author")
+    if meta.date is not None:
+        skip.add("date")
+    if meta.keywords is not None:
+        skip.add("keywords")
+    if meta.affiliations:
+        skip |= {"institute", "affiliation", "affil", "address", "email", "orcid"}
+    if meta.subtitle is not None:
+        skip.add("subtitle")
+    _fill_meta_from_preamble_calls(preamble, ctx, builder, skip=skip)
+
+
+def _fill_meta_from_preamble_calls(
+    preamble: str, ctx, builder: _Builder, *, skip: set[str] | frozenset[str] = frozenset(),
+    only: tuple[str, ...] | None = None,
+) -> None:
+    for name, call in preamble_calls(preamble):
+        if name in skip or (only is not None and name not in only):
             continue
         try:
-            sub_nodes, _, _ = LatexWalker(
-                content, latex_context=ctx, tolerant_parsing=True
-            ).get_latex_nodes()
-            if macro in ("author", "institute", "affiliation"):
-                target = doc.meta.authors if macro == "author" else doc.meta.affiliations
-                for seg in _split_on_and(sub_nodes):
-                    inl = _Builder(report).inlines(seg)
-                    if inl:
-                        target.append(inl)
-                continue
-            inlines = _Builder(report).inlines(sub_nodes)
-        except Exception:
-            inlines = [ir.Text(content)]
-        if macro == "title":
-            doc.meta.title = inlines
-        elif macro == "date":
-            doc.meta.date = inlines
-        elif macro == "keywords":
-            doc.meta.keywords = inlines
+            nodes, _, _ = LatexWalker(call, latex_context=ctx, tolerant_parsing=True
+                                      ).get_latex_nodes()
+        except Exception:  # never let a preamble oddity abort the conversion
+            continue
+        node = next((n for n in nodes if isinstance(n, LatexMacroNode)), None)
+        if node is None:
+            continue
+        try:
+            if builder.front_matter(node) is None:
+                builder._meta_macro(node)
+        except Exception:  # noqa: BLE001 - metadata is best effort
+            builder.report.warn(f"\\{name}", "could not read the preamble command")
 
 
 def _resolve_bibliography(

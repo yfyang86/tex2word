@@ -426,6 +426,11 @@ class DocumentMeta(Node):
     abstract: list[Block] | None = None
     keywords: list[Inline] | None = None
     affiliations: list[list[Inline]] = field(default_factory=list)
+    #: a subtitle (KOMA \subtitle, beamer, a CV's job title)
+    subtitle: list[Inline] | None = None
+    #: further title-page lines: dedications, corresponding-author notes,
+    #: KOMA \subject/\publishers, contact details
+    front_notes: list[list[Inline]] = field(default_factory=list)
     language: str | None = None  # BCP-47 document language (from babel/polyglossia)
     running_head: str | None = None  # \markboth/\markright/\title[short] running head
     columns: int = 1  # body column count (\documentclass[twocolumn]/\twocolumn)

@@ -130,6 +130,7 @@ class DocumentWriter:
         has_title = bool(
             doc.meta.title or doc.meta.authors or doc.meta.affiliations
             or doc.meta.date or doc.meta.abstract or doc.meta.keywords
+            or doc.meta.subtitle or doc.meta.front_notes
         )
         if has_title:
             # the title/authors/abstract are set full-width above the columns.
@@ -163,6 +164,10 @@ class DocumentWriter:
             p = self._styled_paragraph("Title")
             self._inlines(meta.title, p)
             body.append(p)
+        if meta.subtitle:
+            p = self._styled_paragraph("Subtitle")
+            self._inlines([ir.Emphasis(list(meta.subtitle), "bold")], p)
+            body.append(p)
         for author in meta.authors:
             p = self._styled_paragraph("Subtitle")
             self._inlines(author, p)
@@ -170,6 +175,10 @@ class DocumentWriter:
         for affil in meta.affiliations:
             p = self._styled_paragraph("Subtitle")
             self._inlines([ir.Emphasis(list(affil), "italic")], p)
+            body.append(p)
+        for note in meta.front_notes:
+            p = self._styled_paragraph("Subtitle")
+            self._inlines(note, p)
             body.append(p)
         if meta.date:
             p = self._styled_paragraph("Subtitle")

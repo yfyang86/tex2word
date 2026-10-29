@@ -484,6 +484,21 @@ def _inject_exam_title(source: str) -> str:
     return re.sub(r"\\begin\{document\}", lambda m: m.group(0) + block, source, count=1)
 
 
+# beamer overlay specifications: \item<2->, \alert<1>{..}, \only<2-3>{..}, ...
+_OVERLAY_RE = re.compile(
+    r"(\\(?:item|only|uncover|visible|invisible|onslide|alt|temporal|alert|textbf|"
+    r"textit|emph|color|textcolor|includegraphics|pause|structure|frame|column|"
+    r"hyperlink|action)\*?)\s*<[^<>\n]*>"
+)
+# overlay-only commands: \pause, \onslide<2-> (no argument) carry no content
+_OVERLAY_ONLY_RE = re.compile(r"\\(?:pause|onslide)(?![A-Za-z])(?:\s*\[[^\]]*\])?")
+
+
+def _strip_overlays(source: str) -> str:
+    """Remove beamer overlay specifications (the slides are flattened)."""
+    return _OVERLAY_ONLY_RE.sub("", _OVERLAY_RE.sub(r"\1", source))
+
+
 _CONTROL_RE = re.compile("[\x00-\x08\x0b\x0e-\x1f\x7f]")
 
 
@@ -500,6 +515,8 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
     source = flatten_inputs(strip_comments(_control_chars(source)), base_dir)
+    if re.search(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{beamer\}", source):
+        source = _strip_overlays(source)  # \item<2-> \only<1>{..} -> no overlay spec
     if _uses_exam_class(source, base_dir):
         source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
         source = _inject_exam_title(source)  # recover the fancyhdr title block
