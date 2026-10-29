@@ -19,6 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generate → verify → fix → update loop. Runs in the test suite (smoke tier)
   and as a CI job (full catalog).
 
+### Fixed (issue #45)
+
+- **Journal front matter** of 13 classes/templates: acmart affiliations,
+  Springer Nature `\fnm`/`\sur`/`\affil`/`\orgname`, elsarticle markers,
+  `key={value}` affiliations and `\cortext`, llncs `\inst`/`\orcidID`/
+  `\institute`, authblk (every preamble `\author`/`\affil`), amsart
+  `\curraddr`/`\urladdr`/`\dedicatory`, IEEE `\IEEEmembership`/`\appendices`,
+  KOMA `\subtitle`/`\subject`/`\publishers`/`\addsec`/`\minisec`, NeurIPS
+  `\And`, ICML `\icmlauthor` & co., beamer frames, the letter class, moderncv
+  and tufte `\marginnote`.
+- **Table floats**: `threeparttable` (with `\tnote`), `sidewaystable`/
+  `sidewaysfigure`, and several captioned minipages or subtables in one
+  `table` keep their captions and labels.
+- **Cached field results are real numbers**: figure/table/equation/theorem
+  numbers and references used to cache "1" and "0", which is what Protected
+  View, previews and other non-updating viewers show. Per-section numbers now
+  also render correctly in LibreOffice.
+- **Ordered lists restart**: a second `enumerate` used to continue at 4;
+  enumitem `start=` and `\setcounter{enumi}` are honoured.
+
 ### Fixed (found by the probes)
 
 - **Crash** on control characters (form feed, bell, …) in the source.
