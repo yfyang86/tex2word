@@ -15,6 +15,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -42,6 +44,10 @@ def test_catalog_is_consistent():
 
 
 def test_probes_match_baseline():
+    mismatch = baseline.environment_mismatch()
+    if mismatch:
+        pytest.skip(f"environment differs from the baseline's ({mismatch}); "
+                    "the CI job with all extras enforces the gate")
     probes = _selected()
     results = list(run_all(probes, jobs=min(os.cpu_count() or 1, 4)))
     diff = baseline.compare(results, baseline.load())

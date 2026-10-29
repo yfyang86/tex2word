@@ -73,6 +73,15 @@ PDF render; slow, so combine it with `--filter`).
    `fuzz --save` appends minimised multi-layer failures to
    `catalog/found.json`, so each new discovery becomes a permanent probe.
 
+## Environment
+
+Optional packages change results (`latex2mathml` rescues math the direct OMML
+path can't handle; `pypdfium2`/Pillow embed PDF figures). The baseline is made
+with every extra installed (`uv sync --all-extras`), as in CI, and records
+which ones were present. `verify` warns when your environment differs, and
+the pytest gate skips itself rather than report false failures. TikZ
+compilation is off unless you pass `--tikz`.
+
 ## Gates
 
 - `tests/test_synth_probes.py` runs the smoke tier in the normal test suite

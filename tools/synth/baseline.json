@@ -1,5 +1,10 @@
 {
- "_about": "Known failures of the synthetic probes (tools/synth). Keyed by probe id; 'signatures' are oracle findings still expected to fail. Add 'issue'/'note' by hand. Regenerate with: python -m tools.synth update [--accept]",
+ "_about": "Known failures of the synthetic probes (tools/synth). Keyed by probe id; 'signatures' are oracle findings still expected to fail. Add 'issue'/'note' by hand. Regenerate with: python -m tools.synth update [--accept]. Made with every optional extra installed (uv sync --all-extras), as in CI.",
+ "environment": {
+  "latex2mathml": true,
+  "pypdfium2": true,
+  "PIL": true
+ },
  "known": {
   "class/acmart-sigconf": {
    "signatures": [
@@ -437,24 +442,6 @@
     "expect-text:Lemma 2"
    ]
   },
-  "math/atop@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\atop",
-    "warning:math"
-   ]
-  },
-  "math/atop@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\atop",
-    "warning:math"
-   ]
-  },
   "math/backslash-setminus@display": {
    "signatures": [
     "expect-text:∖",
@@ -467,103 +454,19 @@
     "math-leak"
    ]
   },
-  "math/boxed@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\boxed",
-    "warning:math"
-   ]
-  },
-  "math/boxed@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\boxed",
-    "warning:math"
-   ]
-  },
   "math/cancel@display": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\bcancel",
-    "tex-leak:\\cancel",
-    "tex-leak:\\cancelto",
-    "tex-leak:\\xcancel",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/cancel@inline": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\bcancel",
-    "tex-leak:\\cancel",
-    "tex-leak:\\cancelto",
-    "tex-leak:\\xcancel",
-    "warning:math"
-   ]
-  },
-  "math/choose-primitive@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\choose",
-    "warning:math"
-   ]
-  },
-  "math/choose-primitive@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\choose",
-    "warning:math"
-   ]
-  },
-  "math/color-math@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\color",
-    "tex-leak:\\textcolor",
-    "warning:math"
-   ]
-  },
-  "math/color-math@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\color",
-    "tex-leak:\\textcolor",
-    "warning:math"
-   ]
-  },
-  "math/dbinom@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\dbinom",
-    "warning:math"
-   ]
-  },
-  "math/dbinom@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\dbinom",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/dcases@display": {
    "signatures": [
@@ -629,94 +532,6 @@
     "warning:math"
    ]
   },
-  "math/hspace-math@display": {
-   "signatures": [
-    "brace-leak",
-    "dim-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\hspace",
-    "warning:math"
-   ]
-  },
-  "math/hspace-math@inline": {
-   "signatures": [
-    "brace-leak",
-    "dim-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\hspace",
-    "warning:math"
-   ]
-  },
-  "math/imath-jmath@display": {
-   "signatures": [
-    "expect-text:ı",
-    "expect-text:ȷ",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\imath",
-    "tex-leak:\\jmath",
-    "warning:math"
-   ]
-  },
-  "math/imath-jmath@inline": {
-   "signatures": [
-    "expect-text:ı",
-    "expect-text:ȷ",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\imath",
-    "tex-leak:\\jmath",
-    "warning:math"
-   ]
-  },
-  "math/middle@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\left",
-    "tex-leak:\\middle",
-    "tex-leak:\\right",
-    "warning:math"
-   ]
-  },
-  "math/middle@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\left",
-    "tex-leak:\\middle",
-    "tex-leak:\\right",
-    "warning:math"
-   ]
-  },
-  "math/norm-bars@display": {
-   "signatures": [
-    "expect-text:‖",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\lVert",
-    "tex-leak:\\lvert",
-    "tex-leak:\\rVert",
-    "tex-leak:\\rvert",
-    "warning:math"
-   ]
-  },
-  "math/norm-bars@inline": {
-   "signatures": [
-    "expect-text:‖",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\lVert",
-    "tex-leak:\\lvert",
-    "tex-leak:\\rVert",
-    "tex-leak:\\rvert",
-    "warning:math"
-   ]
-  },
   "math/norm-macro@display": {
    "signatures": [
     "expect-text:‖"
@@ -727,49 +542,9 @@
     "expect-text:‖"
    ]
   },
-  "math/not-combos@display": {
-   "signatures": [
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\in",
-    "tex-leak:\\not",
-    "tex-leak:\\subset",
-    "warning:math"
-   ]
-  },
-  "math/not-combos@inline": {
-   "signatures": [
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\in",
-    "tex-leak:\\not",
-    "tex-leak:\\subset",
-    "warning:math"
-   ]
-  },
-  "math/over-primitive@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\over",
-    "warning:math"
-   ]
-  },
-  "math/over-primitive@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\over",
-    "warning:math"
-   ]
-  },
   "math/percent-hash@display": {
    "signatures": [
-    "math-missing",
-    "math-raw",
-    "warning:math"
+    "math-roundtrip-error"
    ]
   },
   "math/percent-hash@inline": {
@@ -777,91 +552,51 @@
     "math-roundtrip-error"
    ]
   },
-  "math/phantom@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\hphantom",
-    "tex-leak:\\phantom",
-    "tex-leak:\\vphantom",
-    "warning:math"
-   ]
-  },
-  "math/phantom@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\hphantom",
-    "tex-leak:\\phantom",
-    "tex-leak:\\vphantom",
-    "warning:math"
-   ]
-  },
   "math/physics-expval@display": {
    "signatures": [
-    "brace-leak",
     "expect-text:⟨",
     "expect-text:⟩",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\ev",
-    "tex-leak:\\expval",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/physics-expval@inline": {
    "signatures": [
-    "brace-leak",
     "expect-text:⟨",
     "expect-text:⟩",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\ev",
-    "tex-leak:\\expval",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/physics-qty@display": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\frac",
-    "tex-leak:\\qty",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/physics-qty@inline": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\frac",
-    "tex-leak:\\qty",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/physics-trace@display": {
    "signatures": [
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\Tr",
-    "tex-leak:\\rho",
-    "tex-leak:\\tr",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/physics-trace@inline": {
    "signatures": [
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\Tr",
-    "tex-leak:\\rho",
-    "tex-leak:\\tr",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/prime@display": {
    "signatures": [
@@ -871,26 +606,6 @@
   "math/prime@inline": {
    "signatures": [
     "expect-text:′"
-   ]
-  },
-  "math/qed-box@display": {
-   "signatures": [
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\Box",
-    "tex-leak:\\blacksquare",
-    "tex-leak:\\square",
-    "warning:math"
-   ]
-  },
-  "math/qed-box@inline": {
-   "signatures": [
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\Box",
-    "tex-leak:\\blacksquare",
-    "tex-leak:\\square",
-    "warning:math"
    ]
   },
   "math/rcases@display": {
@@ -917,104 +632,40 @@
   },
   "math/si-num-in-math@display": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\num",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/si-num-in-math@inline": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\num",
-    "warning:math"
-   ]
-  },
-  "math/sideset@display": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\sideset",
-    "tex-leak:\\sum",
-    "warning:math"
-   ]
-  },
-  "math/sideset@inline": {
-   "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\sideset",
-    "tex-leak:\\sum",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/siunitx-in-math@display": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\SI",
-    "tex-leak:\\meter",
-    "tex-leak:\\per",
-    "tex-leak:\\second",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/siunitx-in-math@inline": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\SI",
-    "tex-leak:\\meter",
-    "tex-leak:\\per",
-    "tex-leak:\\second",
-    "warning:math"
-   ]
-  },
-  "math/therefore-because@display": {
-   "signatures": [
-    "expect-text:∴",
-    "expect-text:∵",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\because",
-    "tex-leak:\\therefore",
-    "warning:math"
-   ]
-  },
-  "math/therefore-because@inline": {
-   "signatures": [
-    "expect-text:∴",
-    "expect-text:∵",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\because",
-    "tex-leak:\\therefore",
-    "warning:math"
-   ]
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
   },
   "math/underline-math@display": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\underline",
-    "warning:math"
+    "math-roundtrip"
    ]
   },
   "math/underline-math@inline": {
    "signatures": [
-    "brace-leak",
-    "math-missing",
-    "math-raw",
-    "tex-leak:\\underline",
-    "warning:math"
+    "math-roundtrip"
    ]
   },
   "matrix/MakeUppercase@side-by-side-tables": {

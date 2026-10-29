@@ -98,7 +98,16 @@ def _print_diff(diff: baseline.Diff, results: list[Result]) -> None:
         print(f"FIXED  ... and {len(fixed) - _FIXED_SHOWN} more probes")
 
 
+def _warn_environment() -> None:
+    mismatch = baseline.environment_mismatch()
+    if mismatch:
+        print(f"warning: this environment differs from the baseline's: {mismatch}. "
+              "Results may differ; install the extras (uv sync --all-extras).",
+              file=sys.stderr)
+
+
 def cmd_verify(args) -> int:
+    _warn_environment()
     probes = _select(args)
     results = _run(probes, args)
     known = baseline.load()
@@ -136,6 +145,7 @@ def cmd_triage(args) -> int:
 def cmd_update(args) -> int:
     from .catalog import all_probes
 
+    _warn_environment()
     probes = _select(args)
     results = _run(probes, args)
     known = baseline.load()

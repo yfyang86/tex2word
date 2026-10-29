@@ -15,6 +15,35 @@ from .model import Result
 
 PATH = os.path.join(os.path.dirname(__file__), "baseline.json")
 
+#: optional packages that change conversion results (the MathML math route,
+#: PDF rasterisation); the baseline is only valid for the set it was made with
+_OPTIONAL = ("latex2mathml", "pypdfium2", "PIL")
+
+
+def environment() -> dict[str, bool]:
+    import importlib.util
+
+    return {m: importlib.util.find_spec(m) is not None for m in _OPTIONAL}
+
+
+def recorded_environment(path: str = PATH) -> dict[str, bool] | None:
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh).get("environment")
+
+
+def environment_mismatch(path: str = PATH) -> str | None:
+    """A description of how this machine differs from the baseline's, or None."""
+    rec = recorded_environment(path)
+    if rec is None:
+        return None
+    now = environment()
+    diff = [f"{m} {'installed' if now.get(m) else 'missing'} (baseline: "
+            f"{'installed' if rec.get(m) else 'missing'})"
+            for m in sorted(set(rec) | set(now)) if rec.get(m) != now.get(m)]
+    return "; ".join(diff) or None
+
 
 @dataclass
 class Diff:
@@ -40,8 +69,10 @@ def save(known: dict[str, dict], path: str = PATH) -> None:
         "_about": (
             "Known failures of the synthetic probes (tools/synth). Keyed by probe id; "
             "'signatures' are oracle findings still expected to fail. Add 'issue'/'note' "
-            "by hand. Regenerate with: python -m tools.synth update [--accept]"
+            "by hand. Regenerate with: python -m tools.synth update [--accept]. Made with "
+            "every optional extra installed (uv sync --all-extras), as in CI."
         ),
+        "environment": environment(),
         "known": {k: known[k] for k in sorted(known)},
     }
     with open(path, "w", encoding="utf-8") as fh:
