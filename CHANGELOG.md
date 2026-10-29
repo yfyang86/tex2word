@@ -7,7 +7,43 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased — fixes from the Rust port's findings (#44)
+## Unreleased
+
+### Added
+
+- **Synthetic probe harness** (`tools/synth`, see its README): ~8,000 small
+  generated documents (every inline construct in every container, math
+  inline and display, document features, 20 journal/class templates, fuzzed
+  nestings) checked by generic oracles. `verify` gates on a baseline of known
+  failures; `triage`, `repro`, `update` and `fuzz --save` close the
+  generate → verify → fix → update loop. Runs in the test suite (smoke tier)
+  and as a CI job (full catalog).
+
+### Fixed (found by the probes)
+
+- **Crash** on control characters (form feed, bell, …) in the source.
+- **`%` in verbatim** (`verbatim`, `lstlisting`, `minted`, `alltt`), `\verb`,
+  `\lstinline` and `\url` no longer truncates the line as a comment.
+- **Block content in `\footnote`/`\marginpar`** (lists, quotes, tables,
+  several paragraphs) is kept, as real paragraphs in the note.
+- **A `tabular` inside a caption, heading, `\fbox`, `\textbf`, …** keeps its
+  text instead of vanishing.
+- **Conditionals** are resolved: `\iftrue`/`\iffalse`, `\newif` switches,
+  `\ifdefined`, `\ifcsname`, `\ifthenelse`, etoolbox toggles/bools/`\ifdef`,
+  `\IfFileExists`, `\@ifpackageloaded` (both branches used to be printed).
+- **`\newenvironment`/`\NewDocumentEnvironment`** begin/end code is applied.
+- **Spaces in `\text{ if }`** inside math are kept (and read back as `\text`).
+- `\pageref` (was "page ??label"), `\citep[..][p.~3]` ("p.3"), `\url{…~user}`
+  (lost `~`), `\"{\i}` (lost the letter), `\newtheorem{…}{…}[section]`
+  (numbered flat).
+- Supported: `\ss \o \aa \l \AE \oe \i …`, `\glqq`/`\grqq` & co.,
+  `\MakeUppercase`/`\MakeLowercase`, `\parbox`, `\foreignlanguage`,
+  `\selectlanguage`, `\makeatletter` in the body; `multicols`, `landscape`,
+  `titlepage`, `adjustbox`, `otherlanguage` and similar wrappers are silent;
+  `comment`/`CCSXML` are dropped; acknowledgments environments get their
+  heading; `IEEEkeywords` and elsarticle `keyword` become keywords.
+
+## Fixes from the Rust port's findings (#44)
 
 Two real papers (a TikZ-heavy arXiv paper and an amsart economics manuscript)
 converted with the Rust port surfaced these; all reproduced on 1.0.9. Two
