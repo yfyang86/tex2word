@@ -2,12 +2,13 @@
 
 tex2word cannot reproduce arbitrary TikZ as OOXML, so when a figure's only
 content is a ``tikzpicture`` (or ``pgfpicture``/``circuitikz``/…) we compile it
-with whatever TeX engine is on PATH -- ``xelatex`` preferred so CJK node labels
-work -- into a cropped ``standalone`` PDF, then rasterise to PNG via the ``pdf``
-extra (PDFium). Everything is best-effort: any missing tool, package, or
-compile error returns ``None`` and the caller falls back to a caption-only
-figure. The document preamble is filtered down to the parts a picture needs
-(TikZ libraries, colours, styles, user macros) so journal-class preambles with
+with whatever TeX engine is on PATH -- pdflatex for pdflatex papers (their text
+fonts), xelatex for Unicode ones (CJK node labels) -- into a cropped
+``standalone`` PDF, then rasterise to PNG via the ``pdf`` extra (PDFium).
+Everything is best-effort: any missing tool, package, or compile error returns
+``None`` and the caller falls back to a caption-only figure. The document
+preamble is filtered down to the parts a picture needs (TikZ libraries,
+colours, styles, user macros) so journal-class preambles with
 ``hyperref``/``geometry``/… don't break the standalone build.
 """
 
@@ -19,7 +20,9 @@ import shutil
 import subprocess
 import tempfile
 
-# xelatex/lualatex first: they honour fontspec/xeCJK for CJK text in nodes.
+# Default order; ``engine_order`` moves pdflatex first for documents written for
+# it (no fontspec & co., ASCII picture) and keeps xelatex/lualatex first for
+# Unicode documents, whose fontspec/xeCJK set up CJK text in nodes.
 _ENGINES = ("xelatex", "lualatex", "pdflatex")
 _UNICODE_ENGINES = ("xelatex", "lualatex")
 
@@ -47,8 +50,24 @@ _KEEP_USEPACKAGE = re.compile(
     r"pifont|wasysym|marvosym|textcomp|fontawesome5|fontawesome|"
     r"natbib|cite)\b"
 )
-# fontspec/xeCJK lines only make sense under a Unicode engine.
-_KEEP_FONT = re.compile(r"^\s*\\(usepackage\b[^\n]*\{(fontspec|xeCJK)\}|set(main|CJK\w*)font)\b")
+# fontspec/xeCJK lines only make sense under a Unicode engine. (The \b belongs
+# to the \set...font alternative: after "}" it could never match.)
+_KEEP_FONT = re.compile(r"^\s*\\(usepackage\b[^\n]*\{(fontspec|xeCJK)\}|set(main|CJK\w*)font\b)")
+# Text-font/encoding packages, kept for pdflatex so node text uses the paper's
+# font (label widths then match the original layout).
+_KEEP_PDF_FONT = re.compile(
+    r"^\s*\\usepackage\b[^\n]*\{[^}]*\b"
+    r"(times|mathptmx|newtxtext|newtxmath|txfonts|helvet|courier|palatino|mathpazo|"
+    r"lmodern|libertine|libertinus|charter|bookman|avant|fontenc|inputenc)\b"
+)
+# A preamble that needs a Unicode engine.
+_UNICODE_PREAMBLE = re.compile(
+    r"\\usepackage\b[^\n]*\{[^}]*\b(fontspec|xeCJK|unicode-math|polyglossia)\b"
+)
+# Figure-local definitions outside the pictures that they may rely on.
+_LOCAL_DEF = re.compile(
+    r"^\s*\\(definecolor|colorlet|tikzset|pgfplotsset|tikzstyle|usetikzlibrary)\b"
+)
 
 # Header/footer/page-layout (re)definitions that belong to packages we DROP
 # (fancyhdr's \headrulewidth/\footrulewidth, its \fancyhead/\fancyhf/\pagestyle,
@@ -64,9 +83,7 @@ _DROP_LAYOUT = re.compile(
     r"titleformat|titlespacing)\b"
 )
 
-_PICTURE_RE = re.compile(
-    r"\\begin\{(" + "|".join(DRAWING_ENVS) + r")\}.*?\\end\{\1\}", re.DOTALL
-)
+_PICTURE_BEGIN_RE = re.compile(r"\\begin\{(" + "|".join(DRAWING_ENVS) + r")\}")
 
 
 def find_engine() -> str | None:
@@ -78,9 +95,79 @@ def find_engine() -> str | None:
 
 
 def extract_picture(source: str) -> str | None:
-    """Pull the ``tikzpicture`` (etc.) out of a figure's LaTeX source."""
-    m = _PICTURE_RE.search(source)
-    return m.group(0) if m else None
+    """The first ``tikzpicture`` (etc.) of a figure's LaTeX source."""
+    pictures = extract_pictures(source)
+    return pictures[0] if pictures else None
+
+
+def extract_pictures(source: str) -> list[str]:
+    """Every top-level drawing environment in a figure's source, in order.
+
+    A figure may stack several pictures (two ``\\input`` TikZ files in one
+    ``figure*``); each is compiled on its own. Nesting of the same environment
+    (a ``tikzpicture`` inside a node) is balanced, so the outer picture stays
+    whole.
+    """
+    out: list[str] = []
+    pos = 0
+    while True:
+        m = _PICTURE_BEGIN_RE.search(source, pos)
+        if m is None:
+            break
+        env = m.group(1)
+        token = re.compile(r"\\(begin|end)\{" + re.escape(env) + r"\}")
+        depth = 0
+        stop = None
+        for t in token.finditer(source, m.start()):
+            depth += 1 if t.group(1) == "begin" else -1
+            if depth == 0:
+                stop = t.end()
+                break
+        if stop is None:
+            break  # unbalanced: nothing compilable from here on
+        out.append(source[m.start() : stop])
+        pos = stop
+    return out
+
+
+def _figure_definitions(source: str) -> str:
+    """Figure-local style/colour definitions outside the pictures (e.g. a
+    ``\\definecolor`` just before an ``\\input`` TikZ file) that they need."""
+    rest = source
+    for pic in extract_pictures(source):
+        rest = rest.replace(pic, "\n", 1)
+    lines = rest.splitlines()
+    keep: list[str] = []
+    i = 0
+    while i < len(lines):
+        if not _LOCAL_DEF.search(lines[i]):
+            i += 1
+            continue
+        block = [lines[i]]
+        depth = _brace_delta(lines[i])
+        i += 1
+        while depth > 0 and i < len(lines):
+            block.append(lines[i])
+            depth += _brace_delta(lines[i])
+            i += 1
+        keep.extend(block)
+    return "\n".join(keep)
+
+
+def engine_order(picture: str, preamble: str) -> list[str]:
+    """Engines to try, best first.
+
+    A document written for pdflatex (no fontspec/unicode-math/polyglossia/xeCJK
+    and an ASCII picture) compiles with pdflatex, so its text fonts and metrics
+    match the paper; Unicode documents prefer xelatex/lualatex. The later
+    engines are fallbacks when a compile fails.
+    """
+    engines = available_engines()
+    unicode = bool(_UNICODE_PREAMBLE.search(preamble)) or not picture.isascii()
+    if not unicode and "pdflatex" in engines:
+        engines.remove("pdflatex")
+        engines.insert(0, "pdflatex")
+    return engines
 
 
 def _brace_delta(line: str) -> int:
@@ -112,7 +199,7 @@ def _filtered_preamble(preamble: str, *, unicode_engine: bool) -> str:
             i += 1
             continue
         matched = _KEEP_USEPACKAGE.search(line) or _KEEP_MACRO.search(line) or (
-            unicode_engine and _KEEP_FONT.search(line)
+            _KEEP_FONT.search(line) if unicode_engine else _KEEP_PDF_FONT.search(line)
         )
         if not matched:
             i += 1
@@ -156,22 +243,34 @@ def available_engines() -> list[str]:
 def render(
     source: str, preamble: str = "", *, dpi: int = 220, timeout: int = 60
 ) -> tuple[bytes, int, int] | None:
-    """Compile the picture in ``source`` to a cropped PNG; ``None`` on any failure.
-
-    Tries each available engine in turn (a partial TeX install may have, say, a
-    ``lualatex`` binary without its support files) until one produces a PDF that
-    rasterises. Returns ``(png_bytes, width_px, height_px)``.
-    """
+    """Compile the first picture in ``source`` to a cropped PNG (or ``None``)."""
     picture = extract_picture(source)
     if picture is None:
         return None
-    engines = available_engines()
+    return render_picture(picture, source, preamble, dpi=dpi, timeout=timeout)
+
+
+def render_picture(
+    picture: str, source: str = "", preamble: str = "", *, dpi: int = 220,
+    timeout: int = 60,
+) -> tuple[bytes, int, int] | None:
+    """Compile one ``picture`` (taken from the figure ``source``) to a cropped
+    PNG; ``None`` on any failure.
+
+    Tries the engines of ``engine_order`` in turn (a partial TeX install may
+    have, say, a ``lualatex`` binary without its support files) until one
+    produces a PDF that rasterises. Returns ``(png_bytes, width_px, height_px)``.
+    """
+    engines = engine_order(picture, preamble)
     if not engines:
         return None
     from .raster import has_pdf_support, rasterize_pdf
 
     if not has_pdf_support():
         return None
+    local = _figure_definitions(source) if source else ""
+    if local:
+        preamble = f"{preamble}\n{local}"
     with tempfile.TemporaryDirectory() as tmp:
         pdf = os.path.join(tmp, "pic.pdf")
         for engine in engines:

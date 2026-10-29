@@ -542,6 +542,12 @@ def _unwrap_table_layout(nodes: list) -> list:
     return out
 
 
+#: bibliography commands that may sit in a size group ({\small \bibliography{x}})
+_BIB_BLOCK_MACROS = frozenset({
+    "bibliography", "bibliographystyle", "printbibliography", "nocite",
+})
+
+
 #: amsart \@namedef{subjclassname@JEL}{JEL classification}
 _SUBJCLASS_NAME_RE = re.compile(r"\\@namedef\s*\{subjclassname@([^}]*)\}\s*\{([^{}]*)\}")
 
@@ -1070,7 +1076,9 @@ class _Builder:
             # a bare {...} group wrapping a block environment (e.g. the common
             # {\footnotesize \begin{verbatim}...\end{verbatim}}) -> descend as blocks
             if isinstance(node, LatexGroupNode) and any(
-                isinstance(c, LatexEnvironmentNode) for c in node.nodelist
+                isinstance(c, LatexEnvironmentNode)
+                or (isinstance(c, LatexMacroNode) and c.macroname in _BIB_BLOCK_MACROS)
+                for c in node.nodelist
             ):
                 flush()
                 out.extend(self.blocks(node.nodelist))
@@ -1579,7 +1587,12 @@ class _Builder:
                 # that content above the caption instead of dropping it.
                 fig.blocks = self._figure_body_blocks(node.nodelist)
             if fig.image is None and not fig.subfigures and not fig.blocks:
-                self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
+                if _has_opaque_env(fig.source):
+                    # a drawing: the writer compiles it, and warns (with the
+                    # reason) only when it cannot
+                    self.report.info("figure", "figure drawn with TikZ/PGF")
+                else:
+                    self.report.warn("figure", "figure without convertible graphics")
             self._labelable = fig
             out.append(fig)
             return
@@ -1733,6 +1746,10 @@ class _Builder:
             if isinstance(child, LatexEnvironmentNode):
                 if child.environmentname.rstrip("*") == "subfigure":
                     fig.subfigures.append(self._subfigure_from_env(child))
+                elif child.environmentname.rstrip("*") in _OPAQUE_ENVS:
+                    # a drawing's own macros are not the figure's: TikZ's
+                    # \foreach \label/\value in {...} must not become its label
+                    continue
                 else:
                     self._collect_figure_parts(child.nodelist, fig, top=False, panels=panels)
             elif isinstance(child, LatexGroupNode):
@@ -3182,7 +3199,15 @@ def _detect_language(preamble: str) -> str | None:
 
 def _detect_bib_style(preamble: str, builder: _Builder) -> None:
     """Pick up the citation style from the biblatex/natbib package options when no
-    ``\\bibliographystyle`` set it (so author-year biblatex/natbib renders right)."""
+    ``\\bibliographystyle`` set it (so author-year biblatex/natbib renders right).
+
+    natbib's ``[numbers]`` option wins even over an author-year ``.bst`` such as
+    ``plainnat``, as in LaTeX.
+    """
+    nb = re.search(r"\\usepackage\[([^\]]*)\]\{natbib\}", preamble)
+    if nb and re.search(r"\bnumbers\b", nb.group(1).lower()):
+        builder.bib_style = "numeric"
+        return
     if builder.bibstyle_set:
         return
     _AY = ("authoryear", "apa", "chicago", "harvard", "mla", "author-year")
@@ -3195,13 +3220,8 @@ def _detect_bib_style(preamble: str, builder: _Builder) -> None:
                 builder.bib_style = "author-year"
             elif "numeric" in s or "ieee" in s:
                 builder.bib_style = "numeric"
-    nb = re.search(r"\\usepackage\[([^\]]*)\]\{natbib\}", preamble)
-    if nb:
-        nopt = nb.group(1).lower()
-        if re.search(r"\bnumbers\b", nopt):
-            builder.bib_style = "numeric"
-        elif re.search(r"\bauthoryear\b", nopt):
-            builder.bib_style = "author-year"
+    if nb and re.search(r"\bauthoryear\b", nb.group(1).lower()):
+        builder.bib_style = "author-year"
 
 
 def _collect_bib_resources(preamble: str, builder: _Builder) -> None:

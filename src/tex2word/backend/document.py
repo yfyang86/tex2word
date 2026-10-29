@@ -518,8 +518,7 @@ class DocumentWriter:
             # No convertible graphic (e.g. a TikZ picture): compile it to an image
             # if a TeX engine is available, else fall back to a caption-only figure
             # (no developer-facing placeholder text in the document).
-            rendered = self._render_tikz(block)
-            if rendered is not None:
+            for rendered in self._render_tikz(block):
                 content.append(rendered)
         else:
             content.append(self._image_paragraph(block.image))
@@ -531,19 +530,26 @@ class DocumentWriter:
             )
         body.append(sdt)
 
-    def _render_tikz(self, block: ir.Figure) -> _Element | None:
-        """Compile a figure's TikZ/PGF source to an embedded PNG, or None."""
+    def _render_tikz(self, block: ir.Figure) -> list[_Element]:
+        """Compile each of a figure's TikZ/PGF pictures to an embedded PNG.
+
+        A figure may stack several pictures (two ``\\input`` TikZ files in one
+        ``figure*``): each becomes its own centred image paragraph, in order.
+        """
         if not block.source:
-            return None
+            return []
         try:
             from . import raster, tikz
 
-            result = tikz.render(block.source, self.preamble)
+            pictures = tikz.extract_pictures(block.source)
+            results = [
+                tikz.render_picture(pic, block.source, self.preamble) for pic in pictures
+            ]
         except Exception:  # never let a render bug abort the conversion
-            return None
-        if result is None:
+            return []
+        if not pictures or any(r is None for r in results):
             # Be specific about why so the user can fix their setup.
-            if tikz.extract_picture(block.source) is None:
+            if not pictures:
                 reason = "no recognised TikZ/PGF picture in the figure"
             elif not tikz.available_engines():
                 reason = "no TeX engine on PATH (install e.g. xelatex/pdflatex)"
@@ -552,15 +558,19 @@ class DocumentWriter:
             else:
                 reason = "the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
             self.report.warn("figure", f"TikZ figure not rendered: {reason}")
-            return None
-        data, w, h = result
-        self.report.info("figure", "rendered TikZ figure to an image")
-        p = self._styled_paragraph("Normal")
-        self._set_align(p, "center")
-        r = el("w:r")
-        r.append(self._register_and_draw(data, images.ImageInfo("png", w, h), "tikz.png"))
-        p.append(r)
-        return p
+        out: list[_Element] = []
+        for result in results:
+            if result is None:
+                continue
+            data, w, h = result
+            self.report.info("figure", "rendered TikZ figure to an image")
+            p = self._styled_paragraph("Normal")
+            self._set_align(p, "center")
+            r = el("w:r")
+            r.append(self._register_and_draw(data, images.ImageInfo("png", w, h), "tikz.png"))
+            p.append(r)
+            out.append(p)
+        return out
 
     def _subfigures(self, block: ir.Figure, body: _Element) -> None:
         # Sub-figures sit side by side in a borderless 1-row table; each cell
