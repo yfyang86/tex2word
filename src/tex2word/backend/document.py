@@ -547,6 +547,9 @@ class DocumentWriter:
             ]
         except Exception:  # never let a render bug abort the conversion
             return []
+        if not pictures and not any(f"\\begin{{{env}}}" in block.source
+                                    for env in tikz.DRAWING_ENVS):
+            return []  # no drawing at all: the parser already reported the figure
         if not pictures or any(r is None for r in results):
             # Be specific about why so the user can fix their setup.
             if not pictures:
