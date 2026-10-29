@@ -5,13 +5,20 @@ from __future__ import annotations
 import os
 import re
 
+from .conditionals import resolve_conditionals
+
 # A TeX comment runs from an unescaped ``%`` to the end of the line *and*
 # consumes the line-ending newline plus the next line's leading whitespace.
 # Eating the newline is essential: otherwise a full-line ``% comment`` collapses
 # to a blank line and is misread as a paragraph break (LaTeX soft newlines and
 # comment lines do NOT start a new paragraph -- only a blank line / \par does).
-_COMMENT_RE = re.compile(r"(?<!\\)%[^\n]*(?:\n[ \t]*)?")
-_INPUT_RE = re.compile(r"\\(?:input|include)\s*\{([^}]+)\}")
+# \input{f}, \include{f}, and the plain-TeX \input f (ended by a space)
+_INPUT_RE = re.compile(
+    r"\\(?:input|include)\s*\{([^}]+)\}|\\input[ \t]+(?![\\{])([^\s{}%\\]+)"
+)
+# subfiles: \subfile{f} / \subfileinclude{f} inline the subfile's document body
+_SUBFILE_RE = re.compile(r"\\subfile(?:include)?\s*\{([^}]+)\}")
+_ENDINPUT_RE = re.compile(r"\\endinput(?![A-Za-z@])")
 # import package: \import{dir/}{file}, \subimport{dir/}{file} (and *from variants)
 _IMPORT_RE = re.compile(
     r"\\(?:sub)?(?:import|includefrom|inputfrom)\s*\{([^}]+)\}\s*\{([^}]+)\}"
@@ -21,44 +28,170 @@ _IMPORT_RE = re.compile(
 _CMIDRULE_TRIM_RE = re.compile(r"(\\cmidrule)\s*\([lr]*\)")
 
 
+#: environments whose body is verbatim: a ``%`` there is text, not a comment
+_VERBATIM_ENVS = (
+    "verbatim", "verbatim*", "Verbatim", "Verbatim*", "BVerbatim", "LVerbatim",
+    "lstlisting", "minted", "alltt", "filecontents", "filecontents*", "comment",
+    "spverbatim", "boxedverbatim",
+)
+_COMMENT_SCAN_RE = re.compile(
+    r"\\begin\s*\{(?P<env>" + "|".join(re.escape(e) for e in _VERBATIM_ENVS) + r")\}"
+    r"|\\(?P<inline>verb\*?|lstinline|url|path|nolinkurl)(?![A-Za-z])"
+    r"|\\[\\%]"  # \\ and \% are not comment starts
+    r"|%"
+)
+
+
 def strip_comments(source: str) -> str:
-    """Remove LaTeX line comments, preserving escaped ``\\%``."""
-    return _COMMENT_RE.sub("", source)
+    """Remove LaTeX line comments, preserving escaped ``\\%`` and the bodies of
+    verbatim environments, ``\\verb``/``\\lstinline`` and ``\\url``/``\\path``
+    arguments, where ``%`` is literal text."""
+    if "%" not in source:
+        return source
+    out: list[str] = []
+    pos = 0
+    n = len(source)
+    while True:
+        m = _COMMENT_SCAN_RE.search(source, pos)
+        if m is None:
+            out.append(source[pos:])
+            break
+        start = m.start()
+        if m.group("env"):
+            end_tag = "\\end{" + m.group("env") + "}"
+            stop = source.find(end_tag, m.end())
+            stop = n if stop < 0 else stop + len(end_tag)
+            out.append(source[pos:stop])
+            pos = stop
+        elif m.group("inline"):
+            stop = _inline_verbatim_end(source, m.end(), m.group("inline"))
+            out.append(source[pos:stop])
+            pos = stop
+        elif m.group(0) == "%":
+            out.append(source[pos:start])
+            line_end = source.find("\n", start)
+            if line_end < 0:
+                pos = n
+                break
+            # a comment eats its newline and the next line's indentation
+            pos = line_end + 1
+            while pos < n and source[pos] in " \t":
+                pos += 1
+        else:  # \\ or \%
+            out.append(source[pos:m.end()])
+            pos = m.end()
+    return "".join(out)
 
 
-def flatten_inputs(source: str, base_dir: str, _depth: int = 0) -> str:
-    """Inline ``\\input``/``\\include`` (and import-package ``\\import``) files."""
+def _inline_verbatim_end(s: str, i: int, cmd: str) -> int:
+    """End index of the argument of ``\\verb|..|``, ``\\lstinline[..]{..}``,
+    ``\\url{..}`` & co. that starts at ``i`` (``i`` itself if there is none)."""
+    n = len(s)
+    if cmd == "lstinline" and i < n and s[i] == "[":
+        close = s.find("]", i)
+        i = n if close < 0 else close + 1
+    if i >= n:
+        return n
+    if s[i] == "{" and cmd != "verb" and cmd != "verb*":
+        depth = 0
+        for j in range(i, n):
+            if s[j] == "{":
+                depth += 1
+            elif s[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return j + 1
+            elif s[j] == "\n" and cmd in ("url", "path", "nolinkurl"):
+                return j  # never let a broken \url swallow the document
+        return n
+    delim = s[i]
+    if delim.isspace() or delim.isalpha():
+        return i
+    close = s.find(delim, i + 1)
+    line_end = s.find("\n", i + 1)
+    if close < 0 or (0 <= line_end < close):
+        return i  # not a well-formed inline verbatim: treat normally
+    return close + 1
+
+
+def flatten_inputs(
+    source: str, base_dir: str, _depth: int = 0, _dirs: list[str] | None = None
+) -> str:
+    """Inline ``\\input``/``\\include`` (and import-package ``\\import``) files.
+
+    As in TeX, a nested ``\\input`` resolves against the main document's
+    directory first and only then against the including file's directory
+    (``gen/outer.tex`` doing ``\\input{gen/inner}`` means ``gen/inner.tex``).
+    Inside an ``\\import``-ed file, the import directory comes first.
+    """
     if _depth > 20:
         return source
+    dirs = _dirs or [base_dir]
 
-    def _inline(path: str) -> str | None:
-        if os.path.isfile(path):
-            with open(path, encoding="utf-8") as fh:
-                inner = strip_comments(fh.read())
-            return flatten_inputs(inner, os.path.dirname(path) or base_dir, _depth + 1)
+    def _inline(path: str, nested: list[str], *, body_only: bool = False) -> str:
+        with open(path, encoding="utf-8") as fh:
+            inner = strip_comments(_control_chars(fh.read()))
+        if body_only:  # a subfile: only what is between \begin/\end{document}
+            b = inner.find("\\begin{document}")
+            e = inner.rfind("\\end{document}")
+            if b >= 0:
+                inner = inner[b + len("\\begin{document}"):e if e > b else len(inner)]
+        end = _ENDINPUT_RE.search(inner)
+        if end:  # \endinput: TeX stops reading this file after the current line
+            line_end = inner.find("\n", end.end())
+            inner = inner[:end.start()] + (inner[end.end():line_end] if line_end >= 0 else "")
+        return flatten_inputs(inner, base_dir, _depth + 1, _dedupe(nested))
+
+    def _find(name: str, search: list[str]) -> str | None:
+        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
+        for directory in search:
+            for cand in candidates:
+                path = os.path.join(directory, cand)
+                if os.path.isfile(path):
+                    return path
         return None
 
+    def _glue(match: re.Match[str], text: str) -> str:
+        # \protect\input{f} must not glue f's first word onto \protect
+        before = match.string[max(0, match.start() - 64) : match.start()]
+        if re.search(r"\\[A-Za-z@]+$", before):
+            return " " + text
+        return text
+
     def repl(match: re.Match[str]) -> str:
-        name = match.group(1).strip()
-        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
-        for cand in candidates:
-            inlined = _inline(os.path.join(base_dir, cand))
-            if inlined is not None:
-                return inlined
-        return ""  # missing include -> drop (graceful degradation)
+        path = _find((match.group(1) or match.group(2)).strip(), dirs)
+        if path is None:
+            return ""  # missing include -> drop (graceful degradation)
+        return _glue(match, _inline(path, [dirs[0], os.path.dirname(path)]))
+
+    def subfile_repl(match: re.Match[str]) -> str:
+        # a subfile's own paths are relative to its directory (subfiles package)
+        path = _find(match.group(1).strip(), dirs)
+        if path is None:
+            return ""
+        return _glue(match, _inline(path, [os.path.dirname(path), dirs[0]], body_only=True))
 
     def import_repl(match: re.Match[str]) -> str:
-        # \import{dir/}{file}: the file lives under dir, relative to base_dir
+        # \import{dir/}{file}: the file lives under dir, relative to the
+        # current file; its own \input{}s look in dir first
         directory, name = match.group(1).strip(), match.group(2).strip()
-        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
-        for cand in candidates:
-            inlined = _inline(os.path.join(base_dir, directory, cand))
-            if inlined is not None:
-                return inlined
-        return ""
+        path = _find(name, [os.path.join(d, directory) for d in dirs])
+        if path is None:
+            return ""
+        return _glue(match, _inline(path, [os.path.dirname(path), *dirs]))
 
     source = _IMPORT_RE.sub(import_repl, source)
+    source = _SUBFILE_RE.sub(subfile_repl, source)
     return _INPUT_RE.sub(repl, source)
+
+
+def _dedupe(dirs: list[str]) -> list[str]:
+    out: list[str] = []
+    for d in dirs:
+        norm = os.path.normpath(d or ".")
+        if norm not in out:
+            out.append(norm)
+    return out
 
 
 #: \verb* (show-spaces form) -> \verb, which pylatexenc parses natively.
@@ -76,17 +209,59 @@ _MINTINLINE_DELIM_RE = re.compile(r"\\mintinline\s*(?:\[[^\]]*\])?\s*\{[^}]*\}\s
 # file verbatim. Resolved after flattening so the file body is never
 # comment-stripped (a literal "%" in code must survive).
 _LSTINPUT_RE = re.compile(
-    r"\\(?:lstinputlisting|verbatiminput)\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}"
+    r"\\(?:lstinputlisting|verbatiminput)\s*(?:\[(?P<opts>(?:[^\[\]{}]|\{[^{}]*\})*)\])?"
+    r"\s*\{([^}]+)\}"
 )
+
+
+def _split_options(opts: str) -> dict[str, str]:
+    """``key=value`` pairs of a listings option list (top-level commas only)."""
+    out: dict[str, str] = {}
+    depth, buf, parts = 0, "", []
+    for c in opts:
+        depth += 1 if c in "{[" else -1 if c in "}]" else 0
+        if c == "," and depth == 0:
+            parts.append(buf)
+            buf = ""
+        else:
+            buf += c
+    parts.append(buf)
+    for part in parts:
+        key, eq, value = part.partition("=")
+        if eq:
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                value = value[1:-1].strip()
+            out[key.strip().lower()] = value
+    return out
+
+
+def _listing_marker(opts: str | None) -> str:
+    """``\\twlistingcaption{label}{caption}{1|0}`` for a listing's
+    ``caption=``/``title=``/``label=`` options (empty if it has none)."""
+    if not opts:
+        return ""
+    kv = _split_options(opts)
+    caption, numbered = kv.get("caption"), "1"
+    if caption is None and "title" in kv:
+        caption, numbered = kv["title"], "0"
+    if caption and caption.startswith("["):  # caption={[short]long}
+        close = caption.find("]")
+        caption = caption[close + 1:].strip() if close >= 0 else caption
+    label = kv.get("label", "")
+    if not caption and not label:
+        return ""
+    return f"\\twlistingcaption{{{label}}}{{{caption or ''}}}{{{numbered}}}"
 
 
 def inline_listing_files(source: str, base_dir: str) -> str:
     def repl(match: re.Match[str]) -> str:
-        path = os.path.join(base_dir, match.group(1).strip())
+        path = os.path.join(base_dir, match.group(2).strip())
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as fh:
                 body = fh.read().rstrip("\n")
-            return "\\begin{verbatim}\n" + body + "\n\\end{verbatim}"
+            return (_listing_marker(match.group("opts"))
+                    + "\\begin{verbatim}\n" + body + "\n\\end{verbatim}")
         return ""  # missing source file -> drop (graceful degradation)
 
     return _LSTINPUT_RE.sub(repl, source)
@@ -103,7 +278,7 @@ _LISTING_ENV_RE = re.compile(
     r"\\begin\{(lstlisting|minted|Verbatim\*?|verbatim\*)\}"
     # optional [options]; allow two levels of nested {…}/[…] so braced keys like
     # [caption={[x]}] or [caption={\textbf{C}}] don't truncate at an inner ]/}.
-    r"[ \t]*(?:\[(?:[^\[\]{}]|\{(?:[^{}]|\{[^{}]*\})*\}|\[[^\]]*\])*\])?"
+    r"[ \t]*(?:\[(?P<opts>(?:[^\[\]{}]|\{(?:[^{}]|\{[^{}]*\})*\}|\[[^\]]*\])*)\])?"
     r"[ \t]*(?:\{[^}]*\})?"    # optional {lang} (minted)
     r"(?P<body>.*?)"
     r"\\end\{\1\}",
@@ -113,8 +288,11 @@ _LISTING_ENV_RE = re.compile(
 
 def normalize_listing_envs(source: str) -> str:
     """Rewrite ``lstlisting``/``minted``/``Verbatim`` blocks to ``verbatim``."""
+    # lstlisting's caption=/label= become a marker the parser attaches to the
+    # code block (a numbered, referenceable "Listing N")
     return _LISTING_ENV_RE.sub(
-        lambda m: "\\begin{verbatim}" + m.group("body") + "\\end{verbatim}",
+        lambda m: (_listing_marker(m.group("opts")) if m.group(1) == "lstlisting" else "")
+        + "\\begin{verbatim}" + m.group("body") + "\\end{verbatim}",
         source,
     )
 
@@ -374,13 +552,39 @@ def _inject_exam_title(source: str) -> str:
     return re.sub(r"\\begin\{document\}", lambda m: m.group(0) + block, source, count=1)
 
 
+# beamer overlay specifications: \item<2->, \alert<1>{..}, \only<2-3>{..}, ...
+_OVERLAY_RE = re.compile(
+    r"(\\(?:item|only|uncover|visible|invisible|onslide|alt|temporal|alert|textbf|"
+    r"textit|emph|color|textcolor|includegraphics|pause|structure|frame|column|"
+    r"hyperlink|action)\*?)\s*<[^<>\n]*>"
+)
+# overlay-only commands: \pause, \onslide<2-> (no argument) carry no content
+_OVERLAY_ONLY_RE = re.compile(r"\\(?:pause|onslide)(?![A-Za-z])(?:\s*\[[^\]]*\])?")
+
+
+def _strip_overlays(source: str) -> str:
+    """Remove beamer overlay specifications (the slides are flattened)."""
+    return _OVERLAY_ONLY_RE.sub("", _OVERLAY_RE.sub(r"\1", source))
+
+
+_CONTROL_RE = re.compile("[\x00-\x08\x0b\x0e-\x1f\x7f]")
+
+
+def _control_chars(source: str) -> str:
+    """LaTeX reads a form feed (^^L) as ``\\par``; other C0 control characters
+    have no output (and cannot be written to XML)."""
+    return _CONTROL_RE.sub("", source.replace("\x0c", "\n\n"))
+
+
 def preprocess(source: str, base_dir: str = ".") -> str:
     # Flatten \input/\include FIRST so every later rewrite (listing normalisation,
     # \verb/\lstinline, math operators, …) sees the included content too.
     # Otherwise a code listing pulled in via \input keeps its raw lstlisting form
     # and a ``$`` in the code (R's df$col) breaks parsing -- the very bug that
     # copy-pasting the same text avoided.
-    source = flatten_inputs(strip_comments(source), base_dir)
+    source = flatten_inputs(strip_comments(_control_chars(source)), base_dir)
+    if re.search(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{beamer\}", source):
+        source = _strip_overlays(source)  # \item<2-> \only<1>{..} -> no overlay spec
     if _uses_exam_class(source, base_dir):
         source = _rewrite_exam_class(source, base_dir)  # exam sheets -> nested lists
         source = _inject_exam_title(source)  # recover the fancyhdr title block
@@ -388,7 +592,9 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     source = _TIKZSTYLE_RE.sub("", source)  # drop \tikzstyle{…}=[…] declarations
     source = _recover_tikz_boxes(source)  # cheatsheet content-box tikz -> text
     source = _normalize_begin_star(source)  # \begin*{figure} -> \begin{figure*}
-    source = strip_iffalse(source)  # drop \iffalse…\fi disabled blocks
+    # \iffalse blocks, \newif switches, \ifdefined, \ifthenelse, etoolbox
+    # toggles, \IfFileExists, \@ifpackageloaded: keep the branch TeX would take
+    source = resolve_conditionals(source, base_dir)
     source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)

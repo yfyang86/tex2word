@@ -7,6 +7,117 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0 — synthetic probes, journal front matter & real field numbers
+
+A synthetic-LaTeX probe harness (below) found most of what this release
+fixes: 1,552 of its ~8,000 generated documents failed on 1.0.9, 115 still do
+(tracked in `tools/synth/baseline.json` and issue #45). Also fixes everything
+in issue #44.
+
+### Added
+
+- **Synthetic probe harness** (`tools/synth`, see its README): ~8,000 small
+  generated documents (every inline construct in every container, math
+  inline and display, document features, 20 journal/class templates, fuzzed
+  nestings) checked by generic oracles. `verify` gates on a baseline of known
+  failures; `triage`, `repro`, `update` and `fuzz --save` close the
+  generate → verify → fix → update loop. Runs in the test suite (smoke tier)
+  and as a CI job (full catalog).
+
+### Fixed (issue #45)
+
+- **Journal front matter** of 13 classes/templates: acmart affiliations,
+  Springer Nature `\fnm`/`\sur`/`\affil`/`\orgname`, elsarticle markers,
+  `key={value}` affiliations and `\cortext`, llncs `\inst`/`\orcidID`/
+  `\institute`, authblk (every preamble `\author`/`\affil`), amsart
+  `\curraddr`/`\urladdr`/`\dedicatory`, IEEE `\IEEEmembership`/`\appendices`,
+  KOMA `\subtitle`/`\subject`/`\publishers`/`\addsec`/`\minisec`, NeurIPS
+  `\And`, ICML `\icmlauthor` & co., beamer frames, the letter class, moderncv
+  and tufte `\marginnote`.
+- **Table floats**: `threeparttable` (with `\tnote`), `sidewaystable`/
+  `sidewaysfigure`, and several captioned minipages or subtables in one
+  `table` keep their captions and labels.
+- **Cached field results are real numbers**: figure/table/equation/theorem
+  numbers and references used to cache "1" and "0", which is what Protected
+  View, previews and other non-updating viewers show. Per-section numbers now
+  also render correctly in LibreOffice.
+- **Ordered lists restart**: a second `enumerate` used to continue at 4;
+  enumitem `start=` and `\setcounter{enumi}` are honoured.
+- **References**: `lstlisting`/`\lstinputlisting` `caption=`/`label=` and
+  minted's `listing` float make a numbered "Listing N"; `\subref` prints the
+  panel letter and `\ref` to a panel "1a"; a subfig `\subfloat[..\label{}]`
+  label resolves.
+- **TeX primitives**: `\let`, `\expandafter\def\csname…\endcsname`,
+  `\@namedef`, `@`-named macros, delimited `\def\x(#1,#2)`; `\providecommand`
+  no longer overrides built-in commands; user counters (`\newcounter`,
+  `\stepcounter`, `\arabic`/`\roman`/`\Alph`/`\the<counter>`, …) are
+  evaluated; `\newlength`/`\addtolength` are silent; `\endinput`, `\input
+  file` without braces and `\subfile` work.
+
+### Fixed (found by the probes)
+
+- **Crash** on control characters (form feed, bell, …) in the source.
+- **`%` in verbatim** (`verbatim`, `lstlisting`, `minted`, `alltt`), `\verb`,
+  `\lstinline` and `\url` no longer truncates the line as a comment.
+- **Block content in `\footnote`/`\marginpar`** (lists, quotes, tables,
+  several paragraphs) is kept, as real paragraphs in the note.
+- **A `tabular` inside a caption, heading, `\fbox`, `\textbf`, …** keeps its
+  text instead of vanishing.
+- **Conditionals** are resolved: `\iftrue`/`\iffalse`, `\newif` switches,
+  `\ifdefined`, `\ifcsname`, `\ifthenelse`, etoolbox toggles/bools/`\ifdef`,
+  `\IfFileExists`, `\@ifpackageloaded` (both branches used to be printed).
+- **`\newenvironment`/`\NewDocumentEnvironment`** begin/end code is applied.
+- **Spaces in `\text{ if }`** inside math are kept (and read back as `\text`).
+- `\pageref` (was "page ??label"), `\citep[..][p.~3]` ("p.3"), `\url{…~user}`
+  (lost `~`), `\"{\i}` (lost the letter), `\newtheorem{…}{…}[section]`
+  (numbered flat).
+- Supported: `\ss \o \aa \l \AE \oe \i …`, `\glqq`/`\grqq` & co.,
+  `\MakeUppercase`/`\MakeLowercase`, `\parbox`, `\foreignlanguage`,
+  `\selectlanguage`, `\makeatletter` in the body; `multicols`, `landscape`,
+  `titlepage`, `adjustbox`, `otherlanguage` and similar wrappers are silent;
+  `comment`/`CCSXML` are dropped; acknowledgments environments get their
+  heading; `IEEEkeywords` and elsarticle `keyword` become keywords.
+
+### Fixed (issue #44: the Rust port's findings)
+
+Two real papers (a TikZ-heavy arXiv paper and an amsart economics manuscript)
+converted with the Rust port surfaced these; all reproduced on 1.0.9. Two
+synthetic acceptance papers (`tests/fixtures/tikz_paper`, `amsart_paper`, MIT,
+from rstex2word) now cover every item.
+
+- **Citations and `\ref` resolve everywhere**: table cells, figure/table
+  captions, theorem-like blocks, `\textcolor`/size spans and the front matter
+  (they kept raw keys and `??`). Both passes now walk the whole IR.
+- **A second `\label` on a target is an alias** (`\label{sec:a}\label{sec:b}`),
+  and a later stray `\label` no longer replaces a heading's own label.
+- **Nested `\input` resolves against the main document's directory** first,
+  as TeX does (`gen/outer.tex` → `\input{gen/inner}` was silently dropped).
+- **`\protect\input{file}`** no longer glues the file's first word onto
+  `\protect`.
+- **`\def\paragraph{\@startsection…}`** (a structural command restyled
+  through LaTeX internals) is no longer expanded into the headings.
+- **Landscape tables** (`\rotatebox{90}{minipage + \captionof{table}}`) keep
+  their caption, label and rows; `\rotatebox`, `\makecell`, `\thead` are
+  transparent; `\path`/`\nolinkurl` render as monospace; `\onecolumn`,
+  `\twocolumn[…]` (its argument kept), `\nobalance`, `\typeout` are silent;
+  amsart `\subjclass[JEL]{…}` prints with its `\@namedef` label; an amsart
+  `\thanks` before `\maketitle` is a note on the title.
+- **Math**: `\sum`/`\prod`/`\int` own their operand (no empty `m:e`, which
+  Word draws as a dotted box); `-` is the minus sign U+2212 (a hyphen in
+  `\text{}`); `\\[2pt]`/`\\*` row spacing no longer leaks into rows;
+  `\mathrm{Beta}`/`\operatorname` names are one run; digits, brackets and
+  binary operators are plain math runs, so Word spaces operators and
+  LibreOffice stops showing `\(`.
+- **TikZ**: every picture of a figure is compiled (two stacked `\input`
+  pictures in one `figure*` kept only the first); pdflatex papers compile with
+  pdflatex and keep their text fonts (`times`, `newtx*`, …), Unicode ones with
+  xelatex, the rest as fallbacks; `fontspec`/`xeCJK` lines are kept again for
+  xelatex; figure-local `\definecolor`s reach the picture; a `\foreach \label`
+  loop variable no longer replaces the figure's label; a TikZ figure only
+  warns when it cannot be rendered.
+- **Bibliography**: `{\small \bibliographystyle{…}\bibliography{…}}` is found,
+  and natbib's `[numbers]` option wins over `plainnat`.
+
 ## 1.0.9 — box-built figures, tcolorbox styling & title-page fidelity
 
 Driven by a real paper whose figures are built from tcolorboxes and whose

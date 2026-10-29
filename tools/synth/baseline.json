@@ -1,0 +1,673 @@
+{
+ "_about": "Known failures of the synthetic probes (tools/synth). Keyed by probe id; 'signatures' are oracle findings still expected to fail. Add 'issue'/'note' by hand. Regenerate with: python -m tools.synth update [--accept]. Made with every optional extra installed (uv sync --all-extras), as in CI.",
+ "environment": {
+  "latex2mathml": true,
+  "pypdfium2": true,
+  "PIL": true
+ },
+ "known": {
+  "doc/acronym-pkg": {
+   "signatures": [
+    "warning:acronym"
+   ]
+  },
+  "doc/centerline": {
+   "signatures": [
+    "raw-ir:\\centerline",
+    "tex-leak:\\centerlineKEEP",
+    "warning:\\centerline"
+   ]
+  },
+  "doc/cite-notes-no-bib": {
+   "signatures": [
+    "expect-text:p. 3",
+    "expect-text:see"
+   ],
+   "note": "accepted: unresolved-key fallback drops locators; low priority"
+  },
+  "doc/colspec-at-and-bold": {
+   "signatures": [
+    "style:w:b"
+   ]
+  },
+  "doc/graphicspath": {
+   "signatures": [
+    "expect-xml:0",
+    "warning:includegraphics"
+   ]
+  },
+  "doc/longtable-heads": {
+   "signatures": [
+    "expect-absent:(cont.)"
+   ]
+  },
+  "doc/multicols-columnbreak": {
+   "signatures": [
+    "raw-ir:\\columnbreak",
+    "tex-leak:\\columnbreak",
+    "warning:\\columnbreak"
+   ]
+  },
+  "doc/proof-named": {
+   "signatures": [
+    "raw-ir:\\qedhere",
+    "tex-leak:\\qedhere",
+    "warning:\\qedhere"
+   ]
+  },
+  "doc/rowcolors": {
+   "signatures": [
+    "brace-leak",
+    "raw-ir:\\rowcolors",
+    "tex-leak:\\rowcolors",
+    "warning:\\rowcolors"
+   ]
+  },
+  "doc/section-star-addcontents": {
+   "signatures": [
+    "expect-absent:DROP1",
+    "raw-ir:\\addcontentsline",
+    "tex-leak:\\addcontentslinetocsectionDROP",
+    "warning:\\addcontentsline"
+   ]
+  },
+  "doc/tablefootnote": {
+   "signatures": [
+    "raw-ir:\\tablefootnote",
+    "tex-leak:\\tablefootnoteKEEP",
+    "warning:\\tablefootnote"
+   ]
+  },
+  "math/backslash-setminus@display": {
+   "signatures": [
+    "expect-text:∖",
+    "math-leak"
+   ]
+  },
+  "math/backslash-setminus@inline": {
+   "signatures": [
+    "expect-text:∖",
+    "math-leak"
+   ]
+  },
+  "math/cancel@display": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/cancel@inline": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/dcases@display": {
+   "signatures": [
+    "brace-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\begin",
+    "tex-leak:\\end",
+    "tex-leak:\\frac",
+    "warning:math"
+   ]
+  },
+  "math/dcases@inline": {
+   "signatures": [
+    "brace-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\begin",
+    "tex-leak:\\end",
+    "tex-leak:\\frac",
+    "warning:math"
+   ]
+  },
+  "math/env-align-intertext": {
+   "signatures": [
+    "brace-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\intertext",
+    "warning:math"
+   ]
+  },
+  "math/env-equation-in-theorem": {
+   "signatures": [
+    "raw-ir:\\newtheorem",
+    "tex-leak:\\newtheoremthmTheorem",
+    "warning:\\newtheorem"
+   ]
+  },
+  "math/env-subequations": {
+   "signatures": [
+    "unresolved-ref",
+    "warning:\\ref"
+   ]
+  },
+  "math/genfrac@display": {
+   "signatures": [
+    "brace-leak",
+    "dim-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\genfrac",
+    "warning:math"
+   ]
+  },
+  "math/genfrac@inline": {
+   "signatures": [
+    "brace-leak",
+    "dim-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\genfrac",
+    "warning:math"
+   ]
+  },
+  "math/norm-macro@display": {
+   "signatures": [
+    "expect-text:‖"
+   ]
+  },
+  "math/norm-macro@inline": {
+   "signatures": [
+    "expect-text:‖"
+   ]
+  },
+  "math/percent-hash@display": {
+   "signatures": [
+    "math-roundtrip-error"
+   ]
+  },
+  "math/percent-hash@inline": {
+   "signatures": [
+    "math-roundtrip-error"
+   ]
+  },
+  "math/physics-expval@display": {
+   "signatures": [
+    "expect-text:⟨",
+    "expect-text:⟩",
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/physics-expval@inline": {
+   "signatures": [
+    "expect-text:⟨",
+    "expect-text:⟩",
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/physics-qty@display": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/physics-qty@inline": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/physics-trace@display": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/physics-trace@inline": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/prime@display": {
+   "signatures": [
+    "expect-text:′"
+   ]
+  },
+  "math/prime@inline": {
+   "signatures": [
+    "expect-text:′"
+   ]
+  },
+  "math/rcases@display": {
+   "signatures": [
+    "brace-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\Rightarrow",
+    "tex-leak:\\begin",
+    "tex-leak:\\end",
+    "warning:math"
+   ]
+  },
+  "math/rcases@inline": {
+   "signatures": [
+    "brace-leak",
+    "math-missing",
+    "math-raw",
+    "tex-leak:\\Rightarrow",
+    "tex-leak:\\begin",
+    "tex-leak:\\end",
+    "warning:math"
+   ]
+  },
+  "math/si-num-in-math@display": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/si-num-in-math@inline": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/siunitx-in-math@display": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/siunitx-in-math@inline": {
+   "signatures": [
+    "math-leak",
+    "math-roundtrip-error"
+   ],
+   "note": "accepted: pre-existing; the latex2mathml fallback leaves the command name as math text"
+  },
+  "math/underline-math@display": {
+   "signatures": [
+    "math-roundtrip"
+   ]
+  },
+  "math/underline-math@inline": {
+   "signatures": [
+    "math-roundtrip"
+   ]
+  },
+  "matrix/citealp@abstract": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@adjustbox-table": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@algorithmic-state": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@appendix-section": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@author": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-algorithm": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-below-table": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-figure": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-figure-star": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-short": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-table": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@caption-wrapfigure": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@captionof": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@center": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@color-decl-group": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@date": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@definition": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@description-body": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@description-label": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@emph-span": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@enumerate-deep": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@enumitem-label": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@fbox": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@fbox-parbox": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@figure-text-body": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@flushright": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@footnote": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@framed": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@href-text": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@itemize": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@itemize-in-theorem": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@landscape": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@list-in-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@longtable-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@makecell-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@marginpar": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@mbox": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@mdframed": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@minipage": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@minipage-row": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@multicols": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@multicolumn-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@multirow-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@para": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@paragraph-head": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@parbox": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@pcol-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@proof": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@quotation": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@quote": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@resizebox-table": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@section": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@section-star": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@side-by-side-tables": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@sidewaystable-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@size-group": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@subcaption": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@subsection": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@table-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@table-float-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@table-header": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@table-in-itemize": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@table-star-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@tabularx-cell": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@tcolorbox": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@tcolorbox-title": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@textbf-span": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@textcolor-span": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@thanks": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@theorem": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@theorem-title": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@threeparttable-note": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  },
+  "matrix/citealp@title": {
+   "signatures": [
+    "expect-absent:(Tversky"
+   ]
+  }
+ }
+}

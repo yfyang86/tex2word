@@ -134,5 +134,23 @@ HEADING_APPENDIX_NUM_ID = 4
 PART_NUM_ID = 5
 
 
-def numbering_xml() -> bytes:
-    return _NUMBERING_XML.encode("utf-8")
+#: abstract list definition of ordered (enumerate) lists
+DECIMAL_ABSTRACT_ID = 1
+#: first numId handed out for restartable ordered-list instances
+FIRST_LIST_NUM_ID = 100
+
+
+def numbering_xml(restarts: list[tuple[int, int, int]] | None = None) -> bytes:
+    """``word/numbering.xml``; ``restarts`` adds one ``w:num`` per ordered list
+    as ``(numId, ilvl, start)``, so each list restarts its numbering (lists
+    sharing one instance continue across the document in Word)."""
+    xml = _NUMBERING_XML
+    if restarts:
+        extra = "".join(
+            f'  <w:num w:numId="{num_id}"><w:abstractNumId w:val="{DECIMAL_ABSTRACT_ID}"/>'
+            f'<w:lvlOverride w:ilvl="{ilvl}"><w:startOverride w:val="{start}"/>'
+            f"</w:lvlOverride></w:num>\n"
+            for num_id, ilvl, start in restarts
+        )
+        xml = xml.replace("</w:numbering>", extra + "</w:numbering>")
+    return xml.encode("utf-8")

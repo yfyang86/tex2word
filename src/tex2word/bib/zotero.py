@@ -46,7 +46,7 @@ def _citation_item(cite: ir.Cite, key: str, item: ir.CSLItem) -> dict:
         "itemData": _item_data(item),
     }
     if cite.suffix:
-        out["locator"] = cite.suffix
+        out["locator"] = cite.suffix.replace("\u00a0", " ")  # Zotero parses locators
     if cite.prefix:
         out["prefix"] = cite.prefix
     return out

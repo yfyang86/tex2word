@@ -16,13 +16,24 @@ import re
 from dataclasses import dataclass, field
 
 _NEWCOMMAND_RE = re.compile(
-    r"\\(?:newcommand|renewcommand|providecommand|DeclareRobustCommand"
+    r"\\(?P<kind>newcommand|renewcommand|providecommand|DeclareRobustCommand"
     r"|DeclareTextFontCommand)\s*\*?\s*"
-    r"\{?\\(?P<name>[A-Za-z]+)\}?"
+    r"\{?\\(?P<name>[A-Za-z@]+)\}?"
     r"(?:\[(?P<nargs>\d+)\])?"
     r"(?:\[(?P<default>[^\]]*)\])?"
 )
-_DEF_RE = re.compile(r"\\def\s*\\(?P<name>[A-Za-z]+)\s*(?P<params>(?:#\d)*)\s*\{")
+# \def\x{..}, \def\x#1#2{..} and delimited \def\x(#1,#2){..} (also \gdef/\edef/\xdef)
+_DEF_RE = re.compile(
+    r"\\[gex]?def\s*\\(?P<name>[A-Za-z@]+)(?P<params>[^{}\n\\]*?)\{"
+)
+# \let\a\b, \let\a=\b
+_LET_RE = re.compile(
+    r"\\let\s*\\(?P<name>[A-Za-z@]+)\s*=?\s*(?P<target>\\[A-Za-z@]+|\\.|[^\s\\])"
+)
+# \newlength{\x} / \newlength\x (and save boxes): the name becomes empty text
+_NEWLENGTH_RE = re.compile(r"\\(?:newlength|newsavebox)\s*\{?\s*\\(?P<name>[A-Za-z@]+)\s*\}?")
+#: a reference to a command the expander must not expand again (see \let)
+_NOEXPAND = "\\\x01"
 # xparse: \NewDocumentCommand{\name}{argspec}{body}
 _XPARSE_RE = re.compile(
     r"\\(?:New|Renew|Provide|Declare)DocumentCommand\s*\{?\s*\\(?P<name>[A-Za-z]+)\}?\s*"
@@ -42,6 +53,8 @@ class Macro:
     body: str
     #: xparse argument spec (list of (kind, default)); None for newcommand/def.
     argspec: list[tuple[str, str | None]] | None = field(default=None)
+    #: delimited \def parameter text, tokenised: ["(", "#1", ",", "#2", ")"]
+    pattern: list[str] | None = field(default=None)
 
 
 def _read_balanced(text: str, start: int) -> tuple[str, int]:
@@ -64,12 +77,41 @@ def _read_balanced(text: str, start: int) -> tuple[str, int]:
     return text[start + 1 :], len(text)
 
 
-def collect_macros(source: str) -> tuple[dict[str, Macro], str]:
-    """Find macro definitions, returning the table and source with defs removed."""
+def collect_macros(
+    source: str, known: frozenset[str] | set[str] = frozenset()
+) -> tuple[dict[str, Macro], str]:
+    """Find macro definitions, returning the table and source with defs removed.
+
+    ``known`` holds commands the converter handles itself: ``\\providecommand``
+    leaves those alone (it only defines a command that does not exist yet).
+    """
     macros: dict[str, Macro] = {}
     out: list[str] = []
     i = 0
     while i < len(source):
+        if source.startswith("\\let", i):
+            lt = _LET_RE.match(source, i)
+            if lt:
+                name, target = lt.group("name"), lt.group("target")
+                tname = target[1:]
+                if tname in macros:  # snapshot the current definition
+                    src = macros[tname]
+                    macros[name] = Macro(name, src.nargs, src.default, src.body,
+                                         argspec=src.argspec, pattern=src.pattern)
+                elif target.startswith("\\") and len(target) > 2:
+                    # the (built-in) command itself, protected from a later
+                    # user redefinition of it (\let\oldsection\section ...)
+                    macros[name] = Macro(name, 0, None, _NOEXPAND + tname)
+                else:
+                    macros[name] = Macro(name, 0, None, target)
+                i = lt.end()
+                continue
+        if source.startswith("\\new", i):
+            nl = _NEWLENGTH_RE.match(source, i)
+            if nl:
+                macros[nl.group("name")] = Macro(nl.group("name"), 0, None, "")
+                i = nl.end()
+                continue
         x = _XPARSE_RE.match(source, i)
         if x and source[x.end():].lstrip().startswith("{"):
             spec_start = source.index("{", x.end())
@@ -87,9 +129,9 @@ def collect_macros(source: str) -> tuple[dict[str, Macro], str]:
             brace_start = source.index("{", m.end())
             body, end = _read_balanced(source, brace_start)
             nargs = int(m.group("nargs") or 0)
-            macros[m.group("name")] = Macro(
-                m.group("name"), nargs, m.group("default"), body
-            )
+            name = m.group("name")
+            if not (m.group("kind") == "providecommand" and (name in macros or name in known)):
+                macros[name] = Macro(name, nargs, m.group("default"), body)
             i = end
             continue
         if m and m.group("nargs") is None:
@@ -105,8 +147,14 @@ def collect_macros(source: str) -> tuple[dict[str, Macro], str]:
         if d:
             brace_start = d.end() - 1
             body, end = _read_balanced(source, brace_start)
-            nargs = len(re.findall(r"#\d", d.group("params")))
-            macros[d.group("name")] = Macro(d.group("name"), nargs, None, body)
+            params = d.group("params")
+            nargs = len(re.findall(r"#\d", params))
+            pattern = None
+            if params.strip() and not re.fullmatch(r"\s*(?:#\d\s*)*", params):
+                # delimited parameters: \def\pt(#1,#2){...}
+                pattern = [t for t in re.split(r"(#\d)", params) if t]
+            macros[d.group("name")] = Macro(d.group("name"), nargs, None, body,
+                                            pattern=pattern)
             i = end
             continue
         out.append(source[i])
@@ -255,7 +303,7 @@ def expand(
     if _pattern is None:
         # longest names first so e.g. \EE wins over \E at the same position
         keys = sorted(macros, key=len, reverse=True)
-        _pattern = re.compile(r"\\(" + "|".join(re.escape(k) for k in keys) + r")(?![A-Za-z])")
+        _pattern = re.compile(r"\\(" + "|".join(re.escape(k) for k in keys) + r")(?![A-Za-z@])")
     pattern = _pattern
     out: list[str] = []
     i = 0
@@ -269,6 +317,20 @@ def expand(
         out.append(source[i : m.start()])  # copy the gap up to the macro in one go
         macro = macros[m.group(1)]
         j = m.end()
+        if macro.pattern is not None:
+            matched = _match_pattern(source, j, macro.pattern)
+            if matched is None:  # the delimiters don't match: leave it alone
+                out.append(m.group(0))
+                i = j
+                continue
+            args, j = matched
+            body = macro.body
+            for idx, arg in enumerate(args, start=1):
+                body = body.replace(f"#{idx}", arg)
+            out.append(_join(out, body))
+            i = j
+            changed = True
+            continue
         if macro.argspec is not None:
             args, j = _read_xparse_args(macro.argspec, source, j)
             body = macro.body
@@ -290,13 +352,64 @@ def expand(
             body = macro.body
             for idx, arg in enumerate(args, start=1):
                 body = body.replace(f"#{idx}", arg)
-        out.append(body)
+        out.append(_join(out, body))
         i = j
         changed = True
     result = "".join(out)
     if changed:
         return expand(result, macros, _depth + 1, pattern)
     return result
+
+
+def _join(out: list[str], body: str) -> str:
+    """``body`` as inserted after ``out``: a space separates it from a control
+    word just before it (TeX had already ended that word)."""
+    if body[:1].isalpha() or body[:1] == "@":
+        tail = "".join(out[-2:])
+        if re.search(r"\\[A-Za-z@]+$", tail):
+            return " " + body
+    return body
+
+
+def _match_pattern(text: str, j: int, pattern: list[str]) -> tuple[list[str], int] | None:
+    """Match a delimited ``\\def`` parameter text at ``j``; (args, end) or None."""
+    args: list[str] = []
+    i = j
+    for idx, tok in enumerate(pattern):
+        if not tok.startswith("#"):
+            if not text.startswith(tok, i):
+                return None
+            i += len(tok)
+            continue
+        nxt = pattern[idx + 1] if idx + 1 < len(pattern) else None
+        if nxt is None or nxt.startswith("#"):  # undelimited: one argument
+            arg, i = _read_arg(text, i)
+            args.append(arg)
+            continue
+        depth = 0
+        k = i
+        while k < len(text):
+            c = text[k]
+            if c == "\\":
+                k += 2
+                continue
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                if depth == 0:
+                    return None
+                depth -= 1
+            elif depth == 0 and text.startswith(nxt, k):
+                break
+            k += 1
+        else:
+            return None
+        arg = text[i:k]
+        if arg.startswith("{") and arg.endswith("}") and _read_balanced(arg, 0)[1] == len(arg):
+            arg = arg[1:-1]  # TeX strips one pair of braces around an argument
+        args.append(arg)
+        i = k
+    return args, i
 
 
 # ----------------------------------------------------------------------------
@@ -483,10 +596,176 @@ def local_package_sources(
     return "\n".join(p for p in parts if p)
 
 
-def expand_macros(source: str, base_dir: str = ".") -> str:
+# ----------------------------------------------------------------------------
+# User environments: \newenvironment / \NewDocumentEnvironment
+# ----------------------------------------------------------------------------
+
+_NEWENV_RE = re.compile(
+    r"\\(?P<kind>new|renew|provide)environment\s*\*?\s*\{(?P<name>[A-Za-z@*]+)\}"
+    r"(?:\s*\[(?P<nargs>\d+)\])?(?:\s*\[(?P<default>[^\]]*)\])?\s*"
+)
+_XENV_RE = re.compile(
+    r"\\(?P<kind>New|Renew|Provide|Declare)DocumentEnvironment\s*\{(?P<name>[A-Za-z@*]+)\}\s*"
+)
+#: environments the parser handles itself: a user (re)definition of one is
+#: usually cosmetic (spacing, fonts) and expanding it would lose the structure
+_NATIVE_ENVS = frozenset({
+    "document", "abstract", "figure", "figure*", "table", "table*", "itemize", "enumerate",
+    "description", "equation", "equation*", "align", "align*", "gather", "multline",
+    "verbatim", "lstlisting", "minted", "tabular", "tabularx", "longtable", "center",
+    "flushleft", "flushright", "quote", "quotation", "verse", "minipage",
+    "thebibliography", "proof", "theorem", "lemma", "definition", "list", "trivlist",
+    "titlepage", "array", "math", "displaymath",
+})
+#: begin/end code the static expander cannot follow (list internals, kernel @-macros)
+_ENV_UNSAFE_RE = re.compile(r"\\(?:list|endlist|trivlist|endtrivlist|item\b)|@")
+
+
+@dataclass
+class Env:
+    name: str
+    nargs: int
+    default: str | None
+    begin: str
+    end: str
+    argspec: list[tuple[str, str | None]] | None = field(default=None)
+
+
+def collect_environments(source: str) -> tuple[dict[str, Env], str]:
+    """Find ``\\newenvironment``-style definitions; return them and the source
+    with the definitions removed."""
+    envs: dict[str, Env] = {}
+    out: list[str] = []
+    i = 0
+    while True:
+        m = _NEWENV_RE.search(source, i)
+        x = _XENV_RE.search(source, i)
+        hit = min((h for h in (m, x) if h), key=lambda h: h.start(), default=None)
+        if hit is None:
+            out.append(source[i:])
+            break
+        out.append(source[i:hit.start()])
+        j = hit.end()
+        argspec = None
+        if hit is x:
+            if j >= len(source) or source[j] != "{":
+                out.append(source[hit.start():j])
+                i = j
+                continue
+            spec, j = _read_balanced(source, j)
+            argspec = parse_argspec(spec)
+        bodies = []
+        for _ in range(2):
+            while j < len(source) and source[j] in " \n\t":
+                j += 1
+            if j >= len(source) or source[j] != "{":
+                break
+            body, j = _read_balanced(source, j)
+            bodies.append(body)
+        if len(bodies) != 2:
+            out.append(source[hit.start():j])
+            i = j
+            continue
+        name = hit.group("name")
+        kind = hit.group("kind").lower()
+        safe = not (_ENV_UNSAFE_RE.search(bodies[0]) or _ENV_UNSAFE_RE.search(bodies[1]))
+        replaces_native = name in _NATIVE_ENVS
+        if safe and not replaces_native and not (kind == "provide" and name in envs):
+            nargs = int(hit.group("nargs") or 0) if hit is m else len(argspec or [])
+            default = hit.group("default") if hit is m else None
+            envs[name] = Env(name, nargs, default, bodies[0], bodies[1], argspec)
+        i = j
+    return envs, "".join(out)
+
+
+def expand_environments(source: str, envs: dict[str, Env], _depth: int = 0) -> str:
+    """Replace ``\\begin{name}args BODY\\end{name}`` by begin code + body + end code."""
+    if not envs or _depth > 16:
+        return source
+    pattern = re.compile(
+        r"\\begin\s*\{(" + "|".join(re.escape(n) for n in envs) + r")\}"
+    )
+    out: list[str] = []
+    i = 0
+    changed = False
+    while True:
+        m = pattern.search(source, i)
+        if m is None:
+            out.append(source[i:])
+            break
+        env = envs[m.group(1)]
+        close = _matching_end(source, m.end(), env.name)
+        if close is None:
+            out.append(source[i:m.end()])
+            i = m.end()
+            continue
+        out.append(source[i:m.start()])
+        j = m.end()
+        if env.argspec is not None:
+            args, j = _read_xparse_args(env.argspec, source, j)
+        else:
+            args = []
+            remaining = env.nargs
+            if env.nargs and env.default is not None:
+                opt, j = _read_optional(source, j)
+                args.append(opt if opt is not None else env.default)
+                remaining -= 1
+            for _ in range(remaining):
+                arg, j = _read_arg(source, j)
+                args.append(arg)
+        inner_start, end_start, end_stop = j, close[0], close[1]
+        begin, end = env.begin, env.end
+        for idx, arg in enumerate(args, start=1):
+            begin = begin.replace(f"#{idx}", arg)
+            end = end.replace(f"#{idx}", arg)
+        if env.argspec is not None:
+            begin, end = _resolve_conditionals(begin), _resolve_conditionals(end)
+        out.append(begin + source[inner_start:end_start] + end)
+        i = end_stop
+        changed = True
+    result = "".join(out)
+    return expand_environments(result, envs, _depth + 1) if changed else result
+
+
+def _matching_end(source: str, start: int, name: str) -> tuple[int, int] | None:
+    """(start, stop) of the ``\\end{name}`` closing a ``\\begin{name}`` (nesting-aware)."""
+    tok = re.compile(r"\\(begin|end)\s*\{" + re.escape(name) + r"\}")
+    depth = 1
+    for t in tok.finditer(source, start):
+        depth += 1 if t.group(1) == "begin" else -1
+        if depth == 0:
+            return t.start(), t.end()
+    return None
+
+
+_EXPANDAFTER_DEF_RE = re.compile(
+    r"\\expandafter\s*(?=\\(?:[gex]?def|let|newcommand|renewcommand|providecommand)\b)"
+)
+_NAMEDEF_RE = re.compile(r"\\@namedef\s*\{([A-Za-z@]+)\}")
+_NAMEUSE_RE = re.compile(r"\\@nameuse\s*\{([A-Za-z@]+)\}")
+
+
+def expand_macros(
+    source: str, base_dir: str = ".", known: frozenset[str] | set[str] = frozenset()
+) -> str:
     """Collect user macros (incl. local ``.sty`` packages) and expand them."""
     pkg_macros = _load_local_package_macros(source, base_dir)
-    macros, stripped = collect_macros(source)
+    envs, source = collect_environments(source)
+    source = expand_environments(source, envs)
+    # \expandafter\def\csname name\endcsname{..}, \@namedef{name}{..}, \@nameuse{name}
+    if "\\csname" in source or "\\@name" in source:
+        source = _EXPANDAFTER_DEF_RE.sub("", source)
+        source = _resolve_csname(source)
+        source = _NAMEDEF_RE.sub(lambda m: "\\def\\" + m.group(1), source)
+        source = _NAMEUSE_RE.sub(lambda m: "\\" + m.group(1), source)
+    macros, stripped = collect_macros(source, known)
+    # A document redefining a structural command through LaTeX internals
+    # (\def\paragraph{\@startsection{paragraph}...} inside \makeatletter) only
+    # restyles it; expanding that would replace every heading with raw markup.
+    macros = {
+        name: mac for name, mac in macros.items()
+        if not (name in _PROTECTED_NAMES and _AT_COMMAND_RE.search(mac.body))
+    }
     # document-body definitions take precedence over package definitions
     merged = {**pkg_macros, **macros}
-    return expand(stripped, merged)
+    return expand(stripped, merged).replace(_NOEXPAND, "\\")

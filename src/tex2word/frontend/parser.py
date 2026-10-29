@@ -29,6 +29,9 @@ from .. import ir
 from ..report import ConversionReport
 from . import siunitx
 from .colors import ColorTable
+from .counters import resolve_counters
+from .frontmatter import FRONT_MATTER, FrontMatterMixin, preamble_calls
+from .frontmatter import SPECS as _FRONT_SPECS
 from .macros import expand_macros, local_package_sources
 from .preprocess import normalize_spacing_and_icons, preprocess, replace_inline_tikz
 
@@ -51,7 +54,10 @@ _NUMBERED_SECTIONS = {"chapter", "section", "subsection", "subsubsection"}
 # spacing/box macros that print nothing (their argument is consumed)
 _DROP_MACROS = {"phantom", "hphantom", "vphantom", "rule"}
 # box wrappers that are visually transparent: emit the (last) content group
-_TRANSPARENT_BOX = {"mbox", "fbox", "framebox", "makebox", "raisebox"}
+_TRANSPARENT_BOX = {
+    "mbox", "fbox", "framebox", "makebox", "raisebox", "rotatebox", "resizebox",
+    "scalebox", "makecell", "thead", "parbox", "foreignlanguage", "otherlanguage",
+}
 # IEEEtran author-block wrappers: render their content (name / affiliation text).
 _AUTHOR_BLOCK = {"IEEEauthorblockN", "IEEEauthorblockA"}
 
@@ -119,7 +125,9 @@ _CITE_MODES = {
 }
 
 _REF_KINDS = {
-    "ref": "generic", "eqref": "equation", "pageref": "page",
+    "ref": "generic", "eqref": "equation", "pageref": "page", "vpageref": "page",
+    "subref": "subref",
+    "cpageref": "page", "Cpageref": "page",
     "autoref": "generic", "cref": "generic", "Cref": "generic", "vref": "generic",
     "crefrange": "generic", "Crefrange": "generic", "labelcref": "generic",
     "nameref": "name", "Nameref": "name",
@@ -131,6 +139,13 @@ _REF_STYLE = {
 }
 
 _TEXT_SYMBOLS = {
+    # non-ASCII letters (T1/OT1 text commands)
+    "ss": "ß", "SS": "SS", "o": "ø", "O": "Ø", "aa": "å", "AA": "Å", "l": "ł", "L": "Ł",
+    "ae": "æ", "AE": "Æ", "oe": "œ", "OE": "Œ", "i": "ı", "j": "ȷ", "dh": "ð", "DH": "Ð",
+    "th": "þ", "TH": "Þ", "ng": "ŋ", "NG": "Ŋ", "dj": "đ", "DJ": "Đ",
+    # babel/csquotes-style German and French quotes
+    "glqq": "„", "grqq": "“", "glq": "‚", "grq": "‘", "flqq": "«", "frqq": "»",
+    "flq": "‹", "frq": "›", "quotedblbase": "„", "quotesinglbase": "‚",
     "LaTeX": "LaTeX", "TeX": "TeX", "ldots": "…", "dots": "…",
     "textellipsis": "…", "textemdash": "—", "textendash": "–",
     "textasciitilde": "~", "textbackslash": "\\", "textasciicircum": "^",
@@ -197,6 +212,25 @@ _TRANSPARENT_ENVS = {
     "subequations", "samepage", "sloppypar", "spacing", "singlespace",
     "doublespace", "onehalfspace", "noindent", "raggedright", "raggedleft",
     "small", "footnotesize", "large", "Large", "flushleftright",
+    # page/column layout and language switches: the content is all that matters
+    "multicols", "landscape", "titlepage", "otherlanguage", "adjustbox", "fullwidth",
+    "frontmatter", "columns", "column", "alltt",
+}
+
+#: tabular-like environments (all parsed by ``_tabular``)
+_TABULAR_ENVS = frozenset({
+    "tabular", "array", "tabularx", "tabulary", "longtable", "supertabular", "xtabular",
+    "mpsupertabular",
+})
+
+#: environments whose content is not part of the document
+_DROPPED_ENVS = {"comment", "CCSXML", "filecontents"}
+
+#: acknowledgment environments -> an unnumbered heading over their content
+_ACK_ENVS = {
+    "acknowledgments": "Acknowledgments", "acknowledgements": "Acknowledgements",
+    "acknowledgment": "Acknowledgment", "acknowledgement": "Acknowledgement",
+    "acks": "Acknowledgments",
 }
 
 # theorem-like environment name -> display name. proof is handled specially.
@@ -242,9 +276,10 @@ _IGNORE_MACROS = {
     "newcounter", "addtocounter", "refstepcounter", "stepcounter",
     # ACM/IEEE front-matter + layout macros with no body-visible output. The
     # affiliation sub-fields take an argument (consumed by their MacroSpec below).
-    "authornote", "authornotemark", "balance", "acmnote",
-    "institution", "department", "city", "state", "country",
-    "postcode", "streetaddress", "position",
+    "makeatletter", "makeatother", "selectlanguage", "addtolength", "settowidth",
+    "settoheight", "settodepth", "deflength",
+    "authornote", "authornotemark", "balance", "nobalance", "acmnote",
+    "onecolumn", "twocolumn", "typeout",
 }
 
 
@@ -360,6 +395,26 @@ def _verbatim_inner(env: LatexEnvironmentNode) -> str:
     first = env.nodelist[0]
     last = env.nodelist[-1]
     return env.parsing_state.s[first.pos : last.pos + last.len]
+
+
+def _url_text(nodes: list) -> str:
+    """A URL argument verbatim (``~``, ``#``, ``%`` are part of it), with TeX
+    escapes such as ``\\#``, ``\\%``, ``\\_`` undone."""
+    raw = "".join(n.latex_verbatim() for n in nodes).strip()
+    return re.sub(r"\\([#%_&~$])", r"\1", raw)
+
+
+def _flat_text(inlines: list) -> str:
+    """Plain text of rendered inlines (styles dropped, a no-break space kept)."""
+    out: list[str] = []
+    for n in inlines:
+        if isinstance(n, ir.Text):
+            out.append(n.value)
+        elif isinstance(n, ir.LineBreak):
+            out.append(" ")
+        elif hasattr(n, "inlines"):
+            out.append(_flat_text(n.inlines))
+    return "".join(out).strip()
 
 
 def _chars_of(nodes: list) -> str:
@@ -511,6 +566,95 @@ def _has_captionof(nodes: list, kind: str) -> bool:
     return False
 
 
+def _unwrap_table_layout(nodes: list) -> list:
+    """The children of a ``table`` float with layout wrappers opened up.
+
+    ``\\rotatebox``/``\\resizebox``/``\\scalebox`` contribute their content,
+    and a lone ``minipage`` (the landscape idiom
+    ``\\rotatebox{90}{\\begin{minipage}...}``) its body, so the float's
+    caption, label and tabular are found inside.
+    """
+    minipages = sum(
+        1 for n in nodes
+        if isinstance(n, LatexEnvironmentNode) and n.environmentname == "minipage"
+    )
+    out: list = []
+    for n in nodes:
+        if isinstance(n, LatexMacroNode) and n.macroname in _BOX_WRAPPERS:
+            groups = _brace_groups(n)
+            out.extend(_unwrap_table_layout(groups[-1]) if groups else [])
+        elif isinstance(n, LatexEnvironmentNode) and n.environmentname in _TABLE_WRAP_ENVS:
+            # threeparttable / adjustbox / center inside a float: the caption,
+            # label and tabular are the float's
+            out.extend(_unwrap_table_layout(n.nodelist))
+        elif (
+            minipages == 1 and isinstance(n, LatexEnvironmentNode)
+            and n.environmentname == "minipage"
+        ):
+            out.extend(_unwrap_table_layout(n.nodelist))
+        else:
+            out.append(n)
+    return out
+
+
+#: bibliography commands that may sit in a size group ({\small \bibliography{x}})
+_BIB_BLOCK_MACROS = frozenset({
+    "bibliography", "bibliographystyle", "printbibliography", "nocite",
+})
+
+
+#: amsart \@namedef{subjclassname@JEL}{JEL classification}
+_SUBJCLASS_NAME_RE = re.compile(r"\\@namedef\s*\{subjclassname@([^}]*)\}\s*\{([^{}]*)\}")
+
+
+def _has_block_content(nodes: list) -> bool:
+    """True if ``nodes`` hold an environment or a paragraph break."""
+    for n in nodes:
+        if isinstance(n, LatexEnvironmentNode):
+            return True
+        if isinstance(n, LatexCharsNode) and re.search(r"\n[ \t]*\n", n.chars):
+            return True
+        if isinstance(n, LatexMacroNode) and n.macroname == "par":
+            return True
+        if isinstance(n, LatexGroupNode) and _has_block_content(n.nodelist):
+            return True
+    return False
+
+
+#: environments a table float's caption/label/tabular may sit in
+_TABLE_WRAP_ENVS = frozenset({
+    "threeparttable", "threeparttablex", "adjustbox", "center", "small", "footnotesize",
+    "scriptsize",
+})
+
+
+def _list_start(node: LatexEnvironmentNode) -> int:
+    """First number of an ordered list: enumitem ``[start=5]``, or a
+    ``\\setcounter{enumi}{4}`` before the first ``\\item`` (LaTeX steps the
+    counter before printing, so that also starts at 5)."""
+    for a in node.nodeargd.argnlist if node.nodeargd else []:
+        if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+            m = re.search(r"\bstart\s*=\s*(\d+)", a.latex_verbatim())
+            if m:
+                return int(m.group(1))
+    m = re.search(r"\\setcounter\s*\{enum[iv]+\}\s*\{\s*(\d+)\s*\}",
+                  node.latex_verbatim().split("\\item", 1)[0])
+    return int(m.group(1)) + 1 if m else 1
+
+
+def _has_caption(nodes: list) -> bool:
+    for n in nodes:
+        if isinstance(n, LatexMacroNode) and n.macroname in ("caption", "captionof"):
+            return True
+        if isinstance(n, LatexGroupNode | LatexEnvironmentNode) and _has_caption(n.nodelist):
+            return True
+    return False
+
+
+#: scaling/rotation wrappers whose last {} argument is their content
+_BOX_WRAPPERS = ("resizebox", "scalebox", "rotatebox")
+
+
 #: horizontal glue that can sit between side-by-side minipages without breaking
 #: the row (they don't produce content of their own).
 _LAYOUT_GLUE_MACROS = {
@@ -537,10 +681,12 @@ def _latex_of(nodes: list) -> str:
 # --------------------------------------------------------------------------- #
 
 
-class _Builder:
+class _Builder(FrontMatterMixin):
     def __init__(self, report: ConversionReport) -> None:
         self.report = report
         self.meta = ir.DocumentMeta()
+        self.doc_class = "article"
+        self._fm_init()
         self.bib_files: list[str] = []
         self.bib_style: str = "plain"
         self.bibstyle_set: bool = False  # an explicit \bibliographystyle was seen
@@ -553,6 +699,13 @@ class _Builder:
         self._acr_seen: set[str] = set()
         self.nocite_keys: list[str] = []  # \nocite{key} / \nocite{*}
         self.book_mode = False  # book/report class: \chapter is the top level
+        #: extra \label -> the label its target already carries
+        self.label_aliases: dict[str, str] = {}
+        #: (label, caption, numbered) of an lstlisting, for the next code block
+        self._pending_listing: tuple[str | None, list[ir.Inline] | None, bool] | None = None
+        self._title_done = False  # past \maketitle: a \thanks is a plain footnote
+        #: amsart \subjclass labels from \@namedef{subjclassname@X}{label}
+        self.subjclass_names: dict[str, str] = {}
         self.in_appendix = False  # seen \appendix -> later sections use letters
         # \footnotemark placeholders awaiting their \footnotetext{...} content
         self._pending_footmarks: list[ir.Footnote] = []
@@ -561,6 +714,7 @@ class _Builder:
         self.unnumbered_theorems: set[str] = set()  # \newtheorem*-defined names
         # env name -> counter display title (shared counters resolve here)
         self.theorem_counters: dict[str, str] = {}
+        self.theorem_within: dict[str, str] = {}  # env -> division its counter resets in
         # user \newtcolorbox / \newmdenv callout environments -> Quote blocks
         self.box_envs: set[str] = set()
         #: \newtcolorbox definitions and \tcbset{name/.style=...} styles, used to
@@ -661,6 +815,31 @@ class _Builder:
         if isinstance(node, LatexMacroNode):
             self._inline_macro(node, out)
             return
+        if isinstance(node, LatexEnvironmentNode):
+            self._inline_env(node, out)
+            return
+
+    def _inline_env(self, node: LatexEnvironmentNode, out: list[ir.Inline]) -> None:
+        """An environment inside a macro argument (a caption, a heading, \\fbox,
+        \\textbf, ...). Word cannot put a table inside a run, so a tabular keeps
+        its text: rows on separate lines, cells separated by spaces. Any other
+        environment contributes its content."""
+        base = node.environmentname.rstrip("*")
+        if base in _TABULAR_ENVS:
+            table = self._tabular(node)
+            for ri, row in enumerate(table.rows):
+                if ri:
+                    out.append(ir.LineBreak())
+                for ci, cell in enumerate(row.cells):
+                    if ci:
+                        out.append(ir.Text("  "))
+                    for b in cell.blocks:
+                        if isinstance(b, ir.Paragraph):
+                            out.extend(b.inlines)
+            return
+        if base in _OPAQUE_ENVS or base in _DROPPED_ENVS:
+            return
+        out.extend(self._scoped_inlines(node.nodelist))
 
     def _inline_special(self, node: LatexSpecialsNode, out: list[ir.Inline]) -> None:
         spec = node.specials_chars
@@ -676,6 +855,8 @@ class _Builder:
 
     def _inline_macro(self, node: LatexMacroNode, out: list[ir.Inline]) -> None:  # noqa: C901
         name = node.macroname
+        if self.front_inline(node, out):
+            return
         if name in _FONT_RESET:  # \textrm/\textnormal/... -> upright passthrough
             out.extend(self.inlines(_group_nodes(node)))
             return
@@ -732,14 +913,18 @@ class _Builder:
             )
             return
         if name == "label":
-            label = _chars_of(_group_nodes(node))
-            if self._labelable is not None and label:
-                self._labelable.label = label
+            self._set_label(_chars_of(_group_nodes(node)))
             return
         if self._in_figure_body and name in ("caption", "captionof"):
             return  # the enclosing figure's caption, collected separately
         if name in ("href", "url"):
             self._inline_link(node, out)
+            return
+        if name in ("path", "nolinkurl"):  # url-style path, not a link: monospace
+            groups = _brace_groups(node)
+            text = "".join(n.latex_verbatim() for n in groups[-1]) if groups else ""
+            if text:
+                out.append(ir.Emphasis([ir.Text(text)], "typewriter"))
             return
         if name == "hyperref":  # \hyperref[label]{text} -> internal link to label
             opt = _optional_group(node)
@@ -751,10 +936,10 @@ class _Builder:
             else:
                 out.extend(text)  # \hyperref{url}{cat}{name}{text} -> just the text
             return
-        if name in ("footnote", "thanks", "marginpar", "sidenote"):
+        if name in ("footnote", "thanks", "marginpar", "sidenote", "marginnote"):
             # \thanks (title/author note), \marginpar/\sidenote (margin asides)
             # all degrade to a Word footnote -- the closest aside Word offers.
-            out.append(ir.Footnote(self.inlines(_group_nodes(node))))
+            out.append(self._note(_group_nodes(node)))
             return
         if name == "footnotemark":
             # split footnote: a mark here, its text supplied later by \footnotetext.
@@ -855,7 +1040,7 @@ class _Builder:
             if groups:
                 out.extend(self.inlines(groups[-1]))
             return
-        if name in ("inst", "IEEEauthorrefmark"):  # affiliation marker -> superscript
+        if name in ("inst", "IEEEauthorrefmark", "tnote"):  # markers -> superscript
             out.append(ir.Emphasis(self.inlines(_group_nodes(node)), "superscript"))
             return
         if name in ("newacronym", "newglossaryentry", "acro", "acrodef"):
@@ -888,8 +1073,15 @@ class _Builder:
         if name in _IGNORE_MACROS:
             return
         if _accent_char(name) is not None:
-            base = _chars_of(_group_nodes(node))
+            # render the base: \"{\i} has a macro (dotless i) as its base
+            base = _flat_text(self.inlines(_group_nodes(node)))
             out.append(ir.Text(_apply_text_accent(name, base)))
+            return
+        if name in ("MakeUppercase", "MakeLowercase", "uppercase", "lowercase",
+                    "MakeTextUppercase", "MakeTextLowercase"):
+            inner = self.inlines(_group_nodes(node))
+            _change_case(inner, upper="pper" in name)
+            out.extend(inner)
             return
         # graceful degradation
         self.report.warn(f"\\{name}", f"unsupported inline macro \\{name}")
@@ -969,13 +1161,13 @@ class _Builder:
         argd = node.nodeargd
         groups = [a for a in (argd.argnlist if argd else []) if isinstance(a, LatexGroupNode)]
         if node.macroname == "url" and groups:
-            url = _chars_of(groups[0].nodelist)
+            url = _url_text(groups[0].nodelist)
             out.append(ir.Link([ir.Text(url)], url))
         elif len(groups) >= 2:
-            url = _chars_of(groups[0].nodelist)
+            url = _url_text(groups[0].nodelist)
             out.append(ir.Link(self.inlines(groups[1].nodelist), url))
         elif groups:
-            url = _chars_of(groups[0].nodelist)
+            url = _url_text(groups[0].nodelist)
             out.append(ir.Link([ir.Text(url)], url))
 
     # -- blocks ----------------------------------------------------------- #
@@ -1022,17 +1214,15 @@ class _Builder:
             # a bare {...} group wrapping a block environment (e.g. the common
             # {\footnotesize \begin{verbatim}...\end{verbatim}}) -> descend as blocks
             if isinstance(node, LatexGroupNode) and any(
-                isinstance(c, LatexEnvironmentNode) for c in node.nodelist
+                isinstance(c, LatexEnvironmentNode)
+                or (isinstance(c, LatexMacroNode) and c.macroname in _BIB_BLOCK_MACROS)
+                for c in node.nodelist
             ):
                 flush()
                 out.extend(self.blocks(node.nodelist))
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname == "label":
-                label = _chars_of(_group_nodes(node))
-                # Don't overwrite a label the target already captured (e.g. a
-                # figure's own \label, when a stray \label follows \end{figure}).
-                if self._labelable is not None and label and self._labelable.label is None:
-                    self._labelable.label = label
+                self._set_label(_chars_of(_group_nodes(node)))
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname in ("appendix", "beginappendix"):
                 # \appendix (and class wrappers like fairmeta's \beginappendix)
@@ -1047,14 +1237,59 @@ class _Builder:
                 flush()
                 out.append(ir.TableOfContents(kind=_TOC_MACROS[node.macroname]))  # type: ignore[arg-type]
                 continue
+            if isinstance(node, LatexMacroNode) and node.macroname in FRONT_MATTER:
+                fm = self.front_matter(node)
+                if fm is not None:
+                    if fm:
+                        flush()
+                        out.extend(fm)
+                    continue
             if isinstance(node, LatexMacroNode) and node.macroname in (
-                "title", "author", "date", "keywords", "IEEEkeywords",
-                "institute", "affiliation", "affil", "address", "email", "orcid",
+                "title", "date", "IEEEkeywords",
                 "markboth", "markright", "runninghead", "shorttitle",
             ):
                 self._meta_macro(node)
                 continue
-            if isinstance(node, LatexMacroNode) and node.macroname in ("resizebox", "scalebox"):
+            if (
+                isinstance(node, LatexMacroNode) and node.macroname == "thanks"
+                and self.meta.title and not self._title_done
+            ):
+                # amsart-style \thanks between \author and \maketitle: a
+                # first-page note on the title, not a mark on a line of its own
+                self.meta.title.append(ir.Footnote(self.inlines(_group_nodes(node))))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "maketitle":
+                self._title_done = True
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "twlistingcaption":
+                # lstlisting caption=/label= (see preprocess): for the next code block
+                g = _brace_groups(node)
+                if len(g) == 3:
+                    self._pending_listing = (
+                        _chars_of(g[0]).strip() or None,
+                        self.inlines(g[1]) or None,
+                        _chars_of(g[2]).strip() != "0",
+                    )
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "twocolumn":
+                # \twocolumn[full-width header]: the optional argument is content
+                flush()
+                for a in node.nodeargd.argnlist if node.nodeargd else []:
+                    if isinstance(a, LatexGroupNode):
+                        out.extend(self.blocks(a.nodelist))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "subjclass":
+                flush()
+                out.append(self._subjclass(node))
+                continue
+            if (
+                isinstance(node, LatexMacroNode) and node.macroname == "parbox"
+                and _brace_groups(node) and _has_block_content(_brace_groups(node)[-1])
+            ):
+                flush()
+                out.extend(self.blocks(_brace_groups(node)[-1]))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname in _BOX_WRAPPERS:
                 # box-scaling wrappers are transparent: process their content as
                 # blocks so nested tabulars/minipages survive (\resizebox{w}{h}{X}).
                 flush()
@@ -1243,8 +1478,59 @@ class _Builder:
         | ir.Algorithm | ir.ListItem | None
     ) = None
 
+    def _subjclass(self, node: LatexMacroNode) -> ir.Paragraph:
+        """amsart ``\\subjclass[scheme]{codes}`` -> "<label>: codes".
+
+        The label comes from ``\\@namedef{subjclassname@scheme}{...}`` when the
+        document declares one, else amsart's default for a year scheme.
+        """
+        scheme = ""
+        for a in node.nodeargd.argnlist if node.nodeargd else []:
+            if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+                scheme = _chars_of(a.nodelist).strip()
+        label = self.subjclass_names.get(scheme)
+        if label is None:
+            if scheme == "JEL":
+                label = "JEL classification"
+            elif scheme.isdigit():
+                label = f"{scheme} Mathematics Subject Classification"
+            else:
+                label = "Mathematics Subject Classification"
+        groups = _brace_groups(node)
+        codes = self.inlines(groups[-1]) if groups else []
+        return ir.Paragraph([ir.Emphasis([ir.Text(f"{label}: ")], "bold"), *codes])
+
+    def _note(self, nodes: list) -> ir.Footnote:
+        """A footnote; lists, quotes, tables or paragraph breaks inside it make
+        it a block note (inline parsing would drop the environments)."""
+        if not _has_block_content(nodes):
+            return ir.Footnote(self.inlines(nodes))
+        saved = self._labelable
+        try:
+            blocks = self.blocks(nodes)
+        finally:
+            self._labelable = saved
+        return ir.Footnote([], blocks=blocks)
+
+    def _set_label(self, label: str) -> None:
+        """Attach ``\\label{label}`` to the current target.
+
+        A target keeps its first label; any further one (``\\label{a}\\label{b}``,
+        or a stray ``\\label`` after ``\\end{figure}``) becomes an alias, so
+        ``\\ref`` to either resolves to the same number, as in LaTeX.
+        """
+        target = self._labelable
+        if target is None or not label:
+            return
+        if target.label is None:
+            target.label = label
+        elif target.label != label:
+            self.label_aliases.setdefault(label, target.label)
+
     def _environment(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:  # noqa: C901
         name = node.environmentname
+        if self.front_env(node, out):
+            return
         base = name.rstrip("*")
         starred = name.endswith("*")
         if base in _MATH_ENVS:
@@ -1256,16 +1542,13 @@ class _Builder:
                 node, ordered=(base == "enumerate"), description=(base == "description")
             ))
             return
-        if base in ("figure", "wrapfigure"):
+        if base in ("figure", "wrapfigure", "sidewaysfigure"):
             self._figure(node, out, spanning=starred)
             return
-        if base in ("table", "wraptable"):
-            self._table_float(node, out, spanning=starred)
+        if base in ("table", "wraptable", "sidewaystable", "threeparttable"):
+            self._table_float(node, out, spanning=starred or base == "sidewaystable")
             return
-        if base in (
-            "tabular", "array", "tabularx", "tabulary", "longtable",
-            "supertabular", "xtabular", "mpsupertabular",
-        ):
+        if base in _TABULAR_ENVS:
             out.append(self._tabular(node))
             return
         if base == "tcolorbox" or base in self.tcb_envs:
@@ -1282,7 +1565,14 @@ class _Builder:
             out.append(ir.Quote(self.blocks(node.nodelist), shade=shade, border=border))
             return
         if base in ("verbatim", "lstlisting", "minted"):
-            out.append(ir.CodeBlock(_verbatim_inner(node), lang=None))
+            block = ir.CodeBlock(_verbatim_inner(node), lang=None)
+            if self._pending_listing is not None:
+                block.label, block.caption, block.caption_numbered = self._pending_listing
+                self._pending_listing = None
+            out.append(block)
+            return
+        if base == "listing":  # minted's float: code + \caption + \label
+            self._listing_float(node, out)
             return
         if base == "abstract":
             self.meta.abstract = self.blocks(node.nodelist)
@@ -1333,6 +1623,43 @@ class _Builder:
         if base in _TRANSPARENT_ENVS:
             out.extend(self.blocks(node.nodelist))
             return
+        if base in _DROPPED_ENVS:
+            return
+        if base in ("IEEEbiography", "IEEEbiographynophoto"):
+            # \begin{IEEEbiography}[photo]{Name} text -> a bold run-in name
+            groups = [
+                a for a in (node.nodeargd.argnlist if node.nodeargd else [])
+                if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "{"
+            ]
+            body = self.blocks(node.nodelist)
+            if groups:
+                lead: list[ir.Inline] = [ir.Emphasis(self.inlines(groups[-1].nodelist), "bold"),
+                                         ir.Text(" ")]
+                if body and isinstance(body[0], ir.Paragraph):
+                    body[0].inlines[:0] = lead
+                else:
+                    body.insert(0, ir.Paragraph(lead))
+            out.extend(body)
+            return
+        if base in _ACK_ENVS:
+            out.append(ir.Heading(1, [ir.Text(_ACK_ENVS[base])], numbered=False))
+            out.extend(self.blocks(node.nodelist))
+            return
+        if base in ("IEEEkeywords", "keyword", "keywords"):
+            # IEEEtran / elsarticle keyword blocks (elsarticle separates with \sep)
+            parts: list[list] = [[]]
+            for n in node.nodelist:
+                if isinstance(n, LatexMacroNode) and n.macroname == "sep":
+                    parts.append([])
+                else:
+                    parts[-1].append(n)
+            keywords: list[ir.Inline] = []
+            for i, part in enumerate(parts):
+                if i:
+                    keywords.append(ir.Text("; "))
+                keywords.extend(self.inlines(part))
+            self.meta.keywords = _clean_inlines(keywords, trim=True)
+            return
         # Otherwise treat the unknown environment as a transparent wrapper so its
         # content is preserved (boxes, algorithm, subfig, ...).
         self.report.warn(name, f"unknown environment {name}: treated as transparent")
@@ -1348,7 +1675,8 @@ class _Builder:
         # a shared-counter env (\newtheorem{LEM}[THM]{Lemma}) numbers against the
         # counter it shares (THM's "Theorem"), so they form one running sequence.
         counter = None if unnumbered else self.theorem_counters.get(base, display)
-        theorem = ir.Theorem(kind=display, blocks=[], title=title, counter=counter)
+        theorem = ir.Theorem(kind=display, blocks=[], title=title, counter=counter,
+                             within=self.theorem_within.get(base) if counter else None)
         # become the label target *before* parsing the body, so a \label at the
         # start of the environment attaches here, not to the preceding block.
         self._labelable = theorem
@@ -1434,7 +1762,8 @@ class _Builder:
             # content before the first \item is discarded (it isn't an item)
         if started:
             flush_item()
-        return ir.ItemList(ordered=ordered, items=items, description=description)
+        return ir.ItemList(ordered=ordered, items=items, description=description,
+                           start=_list_start(node) if ordered else 1)
 
     def _cite_locators(self, node: LatexMacroNode) -> tuple[str | None, str | None]:
         """Extract ``\\citep[pre][post]{key}`` locators.
@@ -1443,8 +1772,9 @@ class _Builder:
         (pre, post).
         """
         argd = node.nodeargd
+        # rendered, not raw: p.~3 -> "p. 3", \S~2 -> "§ 2"
         opts = [
-            _chars_of(a.nodelist)
+            _flat_text(self.inlines(a.nodelist))
             for a in (argd.argnlist if argd else [])
             if isinstance(a, LatexGroupNode) and a.delimiters == ("[", "]")
         ]
@@ -1476,7 +1806,12 @@ class _Builder:
                 # that content above the caption instead of dropping it.
                 fig.blocks = self._figure_body_blocks(node.nodelist)
             if fig.image is None and not fig.subfigures and not fig.blocks:
-                self.report.warn("figure", "figure without convertible graphics (e.g. TikZ)")
+                if _has_opaque_env(fig.source):
+                    # a drawing: the writer compiles it, and warns (with the
+                    # reason) only when it cannot
+                    self.report.info("figure", "figure drawn with TikZ/PGF")
+                else:
+                    self.report.warn("figure", "figure without convertible graphics")
             self._labelable = fig
             out.append(fig)
             return
@@ -1630,6 +1965,10 @@ class _Builder:
             if isinstance(child, LatexEnvironmentNode):
                 if child.environmentname.rstrip("*") == "subfigure":
                     fig.subfigures.append(self._subfigure_from_env(child))
+                elif child.environmentname.rstrip("*") in _OPAQUE_ENVS:
+                    # a drawing's own macros are not the figure's: TikZ's
+                    # \foreach \label/\value in {...} must not become its label
+                    continue
                 else:
                     self._collect_figure_parts(child.nodelist, fig, top=False, panels=panels)
             elif isinstance(child, LatexGroupNode):
@@ -1679,6 +2018,12 @@ class _Builder:
         ]
         caption = self._env_optional_title(node)
         sub = ir.SubFigure(image=None, caption=caption)
+        # \subfloat[Caption\label{fig:a}]{...}: the label sits in the caption
+        for a in node.nodeargd.argnlist if node.nodeargd else []:
+            if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+                for child in _walk_macros(a.nodelist):
+                    if child.macroname == "label":
+                        sub.label = _chars_of(_group_nodes(child))
         if groups:
             for child in _walk_macros(groups[-1].nodelist):
                 if child.macroname == "includegraphics":
@@ -1696,16 +2041,36 @@ class _Builder:
         # Pull the float's own caption/label, then process the rest as blocks --
         # which descends \resizebox/\scalebox and minipage so nested tabulars (a
         # grid of sub-tables) survive instead of being dumped as raw LaTeX.
+        panels = [
+            n for n in node.nodelist
+            if isinstance(n, LatexEnvironmentNode)
+            and n.environmentname in ("minipage", "subtable") and _has_caption(n.nodelist)
+        ]
+        if len(panels) >= 2:
+            self._table_panels(node, panels, out, spanning)
+            return
         caption: list[ir.Inline] | None = None
         caption_numbered = True
         label: str | None = None
         content: list = []
-        for child in node.nodelist:
+        for child in _unwrap_table_layout(node.nodelist):
             if isinstance(child, LatexMacroNode) and child.macroname == "caption":
                 caption = self.inlines(_group_nodes(child))
                 caption_numbered = not _has_star(child)
+            elif (
+                isinstance(child, LatexMacroNode) and child.macroname == "captionof"
+                and caption is None and _has_captionof([child], "table")
+            ):
+                # \captionof{table}{...} inside the float (the rotated-minipage
+                # landscape idiom) is the float's caption
+                caption = self.inlines(_group_nodes(child))
+                caption_numbered = not _has_star(child)
             elif isinstance(child, LatexMacroNode) and child.macroname == "label":
-                label = _chars_of(_group_nodes(child))
+                lab = _chars_of(_group_nodes(child))
+                if label is None:
+                    label = lab
+                elif lab and lab != label:
+                    self.label_aliases.setdefault(lab, label)
             else:
                 content.append(child)
         sub_blocks = self.blocks(content)
@@ -1722,6 +2087,61 @@ class _Builder:
         tables[0].spanning = spanning
         self._labelable = tables[0]
         out.extend(sub_blocks)
+
+    def _listing_float(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:
+        """minted's ``listing`` float: its caption and label go to the code."""
+        caption: list[ir.Inline] | None = None
+        numbered = True
+        label: str | None = None
+        content = []
+        for child in node.nodelist:
+            if isinstance(child, LatexMacroNode) and child.macroname == "caption":
+                caption, numbered = self.inlines(_group_nodes(child)), not _has_star(child)
+            elif isinstance(child, LatexMacroNode) and child.macroname == "label":
+                label = label or _chars_of(_group_nodes(child))
+            else:
+                content.append(child)
+        blocks = self.blocks(content)
+        code = next((b for b in blocks if isinstance(b, ir.CodeBlock)), None)
+        if code is not None:
+            code.caption, code.label, code.caption_numbered = caption, label, numbered
+        out.extend(blocks)
+
+    def _table_panels(
+        self, node: LatexEnvironmentNode, panels: list, out: list[ir.Block], spanning: bool
+    ) -> None:
+        """Several captioned minipages/subtables in one ``table``: each panel is
+        a table with its own caption and label. With an overall caption too
+        (subtables), that caption numbers the first panel and the panels'
+        own captions become "(a) ..." lines."""
+        outer_caption: list[ir.Inline] | None = None
+        outer_label: str | None = None
+        for child in node.nodelist:
+            if isinstance(child, LatexMacroNode) and child.macroname == "caption":
+                outer_caption = self.inlines(_group_nodes(child))
+            elif isinstance(child, LatexMacroNode) and child.macroname == "label":
+                outer_label = outer_label or _chars_of(_group_nodes(child))
+        first_table: ir.Table | None = None
+        for i, panel in enumerate(panels):
+            sub: list[ir.Block] = []
+            self._table_float(panel, sub, spanning)
+            tables = [b for b in sub if isinstance(b, ir.Table)]
+            if outer_caption is not None and tables:
+                t = tables[0]
+                if t.caption:
+                    sub.insert(sub.index(t), ir.Paragraph(
+                        [ir.Text(f"({chr(ord('a') + i)}) "), *t.caption], align="center"))
+                t.caption = None
+                if t.label and outer_label:  # \ref{sub-label} -> the table's number
+                    self.label_aliases.setdefault(t.label, outer_label)
+                t.label = None
+            if first_table is None and tables:
+                first_table = tables[0]
+            out.extend(sub)
+        if outer_caption is not None and first_table is not None:
+            first_table.caption = outer_caption
+            first_table.label = outer_label
+            self._labelable = first_table
 
     def _tabular(self, node: LatexEnvironmentNode) -> ir.Table:
         # column spec is the first mandatory group argument of the environment
@@ -2274,7 +2694,18 @@ def _apply_text_accent(name: str, base: str) -> str:
     comb = _ACCENT_COMBINING.get(name, "")
     if not base:
         return comb
-    return unicodedata.normalize("NFC", base[0] + comb + base[1:])
+    # \"{\i} is an i with a diaeresis: the dotless form exists only to take one
+    first = {"ı": "i", "ȷ": "j"}.get(base[0], base[0])
+    return unicodedata.normalize("NFC", first + comb + base[1:])
+
+
+def _change_case(inlines: list, *, upper: bool) -> None:
+    """Upper-/lower-case the text of ``inlines`` in place (math is left alone)."""
+    for n in inlines:
+        if isinstance(n, ir.Text):
+            n.value = n.value.upper() if upper else n.value.lower()
+        elif hasattr(n, "inlines") and not isinstance(n, ir.Footnote):
+            _change_case(n.inlines, upper=upper)
 
 
 # User-defined tcolorbox callout environments -> rendered as set-off Quote blocks.
@@ -2449,7 +2880,7 @@ def _collect_mdframed_envs(source: str) -> dict[str, tuple[str | None, str | Non
 # and clean the result below.
 _NEWTHEOREM_RE = re.compile(
     r"\\newtheorem(\*?)\s*\{([^}]*)\}\s*(?:\[([^\]]*)\])?\s*"
-    r"\{((?:[^{}]|\{[^{}]*\})*)\}"
+    r"\{((?:[^{}]|\{[^{}]*\})*)\}(?:[ \t]*\[([^\]]*)\])?"
 )
 # Font/format declarations to peel off a \newtheorem display title.
 _TITLE_DECL_RE = re.compile(
@@ -2488,6 +2919,28 @@ def _collect_newtheorems(
             if m.group(1):  # \newtheorem* -> unnumbered
                 unnumbered.add(name)
     return envs, unnumbered, shared
+
+
+def _collect_theorem_within(source: str) -> dict[str, str]:
+    """Theorem env -> the division its counter resets in
+    (``\\newtheorem{thm}{Theorem}[section]`` -> ``{"thm": "section"}``); an env
+    sharing another's counter inherits its reset."""
+    within: dict[str, str] = {}
+    shared: dict[str, str] = {}
+    for m in _NEWTHEOREM_RE.finditer(source):
+        name = m.group(2).strip()
+        if m.group(3):
+            shared[name] = m.group(3).strip()
+        elif m.group(5):
+            within[name] = m.group(5).strip()
+    for name, root in shared.items():
+        seen = {name}
+        while root in shared and root not in seen:
+            seen.add(root)
+            root = shared[root]
+        if root in within:
+            within[name] = within[root]
+    return within
 
 
 def _resolve_theorem_counters(
@@ -2576,6 +3029,11 @@ def _build_context(
             MacroSpec("crefrange", "{{"),
             MacroSpec("Crefrange", "{{"),
             MacroSpec("eqref", "{"),
+            # \pageref (and the cleveref/varioref page/label variants) had no
+            # spec: the label was left behind as text and the ref unresolved
+            MacroSpec("pageref", "*{"), MacroSpec("vref", "*{"), MacroSpec("vpageref", "*{"),
+            MacroSpec("cpageref", "{"), MacroSpec("Cpageref", "{"),
+            MacroSpec("labelcref", "{"),
             MacroSpec("hypersetup", "{"),
             MacroSpec("graphicspath", "{"),
             MacroSpec("definecolor", "{{{"),
@@ -2612,13 +3070,10 @@ def _build_context(
             MacroSpec("numlist", "[{"),
             MacroSpec("SIlist", "[{{"),
             MacroSpec("qtylist", "[{{"),
-            MacroSpec("institute", "{"),
-            MacroSpec("affiliation", "[{"),
-            MacroSpec("affil", "[{"),
-            MacroSpec("address", "{"),
-            MacroSpec("email", "{"),
-            MacroSpec("orcid", "{"),
             MacroSpec("inst", "{"),
+            MacroSpec("tnote", "{"),
+            MacroSpec("subref", "*{"),
+            MacroSpec("twlistingcaption", "{{{"),  # emitted by preprocess (listings)
             MacroSpec("IEEEauthorrefmark", "{"),
             MacroSpec("IEEEauthorblockN", "{"),
             MacroSpec("IEEEauthorblockA", "{"),
@@ -2637,8 +3092,23 @@ def _build_context(
             MacroSpec("cmidrule", "{"),
             MacroSpec("cline", "{"),
             MacroSpec("resizebox", "{{{"),
-            MacroSpec("scalebox", "{{"),
-            MacroSpec("setlength", "{{"),
+            MacroSpec("scalebox", "{[{"),
+            MacroSpec("rotatebox", "[{{"),
+            MacroSpec("parbox", "[[[{{"),
+            MacroSpec("foreignlanguage", "[{{"),
+            MacroSpec("selectlanguage", "{"),
+            MacroSpec("MakeUppercase", "{"), MacroSpec("MakeLowercase", "{"),
+            MacroSpec("MakeTextUppercase", "{"), MacroSpec("MakeTextLowercase", "{"),
+            MacroSpec("makecell", "[{"),
+            MacroSpec("thead", "[{"),
+            MacroSpec("path", "{"),
+            MacroSpec("nolinkurl", "{"),
+            MacroSpec("typeout", "{"),
+            MacroSpec("twocolumn", "["),
+            MacroSpec("subjclass", "[{"),
+            MacroSpec("setlength", "{{"), MacroSpec("addtolength", "{{"),
+            MacroSpec("settowidth", "{{"), MacroSpec("settoheight", "{{"),
+            MacroSpec("settodepth", "{{"), MacroSpec("deflength", "{{"),
             MacroSpec("phantom", "{"),
             MacroSpec("hphantom", "{"),
             MacroSpec("vphantom", "{"),
@@ -2664,21 +3134,14 @@ def _build_context(
             MacroSpec("ensuremath", "{"),
             MacroSpec("ding", "{"),
             MacroSpec("shortstack", "[{"),
-            # ACM affiliation sub-fields: consume the {…} so it isn't body text.
-            MacroSpec("institution", "{"),
-            MacroSpec("department", "{"),
-            MacroSpec("city", "{"),
-            MacroSpec("state", "{"),
-            MacroSpec("country", "{"),
-            MacroSpec("postcode", "{"),
-            MacroSpec("streetaddress", "{"),
-            MacroSpec("position", "{"),
             MacroSpec("authornote", "{"),
             MacroSpec("texorpdfstring", "{{"),
             MacroSpec("labelcref", "{"),
             MacroSpec("nameref", "{"),
             MacroSpec("Nameref", "{"),
             MacroSpec("title", "[{"),  # \title[running head]{full title}
+            # journal-class front matter (frontend/frontmatter.py)
+            *(MacroSpec(n, a) for n, a in _FRONT_SPECS),
             MacroSpec("markboth", "{{"),
             MacroSpec("markright", "{"),
             MacroSpec("runninghead", "[{"),
@@ -2708,7 +3171,9 @@ def _build_context(
         environments=[
             EnvironmentSpec(name, "[")
             for name in (*_THEOREM_ENVS, "proof", *extra_theorem_envs)
-        ] + [EnvironmentSpec("subfigure", "[{")] + [EnvironmentSpec("minipage", "[{")] + [
+        ] + [
+            EnvironmentSpec("subfigure", "[{"), EnvironmentSpec("subtable", "[{")
+        ] + [EnvironmentSpec("minipage", "[{")] + [
             EnvironmentSpec(name, "[")
             for name in ("algorithmic", "algorithmicx", "algpseudocode", "algpseudocodex")
         ] + [
@@ -2727,6 +3192,12 @@ def _build_context(
             # boxed environments with an optional [options] argument
             EnvironmentSpec("mdframed", "["), EnvironmentSpec("tcolorbox", "["),
             EnvironmentSpec("leftbar", "["),
+            # adjustbox env: \begin{adjustbox}{width=\textwidth} -- the keys are
+            # not content; multicols: \begin{multicols}{2}[heading]
+            EnvironmentSpec("adjustbox", "{"), EnvironmentSpec("multicols", "{["),
+            EnvironmentSpec("multicols*", "{["), EnvironmentSpec("otherlanguage", "{"),
+            EnvironmentSpec("otherlanguage*", "{"), EnvironmentSpec("IEEEbiography", "[{"),
+            EnvironmentSpec("IEEEbiographynophoto", "{"),
         ] + [
             # user \newtcolorbox envs that take arguments (\begin{box}{title}):
             # declare them so the args are consumed, not parsed as body text.
@@ -2735,6 +3206,23 @@ def _build_context(
         prepend=True,
     )
     return ctx
+
+
+_KERNEL_COMMANDS = frozenset({
+    "LaTeX", "TeX", "LaTeXe", "today", "textbf", "textit", "emph", "texttt", "textrm",
+    "textsf", "textsc", "underline", "footnote", "caption", "label", "ref", "cite", "url",
+    "href", "item", "section", "includegraphics", "maketitle", "title", "author", "date",
+    "frac", "sqrt", "mathbb", "mathbf", "mathrm", "mathcal", "text", "hspace", "vspace",
+    "newline", "par", "quad", "qquad", "ldots", "dots", "cdots", "alpha", "beta", "gamma",
+})
+
+
+def _known_commands() -> frozenset[str]:
+    """Commands the converter itself handles (``\\providecommand`` keeps them)."""
+    return _KERNEL_COMMANDS | frozenset(
+        [*_SECTION_LEVELS, *_EMPHASIS, *_EMPHASIS_DECL, *_FONT_SIZE_HP, *_CITE_MODES,
+         *_REF_KINDS, *_TEXT_SYMBOLS, *_IGNORE_MACROS, *_TRANSPARENT_BOX]
+    )
 
 
 def _split_document(source: str) -> tuple[str, str]:
@@ -2936,7 +3424,10 @@ def parse_document(
     engine instead of the built-in heuristic.
     """
     report = ConversionReport()
-    expanded = replace_inline_tikz(expand_macros(preprocess(source, base_dir), base_dir))
+    expanded = replace_inline_tikz(
+        expand_macros(preprocess(source, base_dir), base_dir, known=_known_commands())
+    )
+    expanded = resolve_counters(expanded)  # \newcounter values: \arabic{c}, \thec, ...
     # after expansion, so macro-generated \vskip/\faX are cleaned up too
     expanded = normalize_spacing_and_icons(expanded)
     body, preamble = _split_document(expanded)
@@ -2958,11 +3449,21 @@ def parse_document(
     builder.theorem_envs.update(custom_theorems)
     builder.unnumbered_theorems = unnumbered_theorems
     builder.theorem_counters = _resolve_theorem_counters(custom_theorems, shared_counters)
+    builder.theorem_within = _collect_theorem_within(theorem_src)
     builder.box_envs = _collect_tcolorbox_envs(theorem_src)  # \newtcolorbox callouts
     builder.tcb_envs, builder.tcb_styles = tcb_envs, tcb_styles
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
     builder.box_envs |= set(builder.box_styles)
     builder.book_mode = _is_book_class(expanded)
+    cls = re.search(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", expanded)
+    builder.doc_class = cls.group(1).strip() if cls else "article"
+    if builder.doc_class in ("letter", "moderncv"):
+        # sender address / signature / CV contact lines live in the preamble
+        _fill_meta_from_preamble_calls(preamble, ctx, builder, only=(
+            "address", "signature", "name", "title", "phone", "mobile", "homepage",
+            "social", "extrainfo", "email"))
+    for m in _SUBJCLASS_NAME_RE.finditer(source):  # before \@namedef is expanded
+        builder.subjclass_names[m.group(1).strip()] = m.group(2).strip()
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)
     _collect_glossary_entries(expanded, builder.glossary)  # \newglossaryentry terms
@@ -2970,12 +3471,13 @@ def parse_document(
     # it is page-1 content, so parse it first and lead the body with it.
     teaser = _preamble_teaser_blocks(preamble, ctx, builder)
     blocks = teaser + builder.blocks(nodes)
-    doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode)
+    doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode,
+                      label_aliases=builder.label_aliases)
 
-    _fill_meta_from_preamble(doc, preamble, ctx, report)
+    _fill_meta_from_preamble(doc, preamble, ctx, report, builder)
     # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
     # title is present but no \date was given (an explicit \date{} stays empty).
-    if doc.meta.date is None and doc.meta.title:
+    if doc.meta.date is None and doc.meta.title and builder.doc_class != "moderncv":
         doc.meta.date = _default_date(source, builder)
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
@@ -3056,7 +3558,15 @@ def _detect_language(preamble: str) -> str | None:
 
 def _detect_bib_style(preamble: str, builder: _Builder) -> None:
     """Pick up the citation style from the biblatex/natbib package options when no
-    ``\\bibliographystyle`` set it (so author-year biblatex/natbib renders right)."""
+    ``\\bibliographystyle`` set it (so author-year biblatex/natbib renders right).
+
+    natbib's ``[numbers]`` option wins even over an author-year ``.bst`` such as
+    ``plainnat``, as in LaTeX.
+    """
+    nb = re.search(r"\\usepackage\[([^\]]*)\]\{natbib\}", preamble)
+    if nb and re.search(r"\bnumbers\b", nb.group(1).lower()):
+        builder.bib_style = "numeric"
+        return
     if builder.bibstyle_set:
         return
     _AY = ("authoryear", "apa", "chicago", "harvard", "mla", "author-year")
@@ -3069,13 +3579,8 @@ def _detect_bib_style(preamble: str, builder: _Builder) -> None:
                 builder.bib_style = "author-year"
             elif "numeric" in s or "ieee" in s:
                 builder.bib_style = "numeric"
-    nb = re.search(r"\\usepackage\[([^\]]*)\]\{natbib\}", preamble)
-    if nb:
-        nopt = nb.group(1).lower()
-        if re.search(r"\bnumbers\b", nopt):
-            builder.bib_style = "numeric"
-        elif re.search(r"\bauthoryear\b", nopt):
-            builder.bib_style = "author-year"
+    if nb and re.search(r"\bauthoryear\b", nb.group(1).lower()):
+        builder.bib_style = "author-year"
 
 
 def _collect_bib_resources(preamble: str, builder: _Builder) -> None:
@@ -3087,45 +3592,54 @@ def _collect_bib_resources(preamble: str, builder: _Builder) -> None:
 
 
 def _fill_meta_from_preamble(
-    doc: ir.Document, preamble: str, ctx, report: ConversionReport
+    doc: ir.Document, preamble: str, ctx, report: ConversionReport, builder: _Builder,
 ) -> None:
-    """Recover \\title/\\author/\\date/\\keywords defined in the preamble (best effort)."""
+    """Recover the title-page commands given in the preamble (best effort).
+
+    Every call counts (authblk lists several ``\\author``/``\\affil`` lines);
+    a kind of metadata the body already set is not overridden.
+    """
     if doc.meta.running_head is None:
         doc.meta.running_head = _running_head_from_preamble(preamble)
-    for macro in ("title", "author", "date", "keywords", "institute", "affiliation"):
-        if macro == "title" and doc.meta.title is not None:
-            continue
-        if macro == "author" and doc.meta.authors:
-            continue
-        if macro == "date" and doc.meta.date is not None:
-            continue
-        if macro == "keywords" and doc.meta.keywords is not None:
-            continue
-        if macro in ("institute", "affiliation") and doc.meta.affiliations:
-            continue
-        content = _braced_content(preamble, macro)
-        if content is None:
+    if builder.doc_class in ("letter", "moderncv"):
+        return  # read before the body (see parse_document)
+    meta = doc.meta
+    skip = set()
+    if meta.title is not None:
+        skip.add("title")
+    if meta.authors:
+        skip.add("author")
+    if meta.date is not None:
+        skip.add("date")
+    if meta.keywords is not None:
+        skip.add("keywords")
+    if meta.affiliations:
+        skip |= {"institute", "affiliation", "affil", "address", "email", "orcid"}
+    if meta.subtitle is not None:
+        skip.add("subtitle")
+    _fill_meta_from_preamble_calls(preamble, ctx, builder, skip=skip)
+
+
+def _fill_meta_from_preamble_calls(
+    preamble: str, ctx, builder: _Builder, *, skip: set[str] | frozenset[str] = frozenset(),
+    only: tuple[str, ...] | None = None,
+) -> None:
+    for name, call in preamble_calls(preamble):
+        if name in skip or (only is not None and name not in only):
             continue
         try:
-            sub_nodes, _, _ = LatexWalker(
-                content, latex_context=ctx, tolerant_parsing=True
-            ).get_latex_nodes()
-            if macro in ("author", "institute", "affiliation"):
-                target = doc.meta.authors if macro == "author" else doc.meta.affiliations
-                for seg in _split_on_and(sub_nodes):
-                    inl = _Builder(report).inlines(seg)
-                    if inl:
-                        target.append(inl)
-                continue
-            inlines = _Builder(report).inlines(sub_nodes)
-        except Exception:
-            inlines = [ir.Text(content)]
-        if macro == "title":
-            doc.meta.title = inlines
-        elif macro == "date":
-            doc.meta.date = inlines
-        elif macro == "keywords":
-            doc.meta.keywords = inlines
+            nodes, _, _ = LatexWalker(call, latex_context=ctx, tolerant_parsing=True
+                                      ).get_latex_nodes()
+        except Exception:  # never let a preamble oddity abort the conversion
+            continue
+        node = next((n for n in nodes if isinstance(n, LatexMacroNode)), None)
+        if node is None:
+            continue
+        try:
+            if builder.front_matter(node) is None:
+                builder._meta_macro(node)
+        except Exception:  # noqa: BLE001 - metadata is best effort
+            builder.report.warn(f"\\{name}", "could not read the preamble command")
 
 
 def _resolve_bibliography(

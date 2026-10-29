@@ -13,7 +13,7 @@ import itertools
 
 from lxml import etree
 
-from .ooxml import el, preserve_space, sub, text_el
+from .ooxml import el, preserve_space, sub, text_el, xml_safe
 
 _Element = etree._Element
 _bookmark_ids = itertools.count(1)
@@ -39,7 +39,7 @@ def _instr_run(code: str) -> _Element:
     r = el("w:r")
     instr = sub(r, "w:instrText")
     preserve_space(instr)
-    instr.text = code
+    instr.text = xml_safe(code)
     return r
 
 
@@ -74,20 +74,24 @@ def seq_field(counter: str, cached: str = "") -> list[_Element]:
     return field(f"SEQ {counter} \\* ARABIC", cached)
 
 
-def number_field(counter: str, by_section: bool = False) -> list[_Element]:
+def number_field(
+    counter: str, by_section: bool = False, *, restart: bool = False
+) -> list[_Element]:
     """Runs for a live number: flat ``SEQ`` or per-section ``N.M``.
 
-    With ``by_section`` the number is ``STYLEREF 1 \\s`` (the nearest numbered
-    Heading 1) + ``.`` + ``SEQ counter \\s 1`` (a counter that resets at each
-    Heading 1) -- the standard Word "include chapter number" caption scheme.
+    With ``by_section`` the number is ``STYLEREF 1 \\n`` (the paragraph number
+    of the nearest Heading 1) + ``.`` + ``SEQ counter \\s 1`` (a counter that
+    resets at each Heading 1). ``restart`` adds ``\\r 1`` to the first number
+    of a section: Word resets on ``\\s`` alone, LibreOffice only on ``\\r``.
     """
     if not by_section:
         return seq_field(counter, "1")
-    runs = field("STYLEREF 1 \\s", "1")
+    runs = field("STYLEREF 1 \\n", "1")
     dot = el("w:r")
     dot.append(text_el("w:t", "."))
     runs.append(dot)
-    runs += field(f"SEQ {counter} \\s 1 \\* ARABIC", "1")
+    reset = " \\r 1" if restart else ""
+    runs += field(f"SEQ {counter}{reset} \\s 1 \\* ARABIC", "1")
     return runs
 
 

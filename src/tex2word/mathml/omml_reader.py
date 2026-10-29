@@ -8,6 +8,8 @@ writer emits, so a forward+reverse pass round-trips the common math core.
 
 from __future__ import annotations
 
+import re
+
 from lxml import etree
 
 from ..backend.ooxml import NS
@@ -148,7 +150,12 @@ def _parse_run(e: etree._Element) -> L.Lit:
 def _glyphs_to_latex(text: str) -> str:
     out: list[str] = []
     for ch in text:
-        out.append(f"\\{_REV_SYMBOL[ch]} " if ch in _REV_SYMBOL else ch)
+        if ch in _REV_SYMBOL:
+            out.append(f"\\{_REV_SYMBOL[ch]} ")
+        elif ch == L.MINUS:  # the minus sign the writer emits for `-`
+            out.append("-")
+        else:
+            out.append(ch)
     return "".join(out)
 
 
@@ -162,6 +169,12 @@ def _lit_latex(lit: L.Lit) -> str:
         return ""
     if lit.script in _SCRIPT_CMD:
         return f"\\{_SCRIPT_CMD[lit.script]}{{{text}}}"
+    # upright prose (spaces, hyphens: \text{ if }, \text{well-known}) -> \text
+    if lit.upright and len(text) > 1 and any(c.isalpha() for c in text) and not (
+        text.isalpha() or text.isalnum()
+    ):
+        body = re.sub(r"([{}%&#_$])", r"\\\1", text)
+        return f"\\textbf{{{body}}}" if lit.bold else f"\\text{{{body}}}"
     # genuine multi-letter upright text -> a function name or \mathrm{...}
     if lit.upright and len(text) > 1 and text.isalpha():
         if text in S.FUNCTIONS:

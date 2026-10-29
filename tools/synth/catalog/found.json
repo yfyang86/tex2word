@@ -1,0 +1,338 @@
+[
+ {
+  "construct": "plain",
+  "contexts": [
+   "fbox-parbox",
+   "pcol-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "fbox-parbox",
+   "tabularx-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "adjustbox-table"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "definition"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "description-body"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "description-label"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "enumerate-deep"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "enumitem-label"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "flushright"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "framed"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "itemize"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "itemize-in-theorem"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "makecell-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "minipage"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "minipage-row"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "multicolumn-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "multirow-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "pcol-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "proof"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "quotation"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "quote"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "table-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "table-header"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "table-in-itemize"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "tabularx-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "footnote",
+   "tcolorbox"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "adjustbox-table"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "definition"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "enumerate-deep"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "enumitem-label"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "itemize"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "itemize-in-theorem"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "list-in-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "makecell-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "mdframed"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "minipage-row"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "multicols"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "multicolumn-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "multirow-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "pcol-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "proof"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "quotation"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "quote"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "table-header"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "table-in-itemize"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "tabularx-cell"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "tcolorbox"
+  ]
+ },
+ {
+  "construct": "plain",
+  "contexts": [
+   "marginpar",
+   "theorem"
+  ]
+ }
+]

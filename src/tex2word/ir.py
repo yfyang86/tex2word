@@ -13,6 +13,7 @@ in the ``.docx``.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal
 
@@ -50,7 +51,7 @@ EmphasisKind = Literal[
 CiteMode = Literal["paren", "text", "foot", "author", "year", "num"]
 RefKind = Literal[
     "generic", "equation", "figure", "table", "section", "theorem", "page", "name",
-    "listitem",
+    "listitem", "listing", "subref",
 ]
 
 
@@ -117,6 +118,9 @@ class LineBreak(Node):
 @dataclass
 class Footnote(Node):
     inlines: list[Inline]
+    #: block content (lists, quotes, tables, several paragraphs); when set, the
+    #: note is these blocks and ``inlines`` is empty
+    blocks: list[Block] = field(default_factory=list)
 
 
 @dataclass
@@ -243,6 +247,7 @@ class ItemList(Node):
     ordered: bool
     items: list[ListItem]
     description: bool = False  # a `description` list (term + definition)
+    start: int = 1  # first number of an ordered list (enumitem start=, \setcounter{enumi})
 
 
 TableAlign = Literal["left", "center", "right"]
@@ -306,6 +311,10 @@ class Figure(Node):
 class CodeBlock(Node):
     text: str
     lang: str | None = None
+    #: a listing's caption (lstlisting caption=, a listing float) and label
+    caption: list[Inline] | None = None
+    label: str | None = None
+    caption_numbered: bool = True
 
 
 @dataclass
@@ -351,6 +360,9 @@ class Theorem(Node):
     title: list[Inline] | None = None
     label: str | None = None
     counter: str | None = None
+    #: the counter resets within this division (``\newtheorem{thm}{Theorem}[section]``)
+    #: -> numbered "section.n"
+    within: str | None = None
 
 
 @dataclass
@@ -419,6 +431,11 @@ class DocumentMeta(Node):
     abstract: list[Block] | None = None
     keywords: list[Inline] | None = None
     affiliations: list[list[Inline]] = field(default_factory=list)
+    #: a subtitle (KOMA \subtitle, beamer, a CV's job title)
+    subtitle: list[Inline] | None = None
+    #: further title-page lines: dedications, corresponding-author notes,
+    #: KOMA \subject/\publishers, contact details
+    front_notes: list[list[Inline]] = field(default_factory=list)
     language: str | None = None  # BCP-47 document language (from babel/polyglossia)
     running_head: str | None = None  # \markboth/\markright/\title[short] running head
     columns: int = 1  # body column count (\documentclass[twocolumn]/\twocolumn)
@@ -436,6 +453,8 @@ class LabelInfo(Node):
     bookmark: str
     number: str | None = None
     name: str | None = None  # target's title/caption text (for \nameref)
+    #: a sub-figure's letter ("a"): \subref prints "(a)", \ref "1a"
+    sub: str | None = None
 
 
 @dataclass
@@ -444,6 +463,9 @@ class Document(Node):
     meta: DocumentMeta = field(default_factory=DocumentMeta)
     labels: dict[str, LabelInfo] = field(default_factory=dict)
     book: bool = False  # book/report class with \chapter (top level is chapter)
+    #: extra ``\label``s on an already-labelled target -> the label it kept
+    #: (``\label{sec:a}\label{sec:b}`` makes ``sec:b`` an alias of ``sec:a``).
+    label_aliases: dict[str, str] = field(default_factory=dict)
 
     # -- JSON serialisation ------------------------------------------------- #
 
@@ -455,6 +477,62 @@ class Document(Node):
         node = _from_jsonable(data)
         assert isinstance(node, Document)
         return node
+
+
+# --------------------------------------------------------------------------- #
+# Generic traversal
+# --------------------------------------------------------------------------- #
+
+
+def _child_values(node: Node) -> list[Any]:
+    """A node's field values in reading order.
+
+    Fields come in declaration order, except that a table's caption (set above
+    the tabular in LaTeX) is read before its rows, and a figure's caption after
+    its body.
+    """
+    values = vars(node)
+    if isinstance(node, Table):
+        first = ["caption"]
+    else:
+        first = []
+    last = ["caption"] if isinstance(node, Figure) else []
+    names = first + [n for n in values if n not in first and n not in last] + last
+    return [values[n] for n in names if n in values]
+
+
+def node_lists(root: Any) -> Iterator[list[Any]]:
+    """Yield every list of nodes reachable from ``root``, in reading order.
+
+    Each list is yielded before its elements are descended into, so a caller
+    can replace items in place (e.g. a ``Ref`` by a ``Link``). Covers every
+    container -- table cells, captions, theorem bodies, styled spans, notes and
+    the document metadata -- so passes over ``Ref``/``Cite`` leaves never miss
+    one.
+    """
+    if isinstance(root, list):
+        if any(isinstance(v, Node) for v in root):
+            yield root
+        for v in list(root):
+            yield from node_lists(v)
+    elif isinstance(root, Node):
+        for value in _child_values(root):
+            if isinstance(value, list | Node):
+                yield from node_lists(value)
+
+
+def iter_nodes(root: Any) -> Iterator[Node]:
+    """Every node below ``root`` (not ``root`` itself), depth-first in reading
+    order: a node comes right before its own children."""
+    values = root if isinstance(root, list) else (
+        _child_values(root) if isinstance(root, Node) else []
+    )
+    for v in values:
+        if isinstance(v, Node):
+            yield v
+            yield from iter_nodes(v)
+        elif isinstance(v, list):
+            yield from iter_nodes(v)
 
 
 # --------------------------------------------------------------------------- #

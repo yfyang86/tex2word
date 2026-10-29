@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from lxml import etree
 
-from ..backend.ooxml import el, preserve_space, sub
+from ..backend.ooxml import el, preserve_space, sub, xml_safe
 
 _MML = "http://www.w3.org/1998/Math/MathML"
 _Element = etree._Element
@@ -29,7 +29,7 @@ def _run(text: str, *, upright: bool = False) -> _Element:
     if upright:
         sub(sub(r, "m:rPr"), "m:nor")
     t = sub(r, "m:t")
-    t.text = text
+    t.text = xml_safe(text)
     preserve_space(t)
     return r
 

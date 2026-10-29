@@ -1,0 +1,10 @@
+\definecolor{stage}{RGB}{37,99,235}
+\begin{tikzpicture}[node distance=8mm,font=\small,
+  box/.style={draw=stage,rounded corners=1mm,minimum width=22mm,minimum height=7mm}]
+\node[box] (src) {LaTeX source};
+\node[box,right=of src] (ir) {IR};
+\node[box,right=of ir] (docx) {Word document};
+\draw[-{Stealth}] (src) -- (ir);
+\draw[-{Stealth}] (ir) -- (docx);
+\node[draw=black!30,dashed,fit=(src)(ir)(docx),inner sep=2mm] {};
+\end{tikzpicture}

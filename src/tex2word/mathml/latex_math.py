@@ -9,6 +9,7 @@ unconvertible math as raw TeX.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from . import symbols as S
@@ -135,6 +136,14 @@ MNode = (
     | Fenced | LimLow | Matrix | GroupChr
 )
 
+#: the minus sign TeX sets for `-` in math (a hyphen only inside \text{})
+MINUS = "\u2212"
+
+#: text-mode commands inside math
+_TEXT_MODE = frozenset({
+    "text", "mbox", "textrm", "textnormal", "textsf", "texttt", "textsc", "textbf",
+})
+
 # Functions whose subscript is rendered as an underscript limit in display.
 LIMIT_FUNCS = frozenset({"lim", "limsup", "liminf", "max", "min", "sup", "inf", "gcd", "det"})
 
@@ -225,6 +234,36 @@ _ALIGNED_ENVS = frozenset(
 Token = tuple[str, str | None]
 
 
+_DIMEN_UNITS = ("pt", "em", "ex", "mm", "cm", "in", "bp", "pc", "sp", "mu", "dd", "cc")
+
+
+def is_dimen(s: str) -> bool:
+    """A TeX length such as ``2pt``, ``-.5ex``, ``1.2em`` or ``\\jot``."""
+    t = s.strip()
+    if t.startswith("\\"):
+        return t[1:].isalpha()
+    k = 0
+    while k < len(t) and (t[k].isdigit() or t[k] in ".-+ "):
+        k += 1
+    num, unit = t[:k], t[k:].strip()
+    return any(c.isdigit() for c in num) and unit in _DIMEN_UNITS
+
+
+def skip_row_spacing(s: str, at: int) -> int:
+    """Index past the ``*`` and ``[<dimen>]`` that may follow ``\\\\``."""
+    i = at
+    if i < len(s) and s[i] == "*":
+        i += 1
+    k = i
+    while k < len(s) and s[k] == " ":
+        k += 1
+    if k < len(s) and s[k] == "[":
+        close = s.find("]", k)
+        if close != -1 and is_dimen(s[k + 1 : close]):
+            return close + 1
+    return i
+
+
 def tokenize(s: str) -> list[Token]:
     tokens: list[Token] = []
     i, n = 0, len(s)
@@ -236,7 +275,8 @@ def tokenize(s: str) -> list[Token]:
                 # control symbol: \{ \} \, \\ \; \! \| etc.
                 if s[j] == "\\":
                     tokens.append(("newline", None))
-                    i = j + 1
+                    # `\\*` and the row-spacing argument `\\[2pt]` are layout
+                    i = skip_row_spacing(s, j + 1)
                 else:
                     tokens.append(("cmd", s[j]))
                     i = j + 1
@@ -248,6 +288,14 @@ def tokenize(s: str) -> list[Token]:
                 i = k
                 while i < n and s[i] == " ":
                     i += 1
+                if s[j:k] in _TEXT_MODE and i < n and s[i] == "{":
+                    # text-mode argument: its spaces are text (\text{ if })
+                    end = _group_end(s, i)
+                    if end is not None:
+                        tokens.append(("{", None))
+                        tokens.extend(_tokenize_text(s[i + 1:end]))
+                        tokens.append(("}", None))
+                        i = end + 1
         elif c in "{}^_&":
             tokens.append((c, None))
             i += 1
@@ -263,6 +311,48 @@ def tokenize(s: str) -> list[Token]:
             tokens.append(("char", c))
             i += 1
     return tokens
+
+
+def _group_end(s: str, i: int) -> int | None:
+    """Index of the ``}`` closing the group that opens at ``s[i] == "{"``."""
+    depth = 0
+    k = i
+    while k < len(s):
+        c = s[k]
+        if c == "\\":
+            k += 2
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return k
+        k += 1
+    return None
+
+
+def _tokenize_text(s: str) -> list[Token]:
+    """Tokens of a text-mode argument: like ``tokenize``, but a run of spaces is
+    a space character (except right after a control word, where TeX eats it),
+    and ``$...$`` inside is math."""
+    out: list[Token] = []
+    for k, segment in enumerate(re.split(r"(?<!\\)\$", s)):
+        if k % 2:  # inside $...$
+            out.extend(tokenize(segment))
+            continue
+        prev = ""
+        # ASCII whitespace only: a thin space (U+2009, from \, or \pmod) is a glyph
+        for piece in re.split(r"([ \t\n]+)", segment):
+            if not piece:
+                continue
+            if not piece.strip(" \t\n"):
+                if not re.search(r"\\[A-Za-z]+$", prev):
+                    out.append(("char", " "))
+            else:
+                out.extend(tokenize(piece))
+            prev = piece
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -369,6 +459,8 @@ class _Parser:
     def _char_atom(self, c: str) -> MNode:
         if c.isalpha():
             return Lit(c)  # italic by default in Word math
+        if c == "-":
+            return Lit(MINUS, upright=True)  # TeX sets `-` in math as U+2212
         return Lit(c, upright=True)
 
     def parse_command(self, name: str) -> MNode:  # noqa: C901 - dispatch table
@@ -413,15 +505,13 @@ class _Parser:
             bot = self.parse_group()
             base = self.parse_group()
             return Matrix([[base], [bot]])
-        if name in (
-            "text", "mathrm", "operatorname", "operatorname*",
-            "mathsf", "mathtt", "mbox",
-            "textrm", "textnormal", "textsf", "texttt", "textsc",
-        ):
+        if name in _TEXT_MODE:
+            # text inside math: a `-` there is a hyphen, not a minus sign
             row = self.parse_group()
-            return _styled(row, upright=True)
-        if name == "textbf":
-            return _styled(self.parse_group(), upright=True, bold=True)
+            _text_hyphens(row)
+            return _styled(row, upright=True, bold=name == "textbf")
+        if name in ("mathrm", "operatorname", "operatorname*", "mathsf", "mathtt"):
+            return _styled(self.parse_group(), upright=True)
         if name in ("textit", "textsl", "emph"):
             return self.parse_group_as_group()
         if name == "mathbf" or name == "boldsymbol" or name == "bm":
@@ -641,7 +731,35 @@ def _styled(
     """Apply styling to every Lit leaf in a parsed group."""
     for item in row.items:
         _apply_style(item, upright=upright, bold=bold, script=script)
-    return Group(row)
+    return Group(_merge_lits(row))
+
+
+def _merge_lits(row: Row) -> Row:
+    """Join neighbouring leaves of the same style into one run, so
+    ``\\mathrm{Beta}`` or ``\\operatorname{rel}`` is one word, not separately
+    spaced letters."""
+    out: list[MNode] = []
+    for node in row.items:
+        prev = out[-1] if out else None
+        if (
+            isinstance(node, Lit) and isinstance(prev, Lit) and prev.text
+            and (prev.upright, prev.bold, prev.script)
+            == (node.upright, node.bold, node.script)
+        ):
+            out[-1] = Lit(prev.text + node.text, prev.upright, prev.bold, prev.script)
+            continue
+        out.append(node)
+    return Row(out)
+
+
+def _text_hyphens(row: Row) -> None:
+    for item in row.items:
+        if isinstance(item, Lit):
+            item.text = item.text.replace(MINUS, "-")
+        elif isinstance(item, Group):
+            _text_hyphens(item.row)
+        elif isinstance(item, Row):
+            _text_hyphens(item)
 
 
 def _apply_style(node: MNode, *, upright: bool, bold: bool, script: str | None) -> None:
@@ -683,4 +801,114 @@ def parse(latex: str) -> Row:
     row = parser.parse_row()
     if parser._peek()[0] != "eof":
         raise MathUnsupported("syntax", "trailing tokens")
+    _attach_nary_bodies(row)
     return row
+
+
+_OPENERS = frozenset("([{⟨⌊⌈")
+_CLOSERS = frozenset(")]}⟩⌋⌉")
+
+#: leaves that end an n-ary operand at its level: binary +/−, relations,
+#: punctuation
+_ENDS_OPERAND = frozenset({
+    "+", MINUS, "-", "±", "∓", "=", "≠", "<", ">", "≤", "≥", "≦", "≧", "≪", "≫",
+    "≈", "≃", "≅", "≡", "∼", "∝", "→", "←", "↦", "⇒", "⟹", "⇐", "⇔", "⟺", "↔",
+    "∈", "∉", "⊂", "⊆", "⊃", "⊇", ",", ";", ":", "≔", "≜", "≺", "≻", "⪯", "⪰",
+    "∣", "|", ".", "&",
+})
+
+
+def _bracket_delta(node: MNode) -> int:
+    if isinstance(node, Lit):
+        if node.text in _OPENERS:
+            return 1
+        if node.text in _CLOSERS:
+            return -1
+    return 0
+
+
+def _ends_operand(node: MNode) -> bool:
+    if not isinstance(node, Lit):
+        return False
+    t = node.text.strip()
+    if not t:
+        # \quad/\qquad (em spaces) separate formulas; thin spaces do not
+        return "\u2003" in node.text
+    return t in _ENDS_OPERAND
+
+
+def _is_blank(node: MNode) -> bool:
+    return isinstance(node, Lit) and not node.text.strip()
+
+
+def _attach_nary_bodies(row: Row) -> None:
+    """TeX reads ``\\sum_i e_i \\sigma`` as the sum of ``e_i \\sigma``: move each
+    n-ary operator's operand (up to the next binary operator, relation or wide
+    space at the same level) into its body. An empty ``m:e`` shows as a dotted
+    placeholder box in Word."""
+    items = row.items
+    out: list[MNode] = []
+    i = 0
+    while i < len(items):
+        node = items[i]
+        i += 1
+        if isinstance(node, Nary) and node.body is None:
+            body: list[MNode] = []
+            depth = 0  # bare brackets are separate leaves: break only outside them
+            while i < len(items):
+                nxt = items[i]
+                delta = _bracket_delta(nxt)
+                if delta < 0 and depth == 0:
+                    break  # a closer that belongs to an outer group
+                if delta == 0 and depth == 0 and _ends_operand(nxt):
+                    break
+                depth += delta
+                body.append(nxt)
+                i += 1
+            # leading thin spaces belong to the layout, not the operand
+            while body and _is_blank(body[0]):
+                out.append(body.pop(0))
+            if body:
+                inner = Row(body)
+                _attach_nary_bodies(inner)  # nested sums
+                node.body = inner
+        _attach_in_children(node)
+        out.append(node)
+    row.items = out
+
+
+def _attach_in_children(node: MNode) -> None:
+    if isinstance(node, Row):
+        _attach_nary_bodies(node)
+    elif isinstance(node, Group):
+        _attach_nary_bodies(node.row)
+    elif isinstance(node, Sqrt):
+        _attach_nary_bodies(node.radicand)
+    elif isinstance(node, Accent | Fenced | GroupChr):
+        _attach_nary_bodies(node.base if isinstance(node, Accent) else node.body)
+    elif isinstance(node, Frac):
+        _attach_nary_bodies(node.num)
+        _attach_nary_bodies(node.den)
+    elif isinstance(node, Root):
+        _attach_nary_bodies(node.index)
+        _attach_nary_bodies(node.radicand)
+    elif isinstance(node, Sup):
+        _attach_in_children(node.base)
+        _attach_in_children(node.sup)
+    elif isinstance(node, Sub):
+        _attach_in_children(node.base)
+        _attach_in_children(node.sub)
+    elif isinstance(node, SubSup):
+        for part in (node.base, node.sub, node.sup):
+            _attach_in_children(part)
+    elif isinstance(node, LimLow):
+        _attach_in_children(node.base)
+        _attach_in_children(node.lim)
+    elif isinstance(node, Nary):
+        for limit in (node.sub, node.sup):
+            if limit is not None:
+                _attach_in_children(limit)
+    elif isinstance(node, Matrix):
+        for cells in node.rows:
+            for cell in cells:
+                _attach_nary_bodies(cell)

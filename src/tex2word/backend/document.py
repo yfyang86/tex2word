@@ -21,7 +21,7 @@ from ..report import ConversionReport
 from . import fields, images, raster
 from .numbering import (
     BULLET_NUM_ID,
-    DECIMAL_NUM_ID,
+    FIRST_LIST_NUM_ID,
     HEADING_APPENDIX_NUM_ID,
     HEADING_NUM_ID,
     PART_NUM_ID,
@@ -103,6 +103,12 @@ class DocumentWriter:
         self._comment_counter = 0
         self.math = MathCascade(report, image_renderer=image_math_renderer)
         fields.reset_bookmark_ids()
+        #: (numId, ilvl, start) of every ordered list's own numbering instance
+        self.list_restarts: list[tuple[int, int, int]] = []
+        #: number of Heading 1 paragraphs so far, and per SEQ counter the value it
+        #: had at that counter's last section-relative number
+        self._section_epoch = 0
+        self._seq_epoch: dict[str, int] = {}
 
     # -- public ----------------------------------------------------------- #
 
@@ -117,6 +123,13 @@ class DocumentWriter:
                 self._cite_items = {e.id: e for e in block.entries}
         body = el("w:body")
         self._emit_body(doc, body)
+        # real cached numbers for SEQ/STYLEREF/REF (viewers that don't update
+        # fields would otherwise show "Figure 1" everywhere and "see 0")
+        from .field_results import fill_field_results
+        from .numbering import numbering_xml
+
+        fill_field_results(body, numbering_xml(self.list_restarts),
+                           notes=[*self._footnotes, *self._endnotes])
         document = el("w:document", body)
         return serialize(document)
 
@@ -130,6 +143,7 @@ class DocumentWriter:
         has_title = bool(
             doc.meta.title or doc.meta.authors or doc.meta.affiliations
             or doc.meta.date or doc.meta.abstract or doc.meta.keywords
+            or doc.meta.subtitle or doc.meta.front_notes
         )
         if has_title:
             # the title/authors/abstract are set full-width above the columns.
@@ -163,6 +177,10 @@ class DocumentWriter:
             p = self._styled_paragraph("Title")
             self._inlines(meta.title, p)
             body.append(p)
+        if meta.subtitle:
+            p = self._styled_paragraph("Subtitle")
+            self._inlines([ir.Emphasis(list(meta.subtitle), "bold")], p)
+            body.append(p)
         for author in meta.authors:
             p = self._styled_paragraph("Subtitle")
             self._inlines(author, p)
@@ -170,6 +188,10 @@ class DocumentWriter:
         for affil in meta.affiliations:
             p = self._styled_paragraph("Subtitle")
             self._inlines([ir.Emphasis(list(affil), "italic")], p)
+            body.append(p)
+        for note in meta.front_notes:
+            p = self._styled_paragraph("Subtitle")
+            self._inlines(note, p)
             body.append(p)
         if meta.date:
             p = self._styled_paragraph("Subtitle")
@@ -231,6 +253,8 @@ class DocumentWriter:
 
     def _heading(self, block: ir.Heading, body: _Element) -> None:
         style = _HEADING_STYLE.get(block.level, "Heading5")
+        if style == "Heading1":
+            self._section_epoch += 1
         p = self._styled_paragraph(style)
         if block.part and block.numbered:
             ppr = p.find(_qn("w:pPr"))
@@ -306,19 +330,31 @@ class DocumentWriter:
         if line_label:
             start = fields.bookmark_start(_bookmark_for(line_label))
             p.append(start)
-        for run in fields.number_field("Equation", self.number_by_section):
+        for run in self._number_runs("Equation", self.number_by_section):
             p.append(run)
         if start is not None:
             p.append(fields.bookmark_end_for(start))
         p.append(self._run(")"))
         return p
 
-    def _list(self, block: ir.ItemList, body: _Element, level: int = 0) -> None:
+    def _list(
+        self, block: ir.ItemList, body: _Element, level: int = 0,
+        parent_num: int | None = None,
+    ) -> None:
         if block.description:
             for item in block.items:
                 self._description_item(item, body, level)
             return
-        num_id = DECIMAL_NUM_ID if block.ordered else BULLET_NUM_ID
+        if not block.ordered:
+            num_id = BULLET_NUM_ID
+        elif parent_num is not None and block.start == 1:
+            # nested in an ordered list: the parent's instance, whose deeper
+            # level restarts at each parent item -- (a), (b) under every item
+            num_id = parent_num
+        else:
+            # its own instance, so the list restarts at 1 (or at its start=)
+            num_id = FIRST_LIST_NUM_ID + len(self.list_restarts)
+            self.list_restarts.append((num_id, level, block.start))
         for item in block.items:
             self._list_item(item, body, level, num_id)
 
@@ -345,9 +381,11 @@ class DocumentWriter:
             self._bookmark_list_item(item, p)
             body.append(p)
             marked = True
+        ordered_parent = num_id != BULLET_NUM_ID
         for inner in item.blocks:
             if isinstance(inner, ir.ItemList):
-                self._list(inner, body, level + 1)
+                self._list(inner, body, level + 1,
+                           parent_num=num_id if ordered_parent else None)
                 continue
             if not isinstance(inner, ir.Paragraph):
                 self._block(inner, body)
@@ -518,8 +556,7 @@ class DocumentWriter:
             # No convertible graphic (e.g. a TikZ picture): compile it to an image
             # if a TeX engine is available, else fall back to a caption-only figure
             # (no developer-facing placeholder text in the document).
-            rendered = self._render_tikz(block)
-            if rendered is not None:
+            for rendered in self._render_tikz(block):
                 content.append(rendered)
         else:
             content.append(self._image_paragraph(block.image))
@@ -531,19 +568,29 @@ class DocumentWriter:
             )
         body.append(sdt)
 
-    def _render_tikz(self, block: ir.Figure) -> _Element | None:
-        """Compile a figure's TikZ/PGF source to an embedded PNG, or None."""
+    def _render_tikz(self, block: ir.Figure) -> list[_Element]:
+        """Compile each of a figure's TikZ/PGF pictures to an embedded PNG.
+
+        A figure may stack several pictures (two ``\\input`` TikZ files in one
+        ``figure*``): each becomes its own centred image paragraph, in order.
+        """
         if not block.source:
-            return None
+            return []
         try:
             from . import raster, tikz
 
-            result = tikz.render(block.source, self.preamble)
+            pictures = tikz.extract_pictures(block.source)
+            results = [
+                tikz.render_picture(pic, block.source, self.preamble) for pic in pictures
+            ]
         except Exception:  # never let a render bug abort the conversion
-            return None
-        if result is None:
+            return []
+        if not pictures and not any(f"\\begin{{{env}}}" in block.source
+                                    for env in tikz.DRAWING_ENVS):
+            return []  # no drawing at all: the parser already reported the figure
+        if not pictures or any(r is None for r in results):
             # Be specific about why so the user can fix their setup.
-            if tikz.extract_picture(block.source) is None:
+            if not pictures:
                 reason = "no recognised TikZ/PGF picture in the figure"
             elif not tikz.available_engines():
                 reason = "no TeX engine on PATH (install e.g. xelatex/pdflatex)"
@@ -552,15 +599,19 @@ class DocumentWriter:
             else:
                 reason = "the TikZ compile failed (set TEX2WORD_TIKZ_DEBUG=1 to see the log)"
             self.report.warn("figure", f"TikZ figure not rendered: {reason}")
-            return None
-        data, w, h = result
-        self.report.info("figure", "rendered TikZ figure to an image")
-        p = self._styled_paragraph("Normal")
-        self._set_align(p, "center")
-        r = el("w:r")
-        r.append(self._register_and_draw(data, images.ImageInfo("png", w, h), "tikz.png"))
-        p.append(r)
-        return p
+        out: list[_Element] = []
+        for result in results:
+            if result is None:
+                continue
+            data, w, h = result
+            self.report.info("figure", "rendered TikZ figure to an image")
+            p = self._styled_paragraph("Normal")
+            self._set_align(p, "center")
+            r = el("w:r")
+            r.append(self._register_and_draw(data, images.ImageInfo("png", w, h), "tikz.png"))
+            p.append(r)
+            out.append(p)
+        return out
 
     def _subfigures(self, block: ir.Figure, body: _Element) -> None:
         # Sub-figures sit side by side in a borderless 1-row table; each cell
@@ -810,6 +861,14 @@ class DocumentWriter:
             p.append(run)
         body.append(p)
 
+    def _number_runs(self, counter: str, by_section: bool) -> list[_Element]:
+        """``fields.number_field`` plus an explicit restart on the first
+        section-relative number of each counter after a new Heading 1."""
+        restart = by_section and self._seq_epoch.get(counter) != self._section_epoch
+        if by_section:
+            self._seq_epoch[counter] = self._section_epoch
+        return fields.number_field(counter, by_section, restart=restart)
+
     def _caption(
         self,
         counter: str,
@@ -829,7 +888,7 @@ class DocumentWriter:
         if name:
             start = fields.bookmark_start(name)
             p.append(start)
-        for run in fields.number_field(counter, self.number_by_section):
+        for run in self._number_runs(counter, self.number_by_section):
             p.append(run)
         if start is not None:
             p.append(fields.bookmark_end_for(start))
@@ -869,6 +928,10 @@ class DocumentWriter:
         body.append(sdt)
 
     def _code_block(self, block: ir.CodeBlock, body: _Element) -> None:
+        if block.caption or block.label:
+            # lstlisting caption=/label=: "Listing N: ..." above the code
+            body.append(self._caption("Listing", block.caption or [], block.label,
+                                      numbered=block.caption_numbered))
         for line in block.text.split("\n"):
             p = self._styled_paragraph("SourceCode")
             p.append(self._run(line))
@@ -942,7 +1005,7 @@ class DocumentWriter:
             if block.label:
                 start = fields.bookmark_start(_bookmark_for(block.label))
                 cap.append(start)
-            for run in fields.number_field("Algorithm", self.number_by_section):
+            for run in self._number_runs("Algorithm", self.number_by_section):
                 cap.append(run)
             if start is not None:
                 cap.append(fields.bookmark_end_for(start))
@@ -992,7 +1055,10 @@ class DocumentWriter:
             if block.label:
                 start = fields.bookmark_start(_bookmark_for(block.label))
                 p.append(start)
-            for run in fields.number_field(block.counter, self.number_by_section):
+            # \newtheorem{thm}{Theorem}[section] numbers "section.n" even
+            # when the document's figures/equations are numbered flat
+            by_section = self.number_by_section or block.within in ("section", "chapter")
+            for run in self._number_runs(block.counter, by_section):
                 p.append(run)
             if start is not None:
                 p.append(fields.bookmark_end_for(start))
@@ -1172,12 +1238,26 @@ class DocumentWriter:
         sub(rpr, "w:rStyle", **{"w:val": "FootnoteReference"})
         sub(r, "w:footnoteReference", **{"w:id": str(note_id)})
         p.append(r)
-        # the footnote content paragraph (lives in footnotes.xml)
-        fp = self._styled_paragraph("FootnoteText")
+        # the footnote content (lives in footnotes.xml)
         mark = el("w:r")
         mark_rpr = sub(mark, "w:rPr")
         sub(mark_rpr, "w:rStyle", **{"w:val": "FootnoteReference"})
         sub(mark, "w:footnoteRef")
+        if node.blocks:
+            footnote = el("w:footnote", **{"w:id": str(note_id)})
+            for block in node.blocks:
+                self._block(block, footnote, default_style="FootnoteText")
+            first = footnote.find(_qn("w:p"))
+            if first is None or footnote.index(first) != 0:
+                first = self._styled_paragraph("FootnoteText")
+                footnote.insert(0, first)
+            ppr = first.find(_qn("w:pPr"))
+            at = 0 if ppr is None else first.index(ppr) + 1
+            first.insert(at, mark)
+            first.insert(at + 1, self._run(" "))
+            self._footnotes.append(footnote)
+            return
+        fp = self._styled_paragraph("FootnoteText")
         fp.append(mark)
         fp.append(self._run(" "))
         self._inlines(node.inlines, fp)
@@ -1367,6 +1447,7 @@ _REF_NAMES = {
     "section": ("sec. ", "Section "),
     "theorem": ("thm. ", "Theorem "),
     "algorithm": ("alg. ", "Algorithm "),
+    "listing": ("lst. ", "Listing "),
     "equation": ("eq. ", "Equation "),
 }
 _REF_PREFIX = {

@@ -186,9 +186,9 @@ def test_underset_renders_as_matrix():
 def test_textrm_is_upright():
     o = omml.render_inline(r"\textrm{Var}")
     txt = xml(o)
-    # letters render upright (m:nor); they appear as individual runs
+    # letters render upright (m:nor), as one word-run (#44)
     assert "<m:nor/>" in txt
-    assert ">V<" in txt and ">a<" in txt and ">r<" in txt
+    assert ">Var<" in txt
 
 
 def test_new_relation_symbols():
@@ -320,7 +320,7 @@ def test_mathbin_renders_content_transparently():
 def test_mathop_renders_content_transparently():
     # \mathop{\rm im} T  (as in the oxmathproblems restriction example)
     txt = xml(omml.render_inline(r"\mathop{\rm im} T"))
-    assert ">i<" in txt and ">m<" in txt
+    assert ">im<" in txt
 
 
 def test_restriction_symbol_present():
