@@ -51,7 +51,10 @@ _NUMBERED_SECTIONS = {"chapter", "section", "subsection", "subsubsection"}
 # spacing/box macros that print nothing (their argument is consumed)
 _DROP_MACROS = {"phantom", "hphantom", "vphantom", "rule"}
 # box wrappers that are visually transparent: emit the (last) content group
-_TRANSPARENT_BOX = {"mbox", "fbox", "framebox", "makebox", "raisebox"}
+_TRANSPARENT_BOX = {
+    "mbox", "fbox", "framebox", "makebox", "raisebox", "rotatebox", "resizebox",
+    "scalebox", "makecell", "thead",
+}
 # IEEEtran author-block wrappers: render their content (name / affiliation text).
 _AUTHOR_BLOCK = {"IEEEauthorblockN", "IEEEauthorblockA"}
 
@@ -242,7 +245,8 @@ _IGNORE_MACROS = {
     "newcounter", "addtocounter", "refstepcounter", "stepcounter",
     # ACM/IEEE front-matter + layout macros with no body-visible output. The
     # affiliation sub-fields take an argument (consumed by their MacroSpec below).
-    "authornote", "authornotemark", "balance", "acmnote",
+    "authornote", "authornotemark", "balance", "nobalance", "acmnote",
+    "onecolumn", "twocolumn", "typeout",
     "institution", "department", "city", "state", "country",
     "postcode", "streetaddress", "position",
 }
@@ -511,6 +515,41 @@ def _has_captionof(nodes: list, kind: str) -> bool:
     return False
 
 
+def _unwrap_table_layout(nodes: list) -> list:
+    """The children of a ``table`` float with layout wrappers opened up.
+
+    ``\\rotatebox``/``\\resizebox``/``\\scalebox`` contribute their content,
+    and a lone ``minipage`` (the landscape idiom
+    ``\\rotatebox{90}{\\begin{minipage}...}``) its body, so the float's
+    caption, label and tabular are found inside.
+    """
+    minipages = sum(
+        1 for n in nodes
+        if isinstance(n, LatexEnvironmentNode) and n.environmentname == "minipage"
+    )
+    out: list = []
+    for n in nodes:
+        if isinstance(n, LatexMacroNode) and n.macroname in _BOX_WRAPPERS:
+            groups = _brace_groups(n)
+            out.extend(_unwrap_table_layout(groups[-1]) if groups else [])
+        elif (
+            minipages == 1 and isinstance(n, LatexEnvironmentNode)
+            and n.environmentname == "minipage"
+        ):
+            out.extend(_unwrap_table_layout(n.nodelist))
+        else:
+            out.append(n)
+    return out
+
+
+#: amsart \@namedef{subjclassname@JEL}{JEL classification}
+_SUBJCLASS_NAME_RE = re.compile(r"\\@namedef\s*\{subjclassname@([^}]*)\}\s*\{([^{}]*)\}")
+
+
+#: scaling/rotation wrappers whose last {} argument is their content
+_BOX_WRAPPERS = ("resizebox", "scalebox", "rotatebox")
+
+
 #: horizontal glue that can sit between side-by-side minipages without breaking
 #: the row (they don't produce content of their own).
 _LAYOUT_GLUE_MACROS = {
@@ -555,6 +594,8 @@ class _Builder:
         self.book_mode = False  # book/report class: \chapter is the top level
         #: extra \label -> the label its target already carries
         self.label_aliases: dict[str, str] = {}
+        #: amsart \subjclass labels from \@namedef{subjclassname@X}{label}
+        self.subjclass_names: dict[str, str] = {}
         self.in_appendix = False  # seen \appendix -> later sections use letters
         # \footnotemark placeholders awaiting their \footnotetext{...} content
         self._pending_footmarks: list[ir.Footnote] = []
@@ -740,6 +781,12 @@ class _Builder:
             return  # the enclosing figure's caption, collected separately
         if name in ("href", "url"):
             self._inline_link(node, out)
+            return
+        if name in ("path", "nolinkurl"):  # url-style path, not a link: monospace
+            groups = _brace_groups(node)
+            text = "".join(n.latex_verbatim() for n in groups[-1]) if groups else ""
+            if text:
+                out.append(ir.Emphasis([ir.Text(text)], "typewriter"))
             return
         if name == "hyperref":  # \hyperref[label]{text} -> internal link to label
             opt = _optional_group(node)
@@ -1050,7 +1097,18 @@ class _Builder:
             ):
                 self._meta_macro(node)
                 continue
-            if isinstance(node, LatexMacroNode) and node.macroname in ("resizebox", "scalebox"):
+            if isinstance(node, LatexMacroNode) and node.macroname == "twocolumn":
+                # \twocolumn[full-width header]: the optional argument is content
+                flush()
+                for a in node.nodeargd.argnlist if node.nodeargd else []:
+                    if isinstance(a, LatexGroupNode):
+                        out.extend(self.blocks(a.nodelist))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "subjclass":
+                flush()
+                out.append(self._subjclass(node))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname in _BOX_WRAPPERS:
                 # box-scaling wrappers are transparent: process their content as
                 # blocks so nested tabulars/minipages survive (\resizebox{w}{h}{X}).
                 flush()
@@ -1238,6 +1296,28 @@ class _Builder:
         ir.Heading | ir.MathBlock | ir.Figure | ir.Table | ir.Theorem
         | ir.Algorithm | ir.ListItem | None
     ) = None
+
+    def _subjclass(self, node: LatexMacroNode) -> ir.Paragraph:
+        """amsart ``\\subjclass[scheme]{codes}`` -> "<label>: codes".
+
+        The label comes from ``\\@namedef{subjclassname@scheme}{...}`` when the
+        document declares one, else amsart's default for a year scheme.
+        """
+        scheme = ""
+        for a in node.nodeargd.argnlist if node.nodeargd else []:
+            if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+                scheme = _chars_of(a.nodelist).strip()
+        label = self.subjclass_names.get(scheme)
+        if label is None:
+            if scheme == "JEL":
+                label = "JEL classification"
+            elif scheme.isdigit():
+                label = f"{scheme} Mathematics Subject Classification"
+            else:
+                label = "Mathematics Subject Classification"
+        groups = _brace_groups(node)
+        codes = self.inlines(groups[-1]) if groups else []
+        return ir.Paragraph([ir.Emphasis([ir.Text(f"{label}: ")], "bold"), *codes])
 
     def _set_label(self, label: str) -> None:
         """Attach ``\\label{label}`` to the current target.
@@ -1711,12 +1791,24 @@ class _Builder:
         caption_numbered = True
         label: str | None = None
         content: list = []
-        for child in node.nodelist:
+        for child in _unwrap_table_layout(node.nodelist):
             if isinstance(child, LatexMacroNode) and child.macroname == "caption":
                 caption = self.inlines(_group_nodes(child))
                 caption_numbered = not _has_star(child)
+            elif (
+                isinstance(child, LatexMacroNode) and child.macroname == "captionof"
+                and caption is None and _has_captionof([child], "table")
+            ):
+                # \captionof{table}{...} inside the float (the rotated-minipage
+                # landscape idiom) is the float's caption
+                caption = self.inlines(_group_nodes(child))
+                caption_numbered = not _has_star(child)
             elif isinstance(child, LatexMacroNode) and child.macroname == "label":
-                label = _chars_of(_group_nodes(child))
+                lab = _chars_of(_group_nodes(child))
+                if label is None:
+                    label = lab
+                elif lab and lab != label:
+                    self.label_aliases.setdefault(lab, label)
             else:
                 content.append(child)
         sub_blocks = self.blocks(content)
@@ -2648,7 +2740,15 @@ def _build_context(
             MacroSpec("cmidrule", "{"),
             MacroSpec("cline", "{"),
             MacroSpec("resizebox", "{{{"),
-            MacroSpec("scalebox", "{{"),
+            MacroSpec("scalebox", "{[{"),
+            MacroSpec("rotatebox", "[{{"),
+            MacroSpec("makecell", "[{"),
+            MacroSpec("thead", "[{"),
+            MacroSpec("path", "{"),
+            MacroSpec("nolinkurl", "{"),
+            MacroSpec("typeout", "{"),
+            MacroSpec("twocolumn", "["),
+            MacroSpec("subjclass", "[{"),
             MacroSpec("setlength", "{{"),
             MacroSpec("phantom", "{"),
             MacroSpec("hphantom", "{"),
@@ -2974,6 +3074,8 @@ def parse_document(
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
     builder.box_envs |= set(builder.box_styles)
     builder.book_mode = _is_book_class(expanded)
+    for m in _SUBJCLASS_NAME_RE.finditer(expanded):
+        builder.subjclass_names[m.group(1).strip()] = m.group(2).strip()
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)
     _collect_glossary_entries(expanded, builder.glossary)  # \newglossaryentry terms

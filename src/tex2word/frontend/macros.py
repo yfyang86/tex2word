@@ -487,6 +487,13 @@ def expand_macros(source: str, base_dir: str = ".") -> str:
     """Collect user macros (incl. local ``.sty`` packages) and expand them."""
     pkg_macros = _load_local_package_macros(source, base_dir)
     macros, stripped = collect_macros(source)
+    # A document redefining a structural command through LaTeX internals
+    # (\def\paragraph{\@startsection{paragraph}...} inside \makeatletter) only
+    # restyles it; expanding that would replace every heading with raw markup.
+    macros = {
+        name: mac for name, mac in macros.items()
+        if not (name in _PROTECTED_NAMES and _AT_COMMAND_RE.search(mac.body))
+    }
     # document-body definitions take precedence over package definitions
     merged = {**pkg_macros, **macros}
     return expand(stripped, merged)
