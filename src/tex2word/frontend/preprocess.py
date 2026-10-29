@@ -26,39 +26,67 @@ def strip_comments(source: str) -> str:
     return _COMMENT_RE.sub("", source)
 
 
-def flatten_inputs(source: str, base_dir: str, _depth: int = 0) -> str:
-    """Inline ``\\input``/``\\include`` (and import-package ``\\import``) files."""
+def flatten_inputs(
+    source: str, base_dir: str, _depth: int = 0, _dirs: list[str] | None = None
+) -> str:
+    """Inline ``\\input``/``\\include`` (and import-package ``\\import``) files.
+
+    As in TeX, a nested ``\\input`` resolves against the main document's
+    directory first and only then against the including file's directory
+    (``gen/outer.tex`` doing ``\\input{gen/inner}`` means ``gen/inner.tex``).
+    Inside an ``\\import``-ed file, the import directory comes first.
+    """
     if _depth > 20:
         return source
+    dirs = _dirs or [base_dir]
 
-    def _inline(path: str) -> str | None:
-        if os.path.isfile(path):
-            with open(path, encoding="utf-8") as fh:
-                inner = strip_comments(fh.read())
-            return flatten_inputs(inner, os.path.dirname(path) or base_dir, _depth + 1)
+    def _inline(path: str, nested: list[str]) -> str:
+        with open(path, encoding="utf-8") as fh:
+            inner = strip_comments(fh.read())
+        return flatten_inputs(inner, base_dir, _depth + 1, _dedupe(nested))
+
+    def _find(name: str, search: list[str]) -> str | None:
+        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
+        for directory in search:
+            for cand in candidates:
+                path = os.path.join(directory, cand)
+                if os.path.isfile(path):
+                    return path
         return None
 
+    def _glue(match: re.Match[str], text: str) -> str:
+        # \protect\input{f} must not glue f's first word onto \protect
+        before = match.string[max(0, match.start() - 64) : match.start()]
+        if re.search(r"\\[A-Za-z@]+$", before):
+            return " " + text
+        return text
+
     def repl(match: re.Match[str]) -> str:
-        name = match.group(1).strip()
-        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
-        for cand in candidates:
-            inlined = _inline(os.path.join(base_dir, cand))
-            if inlined is not None:
-                return inlined
-        return ""  # missing include -> drop (graceful degradation)
+        path = _find(match.group(1).strip(), dirs)
+        if path is None:
+            return ""  # missing include -> drop (graceful degradation)
+        return _glue(match, _inline(path, [dirs[0], os.path.dirname(path)]))
 
     def import_repl(match: re.Match[str]) -> str:
-        # \import{dir/}{file}: the file lives under dir, relative to base_dir
+        # \import{dir/}{file}: the file lives under dir, relative to the
+        # current file; its own \input{}s look in dir first
         directory, name = match.group(1).strip(), match.group(2).strip()
-        candidates = [name, name + ".tex"] if not name.endswith(".tex") else [name]
-        for cand in candidates:
-            inlined = _inline(os.path.join(base_dir, directory, cand))
-            if inlined is not None:
-                return inlined
-        return ""
+        path = _find(name, [os.path.join(d, directory) for d in dirs])
+        if path is None:
+            return ""
+        return _glue(match, _inline(path, [os.path.dirname(path), *dirs]))
 
     source = _IMPORT_RE.sub(import_repl, source)
     return _INPUT_RE.sub(repl, source)
+
+
+def _dedupe(dirs: list[str]) -> list[str]:
+    out: list[str] = []
+    for d in dirs:
+        norm = os.path.normpath(d or ".")
+        if norm not in out:
+            out.append(norm)
+    return out
 
 
 #: \verb* (show-spaces form) -> \verb, which pylatexenc parses natively.
