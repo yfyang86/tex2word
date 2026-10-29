@@ -7,7 +7,12 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.1.0 — synthetic probes, journal front matter & real field numbers
+
+A synthetic-LaTeX probe harness (below) found most of what this release
+fixes: 1,552 of its ~8,000 generated documents failed on 1.0.9, 115 still do
+(tracked in `tools/synth/baseline.json` and issue #45). Also fixes everything
+in issue #44.
 
 ### Added
 
@@ -38,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also render correctly in LibreOffice.
 - **Ordered lists restart**: a second `enumerate` used to continue at 4;
   enumitem `start=` and `\setcounter{enumi}` are honoured.
+- **References**: `lstlisting`/`\lstinputlisting` `caption=`/`label=` and
+  minted's `listing` float make a numbered "Listing N"; `\subref` prints the
+  panel letter and `\ref` to a panel "1a"; a subfig `\subfloat[..\label{}]`
+  label resolves.
+- **TeX primitives**: `\let`, `\expandafter\def\csname…\endcsname`,
+  `\@namedef`, `@`-named macros, delimited `\def\x(#1,#2)`; `\providecommand`
+  no longer overrides built-in commands; user counters (`\newcounter`,
+  `\stepcounter`, `\arabic`/`\roman`/`\Alph`/`\the<counter>`, …) are
+  evaluated; `\newlength`/`\addtolength` are silent; `\endinput`, `\input
+  file` without braces and `\subfile` work.
 
 ### Fixed (found by the probes)
 
@@ -63,14 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `comment`/`CCSXML` are dropped; acknowledgments environments get their
   heading; `IEEEkeywords` and elsarticle `keyword` become keywords.
 
-## Fixes from the Rust port's findings (#44)
+### Fixed (issue #44: the Rust port's findings)
 
 Two real papers (a TikZ-heavy arXiv paper and an amsart economics manuscript)
 converted with the Rust port surfaced these; all reproduced on 1.0.9. Two
 synthetic acceptance papers (`tests/fixtures/tikz_paper`, `amsart_paper`, MIT,
 from rstex2word) now cover every item.
-
-### Fixed
 
 - **Citations and `\ref` resolve everywhere**: table cells, figure/table
   captions, theorem-like blocks, `\textcolor`/size spans and the front matter
