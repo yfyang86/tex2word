@@ -30,96 +30,15 @@
     "style:w:b"
    ]
   },
-  "doc/counter-value": {
-   "signatures": [
-    "expect-text:AF",
-    "expect-text:N6",
-    "expect-text:Rvi",
-    "raw-ir:\\Alph",
-    "raw-ir:\\arabic",
-    "raw-ir:\\roman",
-    "tex-leak:\\Alphcnt",
-    "tex-leak:\\arabiccnt",
-    "tex-leak:\\romancnt",
-    "warning:\\Alph",
-    "warning:\\arabic",
-    "warning:\\roman"
-   ]
-  },
-  "doc/csname": {
-   "signatures": [
-    "raw-ir:\\csname",
-    "raw-ir:\\def",
-    "raw-ir:\\endcsname",
-    "raw-ir:\\expandafter",
-    "raw-ir:\\kp",
-    "tex-leak:\\csname",
-    "tex-leak:\\def",
-    "tex-leak:\\endcsnameKEEP",
-    "tex-leak:\\expandafter",
-    "tex-leak:\\kp",
-    "warning:\\csname",
-    "warning:\\def",
-    "warning:\\endcsname",
-    "warning:\\expandafter",
-    "warning:\\kp"
-   ]
-  },
-  "doc/def-delimited": {
-   "signatures": [
-    "expect-text:KEEP1+KEEP2 done",
-    "raw-ir:\\def",
-    "raw-ir:\\pt",
-    "tex-leak:\\def",
-    "tex-leak:\\pt",
-    "warning:\\def",
-    "warning:\\pt"
-   ]
-  },
-  "doc/endinput": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "raw-ir:\\endinput",
-    "tex-leak:\\endinput",
-    "warning:\\endinput"
-   ]
-  },
   "doc/graphicspath": {
    "signatures": [
     "expect-xml:0",
     "warning:includegraphics"
    ]
   },
-  "doc/input-no-braces": {
-   "signatures": [
-    "expect-text:KEEP1",
-    "raw-ir:\\input",
-    "tex-leak:\\input",
-    "warning:\\input"
-   ]
-  },
-  "doc/let-alias": {
-   "signatures": [
-    "raw-ir:\\let",
-    "raw-ir:\\strong",
-    "style:w:b",
-    "tex-leak:\\let",
-    "tex-leak:\\strong",
-    "tex-leak:\\strongKEEP",
-    "warning:\\let",
-    "warning:\\strong"
-   ]
-  },
   "doc/longtable-heads": {
    "signatures": [
     "expect-absent:(cont.)"
-   ]
-  },
-  "doc/makeatletter-macro": {
-   "signatures": [
-    "raw-ir:\\makeatletterx",
-    "tex-leak:\\makeatletterxKEEP",
-    "warning:\\makeatletterx"
    ]
   },
   "doc/multicols-columnbreak": {
@@ -134,12 +53,6 @@
     "raw-ir:\\qedhere",
     "tex-leak:\\qedhere",
     "warning:\\qedhere"
-   ]
-  },
-  "doc/providecommand-existing": {
-   "signatures": [
-    "expect-absent:DROP1",
-    "expect-text:LaTeX"
    ]
   },
   "doc/rowcolors": {
@@ -158,40 +71,11 @@
     "warning:\\addcontentsline"
    ]
   },
-  "doc/setlength-silent": {
-   "signatures": [
-    "raw-ir:\\addtolength",
-    "raw-ir:\\gap",
-    "raw-ir:\\newlength",
-    "tex-leak:\\addtolength",
-    "tex-leak:\\gap",
-    "tex-leak:\\newlength",
-    "warning:\\addtolength",
-    "warning:\\gap",
-    "warning:\\newlength"
-   ]
-  },
-  "doc/subfile": {
-   "signatures": [
-    "expect-text:KEEP1",
-    "raw-ir:\\subfile",
-    "tex-leak:\\subfilesub",
-    "warning:\\subfile"
-   ]
-  },
   "doc/tablefootnote": {
    "signatures": [
     "raw-ir:\\tablefootnote",
     "tex-leak:\\tablefootnoteKEEP",
     "warning:\\tablefootnote"
-   ]
-  },
-  "doc/the-counter": {
-   "signatures": [
-    "expect-text:V3",
-    "raw-ir:\\thecnt",
-    "tex-leak:\\thecnt",
-    "warning:\\thecnt"
    ]
   },
   "math/backslash-setminus@display": {

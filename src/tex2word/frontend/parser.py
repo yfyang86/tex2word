@@ -29,6 +29,7 @@ from .. import ir
 from ..report import ConversionReport
 from . import siunitx
 from .colors import ColorTable
+from .counters import resolve_counters
 from .frontmatter import FRONT_MATTER, FrontMatterMixin, preamble_calls
 from .frontmatter import SPECS as _FRONT_SPECS
 from .macros import expand_macros, local_package_sources
@@ -275,7 +276,8 @@ _IGNORE_MACROS = {
     "newcounter", "addtocounter", "refstepcounter", "stepcounter",
     # ACM/IEEE front-matter + layout macros with no body-visible output. The
     # affiliation sub-fields take an argument (consumed by their MacroSpec below).
-    "makeatletter", "makeatother", "selectlanguage",
+    "makeatletter", "makeatother", "selectlanguage", "addtolength", "settowidth",
+    "settoheight", "settodepth", "deflength",
     "authornote", "authornotemark", "balance", "nobalance", "acmnote",
     "onecolumn", "twocolumn", "typeout",
 }
@@ -3104,7 +3106,9 @@ def _build_context(
             MacroSpec("typeout", "{"),
             MacroSpec("twocolumn", "["),
             MacroSpec("subjclass", "[{"),
-            MacroSpec("setlength", "{{"),
+            MacroSpec("setlength", "{{"), MacroSpec("addtolength", "{{"),
+            MacroSpec("settowidth", "{{"), MacroSpec("settoheight", "{{"),
+            MacroSpec("settodepth", "{{"), MacroSpec("deflength", "{{"),
             MacroSpec("phantom", "{"),
             MacroSpec("hphantom", "{"),
             MacroSpec("vphantom", "{"),
@@ -3202,6 +3206,23 @@ def _build_context(
         prepend=True,
     )
     return ctx
+
+
+_KERNEL_COMMANDS = frozenset({
+    "LaTeX", "TeX", "LaTeXe", "today", "textbf", "textit", "emph", "texttt", "textrm",
+    "textsf", "textsc", "underline", "footnote", "caption", "label", "ref", "cite", "url",
+    "href", "item", "section", "includegraphics", "maketitle", "title", "author", "date",
+    "frac", "sqrt", "mathbb", "mathbf", "mathrm", "mathcal", "text", "hspace", "vspace",
+    "newline", "par", "quad", "qquad", "ldots", "dots", "cdots", "alpha", "beta", "gamma",
+})
+
+
+def _known_commands() -> frozenset[str]:
+    """Commands the converter itself handles (``\\providecommand`` keeps them)."""
+    return _KERNEL_COMMANDS | frozenset(
+        [*_SECTION_LEVELS, *_EMPHASIS, *_EMPHASIS_DECL, *_FONT_SIZE_HP, *_CITE_MODES,
+         *_REF_KINDS, *_TEXT_SYMBOLS, *_IGNORE_MACROS, *_TRANSPARENT_BOX]
+    )
 
 
 def _split_document(source: str) -> tuple[str, str]:
@@ -3403,7 +3424,10 @@ def parse_document(
     engine instead of the built-in heuristic.
     """
     report = ConversionReport()
-    expanded = replace_inline_tikz(expand_macros(preprocess(source, base_dir), base_dir))
+    expanded = replace_inline_tikz(
+        expand_macros(preprocess(source, base_dir), base_dir, known=_known_commands())
+    )
+    expanded = resolve_counters(expanded)  # \newcounter values: \arabic{c}, \thec, ...
     # after expansion, so macro-generated \vskip/\faX are cleaned up too
     expanded = normalize_spacing_and_icons(expanded)
     body, preamble = _split_document(expanded)
@@ -3438,7 +3462,7 @@ def parse_document(
         _fill_meta_from_preamble_calls(preamble, ctx, builder, only=(
             "address", "signature", "name", "title", "phone", "mobile", "homepage",
             "social", "extrainfo", "email"))
-    for m in _SUBJCLASS_NAME_RE.finditer(expanded):
+    for m in _SUBJCLASS_NAME_RE.finditer(source):  # before \@namedef is expanded
         builder.subjclass_names[m.group(1).strip()] = m.group(2).strip()
     _collect_color_defs(expanded, builder.colors)  # \definecolor/\colorlet (preamble + body)
     _collect_acronyms(expanded, builder.acronyms)   # \newacronym (preamble + body)

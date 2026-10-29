@@ -12,7 +12,13 @@ from .conditionals import resolve_conditionals
 # Eating the newline is essential: otherwise a full-line ``% comment`` collapses
 # to a blank line and is misread as a paragraph break (LaTeX soft newlines and
 # comment lines do NOT start a new paragraph -- only a blank line / \par does).
-_INPUT_RE = re.compile(r"\\(?:input|include)\s*\{([^}]+)\}")
+# \input{f}, \include{f}, and the plain-TeX \input f (ended by a space)
+_INPUT_RE = re.compile(
+    r"\\(?:input|include)\s*\{([^}]+)\}|\\input[ \t]+(?![\\{])([^\s{}%\\]+)"
+)
+# subfiles: \subfile{f} / \subfileinclude{f} inline the subfile's document body
+_SUBFILE_RE = re.compile(r"\\subfile(?:include)?\s*\{([^}]+)\}")
+_ENDINPUT_RE = re.compile(r"\\endinput(?![A-Za-z@])")
 # import package: \import{dir/}{file}, \subimport{dir/}{file} (and *from variants)
 _IMPORT_RE = re.compile(
     r"\\(?:sub)?(?:import|includefrom|inputfrom)\s*\{([^}]+)\}\s*\{([^}]+)\}"
@@ -122,9 +128,18 @@ def flatten_inputs(
         return source
     dirs = _dirs or [base_dir]
 
-    def _inline(path: str, nested: list[str]) -> str:
+    def _inline(path: str, nested: list[str], *, body_only: bool = False) -> str:
         with open(path, encoding="utf-8") as fh:
             inner = strip_comments(_control_chars(fh.read()))
+        if body_only:  # a subfile: only what is between \begin/\end{document}
+            b = inner.find("\\begin{document}")
+            e = inner.rfind("\\end{document}")
+            if b >= 0:
+                inner = inner[b + len("\\begin{document}"):e if e > b else len(inner)]
+        end = _ENDINPUT_RE.search(inner)
+        if end:  # \endinput: TeX stops reading this file after the current line
+            line_end = inner.find("\n", end.end())
+            inner = inner[:end.start()] + (inner[end.end():line_end] if line_end >= 0 else "")
         return flatten_inputs(inner, base_dir, _depth + 1, _dedupe(nested))
 
     def _find(name: str, search: list[str]) -> str | None:
@@ -144,10 +159,17 @@ def flatten_inputs(
         return text
 
     def repl(match: re.Match[str]) -> str:
-        path = _find(match.group(1).strip(), dirs)
+        path = _find((match.group(1) or match.group(2)).strip(), dirs)
         if path is None:
             return ""  # missing include -> drop (graceful degradation)
         return _glue(match, _inline(path, [dirs[0], os.path.dirname(path)]))
+
+    def subfile_repl(match: re.Match[str]) -> str:
+        # a subfile's own paths are relative to its directory (subfiles package)
+        path = _find(match.group(1).strip(), dirs)
+        if path is None:
+            return ""
+        return _glue(match, _inline(path, [os.path.dirname(path), dirs[0]], body_only=True))
 
     def import_repl(match: re.Match[str]) -> str:
         # \import{dir/}{file}: the file lives under dir, relative to the
@@ -159,6 +181,7 @@ def flatten_inputs(
         return _glue(match, _inline(path, [os.path.dirname(path), *dirs]))
 
     source = _IMPORT_RE.sub(import_repl, source)
+    source = _SUBFILE_RE.sub(subfile_repl, source)
     return _INPUT_RE.sub(repl, source)
 
 
