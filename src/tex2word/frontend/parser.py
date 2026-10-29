@@ -553,6 +553,8 @@ class _Builder:
         self._acr_seen: set[str] = set()
         self.nocite_keys: list[str] = []  # \nocite{key} / \nocite{*}
         self.book_mode = False  # book/report class: \chapter is the top level
+        #: extra \label -> the label its target already carries
+        self.label_aliases: dict[str, str] = {}
         self.in_appendix = False  # seen \appendix -> later sections use letters
         # \footnotemark placeholders awaiting their \footnotetext{...} content
         self._pending_footmarks: list[ir.Footnote] = []
@@ -732,9 +734,7 @@ class _Builder:
             )
             return
         if name == "label":
-            label = _chars_of(_group_nodes(node))
-            if self._labelable is not None and label:
-                self._labelable.label = label
+            self._set_label(_chars_of(_group_nodes(node)))
             return
         if self._in_figure_body and name in ("caption", "captionof"):
             return  # the enclosing figure's caption, collected separately
@@ -1028,11 +1028,7 @@ class _Builder:
                 out.extend(self.blocks(node.nodelist))
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname == "label":
-                label = _chars_of(_group_nodes(node))
-                # Don't overwrite a label the target already captured (e.g. a
-                # figure's own \label, when a stray \label follows \end{figure}).
-                if self._labelable is not None and label and self._labelable.label is None:
-                    self._labelable.label = label
+                self._set_label(_chars_of(_group_nodes(node)))
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname in ("appendix", "beginappendix"):
                 # \appendix (and class wrappers like fairmeta's \beginappendix)
@@ -1242,6 +1238,21 @@ class _Builder:
         ir.Heading | ir.MathBlock | ir.Figure | ir.Table | ir.Theorem
         | ir.Algorithm | ir.ListItem | None
     ) = None
+
+    def _set_label(self, label: str) -> None:
+        """Attach ``\\label{label}`` to the current target.
+
+        A target keeps its first label; any further one (``\\label{a}\\label{b}``,
+        or a stray ``\\label`` after ``\\end{figure}``) becomes an alias, so
+        ``\\ref`` to either resolves to the same number, as in LaTeX.
+        """
+        target = self._labelable
+        if target is None or not label:
+            return
+        if target.label is None:
+            target.label = label
+        elif target.label != label:
+            self.label_aliases.setdefault(label, target.label)
 
     def _environment(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:  # noqa: C901
         name = node.environmentname
@@ -2970,7 +2981,8 @@ def parse_document(
     # it is page-1 content, so parse it first and lead the body with it.
     teaser = _preamble_teaser_blocks(preamble, ctx, builder)
     blocks = teaser + builder.blocks(nodes)
-    doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode)
+    doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode,
+                      label_aliases=builder.label_aliases)
 
     _fill_meta_from_preamble(doc, preamble, ctx, report)
     # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a

@@ -230,24 +230,10 @@ def build_bibliography(
     return biblio
 
 
-def _walk_cites(blocks: list[ir.Block], out: list[ir.Cite]) -> None:
-    def inl(inlines: list[ir.Inline]) -> None:
-        for n in inlines:
-            if isinstance(n, ir.Cite):
-                out.append(n)
-            elif isinstance(n, ir.Emphasis | ir.Link | ir.Footnote):
-                inl(n.inlines)
-
-    for block in blocks:
-        if isinstance(block, ir.Paragraph | ir.Heading):
-            inl(block.inlines)
-        elif isinstance(block, ir.Quote):
-            _walk_cites(block.blocks, out)
-        elif isinstance(block, ir.Figure) and block.blocks:
-            _walk_cites(block.blocks, out)
-        elif isinstance(block, ir.ItemList):
-            for item in block.items:
-                _walk_cites(item.blocks, out)
+def _walk_cites(root: object, out: list[ir.Cite]) -> None:
+    """Collect every ``Cite`` below ``root`` in reading order -- table cells,
+    captions, theorem bodies and styled spans included."""
+    out.extend(n for n in ir.iter_nodes(root) if isinstance(n, ir.Cite))
 
 
 def resolve_citations(
@@ -262,6 +248,8 @@ def resolve_citations(
     """Resolve cites, fill ``Cite.rendered``, and populate the Bibliography block."""
     style = style_family(bibstyle)
     cites: list[ir.Cite] = []
+    # the front matter (title notes, abstract) reads before the body
+    _walk_cites(doc.meta, cites)
     _walk_cites(doc.blocks, cites)
 
     cited_order: list[str] = []

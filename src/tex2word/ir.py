@@ -13,6 +13,7 @@ in the ``.docx``.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal
 
@@ -444,6 +445,9 @@ class Document(Node):
     meta: DocumentMeta = field(default_factory=DocumentMeta)
     labels: dict[str, LabelInfo] = field(default_factory=dict)
     book: bool = False  # book/report class with \chapter (top level is chapter)
+    #: extra ``\label``s on an already-labelled target -> the label it kept
+    #: (``\label{sec:a}\label{sec:b}`` makes ``sec:b`` an alias of ``sec:a``).
+    label_aliases: dict[str, str] = field(default_factory=dict)
 
     # -- JSON serialisation ------------------------------------------------- #
 
@@ -455,6 +459,62 @@ class Document(Node):
         node = _from_jsonable(data)
         assert isinstance(node, Document)
         return node
+
+
+# --------------------------------------------------------------------------- #
+# Generic traversal
+# --------------------------------------------------------------------------- #
+
+
+def _child_values(node: Node) -> list[Any]:
+    """A node's field values in reading order.
+
+    Fields come in declaration order, except that a table's caption (set above
+    the tabular in LaTeX) is read before its rows, and a figure's caption after
+    its body.
+    """
+    values = vars(node)
+    if isinstance(node, Table):
+        first = ["caption"]
+    else:
+        first = []
+    last = ["caption"] if isinstance(node, Figure) else []
+    names = first + [n for n in values if n not in first and n not in last] + last
+    return [values[n] for n in names if n in values]
+
+
+def node_lists(root: Any) -> Iterator[list[Any]]:
+    """Yield every list of nodes reachable from ``root``, in reading order.
+
+    Each list is yielded before its elements are descended into, so a caller
+    can replace items in place (e.g. a ``Ref`` by a ``Link``). Covers every
+    container -- table cells, captions, theorem bodies, styled spans, notes and
+    the document metadata -- so passes over ``Ref``/``Cite`` leaves never miss
+    one.
+    """
+    if isinstance(root, list):
+        if any(isinstance(v, Node) for v in root):
+            yield root
+        for v in list(root):
+            yield from node_lists(v)
+    elif isinstance(root, Node):
+        for value in _child_values(root):
+            if isinstance(value, list | Node):
+                yield from node_lists(value)
+
+
+def iter_nodes(root: Any) -> Iterator[Node]:
+    """Every node below ``root`` (not ``root`` itself), depth-first in reading
+    order: a node comes right before its own children."""
+    values = root if isinstance(root, list) else (
+        _child_values(root) if isinstance(root, Node) else []
+    )
+    for v in values:
+        if isinstance(v, Node):
+            yield v
+            yield from iter_nodes(v)
+        elif isinstance(v, list):
+            yield from iter_nodes(v)
 
 
 # --------------------------------------------------------------------------- #
