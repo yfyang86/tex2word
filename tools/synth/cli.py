@@ -81,6 +81,9 @@ def cmd_generate(args) -> int:
     return 0
 
 
+_FIXED_SHOWN = 20
+
+
 def _print_diff(diff: baseline.Diff, results: list[Result]) -> None:
     by_id = {r.probe_id: r for r in results}
     for pid, sigs in sorted(diff.new.items()):
@@ -88,8 +91,11 @@ def _print_diff(diff: baseline.Diff, results: list[Result]) -> None:
         for f in by_id[pid].findings:
             if f.signature in sigs:
                 print(f"         {f.signature}: {f.detail}")
-    for pid, sigs in sorted(diff.fixed.items()):
+    fixed = sorted(diff.fixed.items())
+    for pid, sigs in fixed[:_FIXED_SHOWN]:
         print(f"FIXED  {pid}: {', '.join(sigs)}")
+    if len(fixed) > _FIXED_SHOWN:
+        print(f"FIXED  ... and {len(fixed) - _FIXED_SHOWN} more probes")
 
 
 def cmd_verify(args) -> int:
