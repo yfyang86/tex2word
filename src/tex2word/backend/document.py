@@ -928,6 +928,10 @@ class DocumentWriter:
         body.append(sdt)
 
     def _code_block(self, block: ir.CodeBlock, body: _Element) -> None:
+        if block.caption or block.label:
+            # lstlisting caption=/label=: "Listing N: ..." above the code
+            body.append(self._caption("Listing", block.caption or [], block.label,
+                                      numbered=block.caption_numbered))
         for line in block.text.split("\n"):
             p = self._styled_paragraph("SourceCode")
             p.append(self._run(line))
@@ -1443,6 +1447,7 @@ _REF_NAMES = {
     "section": ("sec. ", "Section "),
     "theorem": ("thm. ", "Theorem "),
     "algorithm": ("alg. ", "Algorithm "),
+    "listing": ("lst. ", "Listing "),
     "equation": ("eq. ", "Equation "),
 }
 _REF_PREFIX = {

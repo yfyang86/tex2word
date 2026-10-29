@@ -125,6 +125,7 @@ _CITE_MODES = {
 
 _REF_KINDS = {
     "ref": "generic", "eqref": "equation", "pageref": "page", "vpageref": "page",
+    "subref": "subref",
     "cpageref": "page", "Cpageref": "page",
     "autoref": "generic", "cref": "generic", "Cref": "generic", "vref": "generic",
     "crefrange": "generic", "Crefrange": "generic", "labelcref": "generic",
@@ -698,6 +699,8 @@ class _Builder(FrontMatterMixin):
         self.book_mode = False  # book/report class: \chapter is the top level
         #: extra \label -> the label its target already carries
         self.label_aliases: dict[str, str] = {}
+        #: (label, caption, numbered) of an lstlisting, for the next code block
+        self._pending_listing: tuple[str | None, list[ir.Inline] | None, bool] | None = None
         self._title_done = False  # past \maketitle: a \thanks is a plain footnote
         #: amsart \subjclass labels from \@namedef{subjclassname@X}{label}
         self.subjclass_names: dict[str, str] = {}
@@ -1256,6 +1259,16 @@ class _Builder(FrontMatterMixin):
             if isinstance(node, LatexMacroNode) and node.macroname == "maketitle":
                 self._title_done = True
                 continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "twlistingcaption":
+                # lstlisting caption=/label= (see preprocess): for the next code block
+                g = _brace_groups(node)
+                if len(g) == 3:
+                    self._pending_listing = (
+                        _chars_of(g[0]).strip() or None,
+                        self.inlines(g[1]) or None,
+                        _chars_of(g[2]).strip() != "0",
+                    )
+                continue
             if isinstance(node, LatexMacroNode) and node.macroname == "twocolumn":
                 # \twocolumn[full-width header]: the optional argument is content
                 flush()
@@ -1550,7 +1563,14 @@ class _Builder(FrontMatterMixin):
             out.append(ir.Quote(self.blocks(node.nodelist), shade=shade, border=border))
             return
         if base in ("verbatim", "lstlisting", "minted"):
-            out.append(ir.CodeBlock(_verbatim_inner(node), lang=None))
+            block = ir.CodeBlock(_verbatim_inner(node), lang=None)
+            if self._pending_listing is not None:
+                block.label, block.caption, block.caption_numbered = self._pending_listing
+                self._pending_listing = None
+            out.append(block)
+            return
+        if base == "listing":  # minted's float: code + \caption + \label
+            self._listing_float(node, out)
             return
         if base == "abstract":
             self.meta.abstract = self.blocks(node.nodelist)
@@ -1996,6 +2016,12 @@ class _Builder(FrontMatterMixin):
         ]
         caption = self._env_optional_title(node)
         sub = ir.SubFigure(image=None, caption=caption)
+        # \subfloat[Caption\label{fig:a}]{...}: the label sits in the caption
+        for a in node.nodeargd.argnlist if node.nodeargd else []:
+            if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+                for child in _walk_macros(a.nodelist):
+                    if child.macroname == "label":
+                        sub.label = _chars_of(_group_nodes(child))
         if groups:
             for child in _walk_macros(groups[-1].nodelist):
                 if child.macroname == "includegraphics":
@@ -2059,6 +2085,25 @@ class _Builder(FrontMatterMixin):
         tables[0].spanning = spanning
         self._labelable = tables[0]
         out.extend(sub_blocks)
+
+    def _listing_float(self, node: LatexEnvironmentNode, out: list[ir.Block]) -> None:
+        """minted's ``listing`` float: its caption and label go to the code."""
+        caption: list[ir.Inline] | None = None
+        numbered = True
+        label: str | None = None
+        content = []
+        for child in node.nodelist:
+            if isinstance(child, LatexMacroNode) and child.macroname == "caption":
+                caption, numbered = self.inlines(_group_nodes(child)), not _has_star(child)
+            elif isinstance(child, LatexMacroNode) and child.macroname == "label":
+                label = label or _chars_of(_group_nodes(child))
+            else:
+                content.append(child)
+        blocks = self.blocks(content)
+        code = next((b for b in blocks if isinstance(b, ir.CodeBlock)), None)
+        if code is not None:
+            code.caption, code.label, code.caption_numbered = caption, label, numbered
+        out.extend(blocks)
 
     def _table_panels(
         self, node: LatexEnvironmentNode, panels: list, out: list[ir.Block], spanning: bool
@@ -3025,6 +3070,8 @@ def _build_context(
             MacroSpec("qtylist", "[{{"),
             MacroSpec("inst", "{"),
             MacroSpec("tnote", "{"),
+            MacroSpec("subref", "*{"),
+            MacroSpec("twlistingcaption", "{{{"),  # emitted by preprocess (listings)
             MacroSpec("IEEEauthorrefmark", "{"),
             MacroSpec("IEEEauthorblockN", "{"),
             MacroSpec("IEEEauthorblockA", "{"),

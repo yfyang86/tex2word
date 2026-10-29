@@ -20,6 +20,7 @@ _COUNTER = {
     "table": "Table",
     "section": "Section",
     "algorithm": "Algorithm",
+    "listing": "Listing",
 }
 
 
@@ -48,7 +49,7 @@ def _label_name(block: ir.Block) -> str | None:
         return _inline_text(block.inlines)
     if isinstance(block, ir.Theorem):
         return _inline_text(block.title) if block.title else block.kind
-    if isinstance(block, ir.Figure | ir.Table) and block.caption:
+    if isinstance(block, ir.Figure | ir.Table | ir.CodeBlock) and block.caption:
         return _inline_text(block.caption)
     return None
 
@@ -66,6 +67,8 @@ def _label_kind(block: ir.Block) -> str:
         return "theorem"
     if isinstance(block, ir.Algorithm):
         return "algorithm"
+    if isinstance(block, ir.CodeBlock):
+        return "listing"
     return "generic"
 
 
@@ -111,10 +114,11 @@ def _register(block: ir.Block, labels: dict[str, ir.LabelInfo]) -> None:
                 labels[block.label] = ir.LabelInfo(
                     kind="figure", counter_name="Figure", bookmark=bookmark
                 )
-            for sub in block.subfigures:
+            for i, sub in enumerate(block.subfigures):
                 if sub.label:
                     labels[sub.label] = ir.LabelInfo(
-                        kind="figure", counter_name="Figure", bookmark=bookmark
+                        kind="figure", counter_name="Figure", bookmark=bookmark,
+                        sub=chr(ord("a") + i),
                     )
 
 
@@ -137,18 +141,26 @@ def _collect(root: object, labels: dict[str, ir.LabelInfo]) -> None:
             _register(node, labels)
 
 
-_TARGETS = (ir.Heading, ir.MathBlock, ir.Table, ir.Figure, ir.Theorem, ir.Algorithm)
+_TARGETS = (ir.Heading, ir.MathBlock, ir.Table, ir.Figure, ir.Theorem, ir.Algorithm,
+            ir.CodeBlock)
 
 
 def _rewrite_refs(root: object, labels: dict[str, ir.LabelInfo], report) -> None:
     """Point every ``Ref`` (and ``\\hyperref`` link) below ``root`` at its bookmark."""
     for inlines in ir.node_lists(root):
+        letters: list[tuple[int, str]] = []  # (index, letter) to insert after a Ref
         for i, node in enumerate(inlines):
             if isinstance(node, ir.Ref):
                 info = labels.get(node.key)
                 if info is None:
                     report.warn("\\ref", f"unresolved reference to '{node.key}'")
                     continue
+                if node.ref_kind == "subref":
+                    # \subref -> the sub-figure's own letter, "(a)"
+                    inlines[i] = ir.Text(f"({info.sub})" if info.sub else "")
+                    continue
+                if info.sub and node.ref_kind in ("generic", "figure"):
+                    letters.append((i, info.sub))  # \ref to a panel -> "1a"
                 if node.ref_kind == "name":
                     # \nameref -> the target's title as an internal hyperlink
                     text = info.name or node.key
@@ -164,6 +176,8 @@ def _rewrite_refs(root: object, labels: dict[str, ir.LabelInfo], report) -> None
                     report.warn("\\hyperref", f"unresolved \\hyperref to '{node.anchor}'")
                 else:
                     node.anchor = info.bookmark
+        for i, letter in reversed(letters):
+            inlines.insert(i + 1, ir.Text(letter))
 
 
 def resolve_crossrefs(doc: ir.Document, report: ConversionReport) -> ir.Document:

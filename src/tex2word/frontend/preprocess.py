@@ -186,17 +186,59 @@ _MINTINLINE_DELIM_RE = re.compile(r"\\mintinline\s*(?:\[[^\]]*\])?\s*\{[^}]*\}\s
 # file verbatim. Resolved after flattening so the file body is never
 # comment-stripped (a literal "%" in code must survive).
 _LSTINPUT_RE = re.compile(
-    r"\\(?:lstinputlisting|verbatiminput)\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}"
+    r"\\(?:lstinputlisting|verbatiminput)\s*(?:\[(?P<opts>(?:[^\[\]{}]|\{[^{}]*\})*)\])?"
+    r"\s*\{([^}]+)\}"
 )
+
+
+def _split_options(opts: str) -> dict[str, str]:
+    """``key=value`` pairs of a listings option list (top-level commas only)."""
+    out: dict[str, str] = {}
+    depth, buf, parts = 0, "", []
+    for c in opts:
+        depth += 1 if c in "{[" else -1 if c in "}]" else 0
+        if c == "," and depth == 0:
+            parts.append(buf)
+            buf = ""
+        else:
+            buf += c
+    parts.append(buf)
+    for part in parts:
+        key, eq, value = part.partition("=")
+        if eq:
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                value = value[1:-1].strip()
+            out[key.strip().lower()] = value
+    return out
+
+
+def _listing_marker(opts: str | None) -> str:
+    """``\\twlistingcaption{label}{caption}{1|0}`` for a listing's
+    ``caption=``/``title=``/``label=`` options (empty if it has none)."""
+    if not opts:
+        return ""
+    kv = _split_options(opts)
+    caption, numbered = kv.get("caption"), "1"
+    if caption is None and "title" in kv:
+        caption, numbered = kv["title"], "0"
+    if caption and caption.startswith("["):  # caption={[short]long}
+        close = caption.find("]")
+        caption = caption[close + 1:].strip() if close >= 0 else caption
+    label = kv.get("label", "")
+    if not caption and not label:
+        return ""
+    return f"\\twlistingcaption{{{label}}}{{{caption or ''}}}{{{numbered}}}"
 
 
 def inline_listing_files(source: str, base_dir: str) -> str:
     def repl(match: re.Match[str]) -> str:
-        path = os.path.join(base_dir, match.group(1).strip())
+        path = os.path.join(base_dir, match.group(2).strip())
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as fh:
                 body = fh.read().rstrip("\n")
-            return "\\begin{verbatim}\n" + body + "\n\\end{verbatim}"
+            return (_listing_marker(match.group("opts"))
+                    + "\\begin{verbatim}\n" + body + "\n\\end{verbatim}")
         return ""  # missing source file -> drop (graceful degradation)
 
     return _LSTINPUT_RE.sub(repl, source)
@@ -213,7 +255,7 @@ _LISTING_ENV_RE = re.compile(
     r"\\begin\{(lstlisting|minted|Verbatim\*?|verbatim\*)\}"
     # optional [options]; allow two levels of nested {…}/[…] so braced keys like
     # [caption={[x]}] or [caption={\textbf{C}}] don't truncate at an inner ]/}.
-    r"[ \t]*(?:\[(?:[^\[\]{}]|\{(?:[^{}]|\{[^{}]*\})*\}|\[[^\]]*\])*\])?"
+    r"[ \t]*(?:\[(?P<opts>(?:[^\[\]{}]|\{(?:[^{}]|\{[^{}]*\})*\}|\[[^\]]*\])*)\])?"
     r"[ \t]*(?:\{[^}]*\})?"    # optional {lang} (minted)
     r"(?P<body>.*?)"
     r"\\end\{\1\}",
@@ -223,8 +265,11 @@ _LISTING_ENV_RE = re.compile(
 
 def normalize_listing_envs(source: str) -> str:
     """Rewrite ``lstlisting``/``minted``/``Verbatim`` blocks to ``verbatim``."""
+    # lstlisting's caption=/label= become a marker the parser attaches to the
+    # code block (a numbered, referenceable "Listing N")
     return _LISTING_ENV_RE.sub(
-        lambda m: "\\begin{verbatim}" + m.group("body") + "\\end{verbatim}",
+        lambda m: (_listing_marker(m.group("opts")) if m.group(1) == "lstlisting" else "")
+        + "\\begin{verbatim}" + m.group("body") + "\\end{verbatim}",
         source,
     )
 

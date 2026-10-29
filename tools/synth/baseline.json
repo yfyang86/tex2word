@@ -115,14 +115,6 @@
     "expect-absent:(cont.)"
    ]
   },
-  "doc/lstlisting-caption-label": {
-   "signatures": [
-    "expect-text:KEEP1",
-    "label:lst:a",
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
   "doc/makeatletter-macro": {
    "signatures": [
     "raw-ir:\\makeatletterx",
@@ -177,19 +169,6 @@
     "warning:\\addtolength",
     "warning:\\gap",
     "warning:\\newlength"
-   ]
-  },
-  "doc/subfig-package": {
-   "signatures": [
-    "unresolved-ref",
-    "warning:\\ref"
-   ]
-  },
-  "doc/subfigures-refs": {
-   "signatures": [
-    "raw-ir:\\subref",
-    "tex-leak:\\subreffig",
-    "warning:\\subref"
    ]
   },
   "doc/subfile": {

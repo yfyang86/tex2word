@@ -51,7 +51,7 @@ EmphasisKind = Literal[
 CiteMode = Literal["paren", "text", "foot", "author", "year", "num"]
 RefKind = Literal[
     "generic", "equation", "figure", "table", "section", "theorem", "page", "name",
-    "listitem",
+    "listitem", "listing", "subref",
 ]
 
 
@@ -311,6 +311,10 @@ class Figure(Node):
 class CodeBlock(Node):
     text: str
     lang: str | None = None
+    #: a listing's caption (lstlisting caption=, a listing float) and label
+    caption: list[Inline] | None = None
+    label: str | None = None
+    caption_numbered: bool = True
 
 
 @dataclass
@@ -449,6 +453,8 @@ class LabelInfo(Node):
     bookmark: str
     number: str | None = None
     name: str | None = None  # target's title/caption text (for \nameref)
+    #: a sub-figure's letter ("a"): \subref prints "(a)", \ref "1a"
+    sub: str | None = None
 
 
 @dataclass
