@@ -580,6 +580,10 @@ def _unwrap_table_layout(nodes: list) -> list:
         if isinstance(n, LatexMacroNode) and n.macroname in _BOX_WRAPPERS:
             groups = _brace_groups(n)
             out.extend(_unwrap_table_layout(groups[-1]) if groups else [])
+        elif isinstance(n, LatexEnvironmentNode) and n.environmentname in _TABLE_WRAP_ENVS:
+            # threeparttable / adjustbox / center inside a float: the caption,
+            # label and tabular are the float's
+            out.extend(_unwrap_table_layout(n.nodelist))
         elif (
             minipages == 1 and isinstance(n, LatexEnvironmentNode)
             and n.environmentname == "minipage"
@@ -610,6 +614,22 @@ def _has_block_content(nodes: list) -> bool:
         if isinstance(n, LatexMacroNode) and n.macroname == "par":
             return True
         if isinstance(n, LatexGroupNode) and _has_block_content(n.nodelist):
+            return True
+    return False
+
+
+#: environments a table float's caption/label/tabular may sit in
+_TABLE_WRAP_ENVS = frozenset({
+    "threeparttable", "threeparttablex", "adjustbox", "center", "small", "footnotesize",
+    "scriptsize",
+})
+
+
+def _has_caption(nodes: list) -> bool:
+    for n in nodes:
+        if isinstance(n, LatexMacroNode) and n.macroname in ("caption", "captionof"):
+            return True
+        if isinstance(n, LatexGroupNode | LatexEnvironmentNode) and _has_caption(n.nodelist):
             return True
     return False
 
@@ -1001,7 +1021,7 @@ class _Builder(FrontMatterMixin):
             if groups:
                 out.extend(self.inlines(groups[-1]))
             return
-        if name in ("inst", "IEEEauthorrefmark"):  # affiliation marker -> superscript
+        if name in ("inst", "IEEEauthorrefmark", "tnote"):  # markers -> superscript
             out.append(ir.Emphasis(self.inlines(_group_nodes(node)), "superscript"))
             return
         if name in ("newacronym", "newglossaryentry", "acro", "acrodef"):
@@ -1493,11 +1513,11 @@ class _Builder(FrontMatterMixin):
                 node, ordered=(base == "enumerate"), description=(base == "description")
             ))
             return
-        if base in ("figure", "wrapfigure"):
+        if base in ("figure", "wrapfigure", "sidewaysfigure"):
             self._figure(node, out, spanning=starred)
             return
-        if base in ("table", "wraptable"):
-            self._table_float(node, out, spanning=starred)
+        if base in ("table", "wraptable", "sidewaystable", "threeparttable"):
+            self._table_float(node, out, spanning=starred or base == "sidewaystable")
             return
         if base in _TABULAR_ENVS:
             out.append(self._tabular(node))
@@ -1978,6 +1998,14 @@ class _Builder(FrontMatterMixin):
         # Pull the float's own caption/label, then process the rest as blocks --
         # which descends \resizebox/\scalebox and minipage so nested tabulars (a
         # grid of sub-tables) survive instead of being dumped as raw LaTeX.
+        panels = [
+            n for n in node.nodelist
+            if isinstance(n, LatexEnvironmentNode)
+            and n.environmentname in ("minipage", "subtable") and _has_caption(n.nodelist)
+        ]
+        if len(panels) >= 2:
+            self._table_panels(node, panels, out, spanning)
+            return
         caption: list[ir.Inline] | None = None
         caption_numbered = True
         label: str | None = None
@@ -2016,6 +2044,42 @@ class _Builder(FrontMatterMixin):
         tables[0].spanning = spanning
         self._labelable = tables[0]
         out.extend(sub_blocks)
+
+    def _table_panels(
+        self, node: LatexEnvironmentNode, panels: list, out: list[ir.Block], spanning: bool
+    ) -> None:
+        """Several captioned minipages/subtables in one ``table``: each panel is
+        a table with its own caption and label. With an overall caption too
+        (subtables), that caption numbers the first panel and the panels'
+        own captions become "(a) ..." lines."""
+        outer_caption: list[ir.Inline] | None = None
+        outer_label: str | None = None
+        for child in node.nodelist:
+            if isinstance(child, LatexMacroNode) and child.macroname == "caption":
+                outer_caption = self.inlines(_group_nodes(child))
+            elif isinstance(child, LatexMacroNode) and child.macroname == "label":
+                outer_label = outer_label or _chars_of(_group_nodes(child))
+        first_table: ir.Table | None = None
+        for i, panel in enumerate(panels):
+            sub: list[ir.Block] = []
+            self._table_float(panel, sub, spanning)
+            tables = [b for b in sub if isinstance(b, ir.Table)]
+            if outer_caption is not None and tables:
+                t = tables[0]
+                if t.caption:
+                    sub.insert(sub.index(t), ir.Paragraph(
+                        [ir.Text(f"({chr(ord('a') + i)}) "), *t.caption], align="center"))
+                t.caption = None
+                if t.label and outer_label:  # \ref{sub-label} -> the table's number
+                    self.label_aliases.setdefault(t.label, outer_label)
+                t.label = None
+            if first_table is None and tables:
+                first_table = tables[0]
+            out.extend(sub)
+        if outer_caption is not None and first_table is not None:
+            first_table.caption = outer_caption
+            first_table.label = outer_label
+            self._labelable = first_table
 
     def _tabular(self, node: LatexEnvironmentNode) -> ir.Table:
         # column spec is the first mandatory group argument of the environment
@@ -2945,6 +3009,7 @@ def _build_context(
             MacroSpec("SIlist", "[{{"),
             MacroSpec("qtylist", "[{{"),
             MacroSpec("inst", "{"),
+            MacroSpec("tnote", "{"),
             MacroSpec("IEEEauthorrefmark", "{"),
             MacroSpec("IEEEauthorblockN", "{"),
             MacroSpec("IEEEauthorblockA", "{"),
@@ -3040,7 +3105,9 @@ def _build_context(
         environments=[
             EnvironmentSpec(name, "[")
             for name in (*_THEOREM_ENVS, "proof", *extra_theorem_envs)
-        ] + [EnvironmentSpec("subfigure", "[{")] + [EnvironmentSpec("minipage", "[{")] + [
+        ] + [
+            EnvironmentSpec("subfigure", "[{"), EnvironmentSpec("subtable", "[{")
+        ] + [EnvironmentSpec("minipage", "[{")] + [
             EnvironmentSpec(name, "[")
             for name in ("algorithmic", "algorithmicx", "algpseudocode", "algpseudocodex")
         ] + [

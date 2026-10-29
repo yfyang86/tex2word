@@ -202,6 +202,15 @@ D("graphic-in-cell", r"\begin{tabular}{ll}\includegraphics[width=1cm]{img.png} &
   r"\end{tabular}", texts=["KEEP1"], xml=[r"<a:blip "])
 D("table-H-placement", r"\begin{table}[H]\centering\caption{KEEP1}\begin{tabular}{l}x\\"
   r"\end{tabular}\end{table}", pre=r"\usepackage{float}", texts=["KEEP1"])
+D("subtables-main-caption", r"\begin{table}\centering\caption{KEEP1}\label{tm}"
+  r"\begin{subtable}{.45\textwidth}\caption{KEEP2}\label{ts}\begin{tabular}{l}KEEP3\\"
+  r"\end{tabular}\end{subtable}\begin{subtable}{.45\textwidth}\caption{KEEP4}"
+  r"\begin{tabular}{l}KEEP5\\\end{tabular}\end{subtable}\end{table}\ref{tm} \ref{ts}",
+  pre=r"\usepackage{subcaption}", texts=["KEEP1", "KEEP2", "KEEP3", "KEEP4", "KEEP5"],
+  labels=["tm", "ts"])
+D("sidewaysfigure", r"\begin{sidewaysfigure}\centering\includegraphics[width=2cm]{img.png}"
+  r"\caption{KEEP1}\label{sf}\end{sidewaysfigure}\ref{sf}", pre=r"\usepackage{rotating}",
+  texts=["KEEP1"], labels=["sf"], xml=[r"<a:blip "])
 D("tabular-empty-cells", r"\begin{tabular}{lll} & & KEEP1\\ KEEP2 & & \\\end{tabular}",
   texts=["KEEP1", "KEEP2"])
 D("tabular-newline-in-cell", r"\begin{tabular}{p{3cm}}KEEP1\newline KEEP2\\\end{tabular}",
