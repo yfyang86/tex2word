@@ -113,3 +113,21 @@ def test_subjclass_uses_namedef_label():
     assert "2010 Mathematics Subject Classification: 91B16" in text
     assert "Mathematics Subject Classification: 00A00" in text
     assert not _warned(r)
+
+
+def test_amsart_thanks_before_maketitle_goes_on_the_title():
+    r = _convert(
+        "\\title{T}\\author{A}\\thanks{Funded.}\\subjclass[2010]{91B16}\n"
+        "\\maketitle\nBody\\thanks{Later.}",
+        cls="amsart",
+    )
+    title = r.document.meta.title
+    assert title and isinstance(title[-1], ir.Footnote)
+    # no paragraph holding nothing but the note mark
+    assert not any(
+        isinstance(b, ir.Paragraph) and all(isinstance(i, ir.Footnote) for i in b.inlines)
+        for b in r.document.blocks
+    )
+    # after \maketitle, \thanks is an ordinary footnote in the text
+    body = [b for b in r.document.blocks if isinstance(b, ir.Paragraph)][-1]
+    assert any(isinstance(i, ir.Footnote) for i in body.inlines)

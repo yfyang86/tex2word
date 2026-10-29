@@ -594,6 +594,7 @@ class _Builder:
         self.book_mode = False  # book/report class: \chapter is the top level
         #: extra \label -> the label its target already carries
         self.label_aliases: dict[str, str] = {}
+        self._title_done = False  # past \maketitle: a \thanks is a plain footnote
         #: amsart \subjclass labels from \@namedef{subjclassname@X}{label}
         self.subjclass_names: dict[str, str] = {}
         self.in_appendix = False  # seen \appendix -> later sections use letters
@@ -1096,6 +1097,17 @@ class _Builder:
                 "markboth", "markright", "runninghead", "shorttitle",
             ):
                 self._meta_macro(node)
+                continue
+            if (
+                isinstance(node, LatexMacroNode) and node.macroname == "thanks"
+                and self.meta.title and not self._title_done
+            ):
+                # amsart-style \thanks between \author and \maketitle: a
+                # first-page note on the title, not a mark on a line of its own
+                self.meta.title.append(ir.Footnote(self.inlines(_group_nodes(node))))
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname == "maketitle":
+                self._title_done = True
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname == "twocolumn":
                 # \twocolumn[full-width header]: the optional argument is content

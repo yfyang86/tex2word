@@ -148,7 +148,12 @@ def _parse_run(e: etree._Element) -> L.Lit:
 def _glyphs_to_latex(text: str) -> str:
     out: list[str] = []
     for ch in text:
-        out.append(f"\\{_REV_SYMBOL[ch]} " if ch in _REV_SYMBOL else ch)
+        if ch in _REV_SYMBOL:
+            out.append(f"\\{_REV_SYMBOL[ch]} ")
+        elif ch == L.MINUS:  # the minus sign the writer emits for `-`
+            out.append("-")
+        else:
+            out.append(ch)
     return "".join(out)
 
 

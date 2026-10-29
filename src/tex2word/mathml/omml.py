@@ -59,9 +59,23 @@ def tag_cjk_runs(root: _Element, east_asia_font: str) -> None:
 # --------------------------------------------------------------------------- #
 
 
+#: characters Word sets upright in a math run without any styling: digits,
+#: brackets, punctuation and binary operators
+_PLAIN_MATH_CHARS = frozenset("0123456789()[]{}.,;!'+/*\u2212±∓×·⋅∗′″|∣‖")
+
+#: operators that, alone in a slot (``x^{+}``), stay normal text
+_LONE_OPERATORS = frozenset("+\u2212±∓×·⋅∗*/")
+
+
 def _run(
     text: str, *, upright: bool = False, bold: bool = False, script: str | None = None
 ) -> _Element:
+    # Digits, brackets and binary +/− are upright in math anyway; marked as
+    # normal text (m:nor) they lose Word's operator spacing and LibreOffice shows
+    # brackets as \( \). Relations keep m:nor: LibreOffice's importer rejects a
+    # relation without a left operand (an aligned `&= ...` cell).
+    if upright and all(c in _PLAIN_MATH_CHARS for c in text):
+        upright = False
     r = el("m:r")
     if upright or bold or script:
         rpr = sub(r, "m:rPr")
@@ -104,9 +118,36 @@ def _fill(tag: str, node: L.MNode | None) -> _Element:
     """Create an OMML container element filled with the rendered node."""
     container = el(tag)
     if node is not None:
+        lone = _lone_operator(node)
+        if lone is not None:
+            container.append(lone)
+            return container
         for child in _emit(node):
             container.append(child)
     return container
+
+
+def _lone_operator(node: L.MNode) -> _Element | None:
+    """A slot holding nothing but an operator (``x^{+}``, ``x^{*}``) keeps it
+    as normal text: an operator without operands is not an expression, and
+    LibreOffice rejects it."""
+    while isinstance(node, L.Group | L.Row):
+        items = node.row.items if isinstance(node, L.Group) else node.items
+        if len(items) != 1:
+            return None
+        node = items[0]
+    if not (isinstance(node, L.Lit) and node.text
+            and all(c in _LONE_OPERATORS for c in node.text)):
+        return None
+    r = el("m:r")
+    rpr = sub(r, "m:rPr")
+    sub(rpr, "m:nor")
+    if node.bold:
+        sub(rpr, "m:sty", **{"m:val": "b"})
+    t = sub(r, "m:t")
+    t.text = node.text
+    preserve_space(t)
+    return r
 
 
 def _emit_single(node: L.MNode) -> _Element:  # noqa: C901 - structural dispatch
@@ -267,6 +308,8 @@ def _split_top_level(latex: str, sep: str) -> list[str]:
             parts.append("".join(buf))
             buf = []
             i += len(sep)
+            if sep == "\\\\":  # `\\*` / `\\[2pt]` row spacing is layout
+                i = L.skip_row_spacing(latex, i)
             continue
         else:
             buf.append(c)
