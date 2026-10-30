@@ -7,7 +7,7 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased — what the TeX oracle found (issues #47–#54)
+## 1.2.0 — what the TeX oracle found (issues #47–#54)
 
 [texprobe](https://github.com/yfyang86/texprobe) builds every synthetic probe
 with a real LaTeX engine and compares the PDF with the Word text. On 1.1.0 it
