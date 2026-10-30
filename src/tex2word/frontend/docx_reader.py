@@ -632,7 +632,9 @@ class _Reader:
         inlines = self._inlines(p)
         numbered = False
         first = inlines[0] if inlines else None
-        if isinstance(first, ir.Text) and re.fullmatch(r"\s*\d+\s+", first.value):
+        # " 3: " (or the older " 3  "), or the blank pad of a line that
+        # [n]-numbering leaves unlabelled
+        if isinstance(first, ir.Text) and re.fullmatch(r"\s*\d+:?\s+| {4}", first.value):
             numbered = True
             inlines = inlines[1:]
         return ir.AlgLine(indent=indent, inlines=inlines, number=numbered)

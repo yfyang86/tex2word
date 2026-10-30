@@ -73,7 +73,7 @@ class Math(Node):
     latex: str
 
 
-RefStyle = Literal["plain", "abbrev", "full"]
+RefStyle = Literal["plain", "abbrev", "full", "eqref", "auto"]
 
 
 @dataclass
@@ -81,15 +81,20 @@ class Ref(Node):
     """A cross-reference (``\\ref``/``\\eqref``/``\\cref``/``\\pageref``).
 
     ``bookmark`` is filled in by the cross-reference IR pass (Sprint 4).
-    ``style`` controls a cleveref-style type prefix: ``plain`` (bare number,
-    ``\\ref``), ``abbrev`` (``fig. N``, ``\\cref``), ``full`` (``Figure N``,
-    ``\\Cref``/``\\autoref``).
+    ``style``: ``plain`` (bare number, ``\\ref``), ``eqref`` (an equation
+    number in parentheses: ``\\eqref``, ``\\labelcref``), ``abbrev``
+    (cleveref's ``\\cref`` names, "fig. 1", "section 2"), ``full``
+    (``\\Cref``: "Figure 1"), ``auto`` (hyperref's ``\\autoref``).
+    ``more`` holds the further keys of a ``\\cref{a,b,c}``; ``is_range`` marks a
+    ``\\crefrange{a}{b}`` (``more`` is ``[b]``).
     """
 
     key: str
     ref_kind: RefKind = "generic"
     bookmark: str | None = None
     style: RefStyle = "plain"
+    more: list[str] = field(default_factory=list)
+    is_range: bool = False
 
 
 @dataclass
@@ -213,6 +218,9 @@ class Heading(Node):
     numbered: bool = True  # False for starred (\section*) and run-in headings
     appendix: bool = False  # after \appendix -> letter (A, B, ...) numbering
     part: bool = False  # \part -> "Part I" upper-roman, counter independent of sections
+    #: \setcounter{section}{4} before this heading: the heading counters from
+    #: here on, top level first ([5] -> "5"; [2, 4] -> "2.4")
+    number_start: list[int] | None = None
 
 
 @dataclass
@@ -233,6 +241,10 @@ class MathBlock(Node):
     #: numbered lines of a multi-line ``align``/``eqnarray``. Empty for a single
     #: equation (``label`` carries it).
     line_labels: list[str | None] = field(default_factory=list)
+    #: per rendered line, what replaces its number: None = the next equation
+    #: number, "" = none (\notag/\nonumber), else the tag as printed:
+    #: "(A)" for \tag{A}, "A" for \tag*{A}. Empty when no line has a tag.
+    line_tags: list[str | None] = field(default_factory=list)
 
 
 @dataclass
@@ -280,6 +292,11 @@ class Table(Node):
     label: str | None = None
     colwidths: list[float | None] = field(default_factory=list)  # per-column EMU (p{})
     caption_numbered: bool = True  # False for \caption* (unnumbered caption)
+    #: \caption came before the tabular -> the caption goes above the table
+    caption_above: bool = False
+    #: a panel's own caption line ("(a) ...") in a table of subtables
+    subcaption: list[Inline] | None = None
+    subcaption_above: bool = False
     spanning: bool = False  # table* -> span the full page width in a multi-column body
     #: a borderless, full-width layout grid (side-by-side minipages), not a data
     #: table: no rules, equal-width columns across the text column.
@@ -332,6 +349,8 @@ class Algorithm(Node):
     caption: list[Inline] | None = None
     label: str | None = None
     numbered: bool = True
+    #: line numbers: 0 = none, n = every n-th line (``\\begin{algorithmic}[n]``)
+    line_numbers: int = 1
 
 
 @dataclass
@@ -429,6 +448,12 @@ class DocumentMeta(Node):
     authors: list[list[Inline]] = field(default_factory=list)
     date: list[Inline] | None = None
     abstract: list[Block] | None = None
+    #: the heading the class prints with the abstract ("Abstract", or
+    #: \abstractname / the babel language's word) and its form: "block" (a
+    #: heading line above it), "runin" ("Abstract." before the text), "dash"
+    #: (IEEEtran's "Abstract—"), or "none"
+    abstract_name: str = "Abstract"
+    abstract_form: str = "block"
     keywords: list[Inline] | None = None
     affiliations: list[list[Inline]] = field(default_factory=list)
     #: a subtitle (KOMA \subtitle, beamer, a CV's job title)
@@ -455,6 +480,12 @@ class LabelInfo(Node):
     name: str | None = None  # target's title/caption text (for \nameref)
     #: a sub-figure's letter ("a"): \subref prints "(a)", \ref "1a"
     sub: str | None = None
+    #: the target's counter type as cleveref/hyperref name it: "section",
+    #: "subsection", "chapter", "appendix", "equation", "figure", "table",
+    #: "theorem", "algorithm", "listing", "enumi"
+    ref_type: str | None = None
+    #: a theorem-like target's display name ("Lemma"), for its reference name
+    type_name: str | None = None
 
 
 @dataclass
@@ -466,6 +497,12 @@ class Document(Node):
     #: extra ``\label``s on an already-labelled target -> the label it kept
     #: (``\label{sec:a}\label{sec:b}`` makes ``sec:b`` an alias of ``sec:a``).
     label_aliases: dict[str, str] = field(default_factory=dict)
+    #: a panel's label -> [the overall float's label, the panel's letter]
+    #: (``\ref`` to a subtable prints "1a")
+    sub_labels: dict[str, list[str]] = field(default_factory=dict)
+    #: cleveref set-up from the preamble: {"options": [...], "crefname": {type:
+    #: [singular, plural]}, "Crefname": {...}}
+    cref: dict[str, Any] = field(default_factory=dict)
 
     # -- JSON serialisation ------------------------------------------------- #
 

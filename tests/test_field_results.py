@@ -54,7 +54,7 @@ def test_cached_numbers_and_references_are_real():
     assert "See 2, 2.1, Figure 2, Table 1, (2), Lemma 2.2 and item 2." in paras
     for line in ("Figure 1: First", "Figure 2: Second", "Table 1: Tab", "(1)", "(3)",
                  "Theorem 2.1. A", "Lemma 2.2. B", "Theorem A.1. C",
-                 "Refs: A, (3), 1, 2.1."):
+                 "Refs: A, 3, 1, 2.1."):
         assert line in paras, line
     assert "Also 2.1." in _paras(docx, "word/footnotes.xml")
 

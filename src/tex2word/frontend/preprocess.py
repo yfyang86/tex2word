@@ -595,6 +595,7 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     # \iffalse blocks, \newif switches, \ifdefined, \ifthenelse, etoolbox
     # toggles, \IfFileExists, \@ifpackageloaded: keep the branch TeX would take
     source = resolve_conditionals(source, base_dir)
+    source = _document_hooks(source)  # \AtBeginDocument / \AtEndDocument content
     source = inline_listing_files(source, base_dir)
     source = _rewrite_mathoperators(source)
     source = _VERBSTAR_RE.sub(r"\\verb", source)
@@ -602,6 +603,39 @@ def preprocess(source: str, base_dir: str = ".") -> str:
     source = _LSTINLINE_DELIM_RE.sub(lambda m: r"\verb" + m.group(1), source)
     source = _CMIDRULE_TRIM_RE.sub(r"\1", source)
     return normalize_listing_envs(source)
+
+
+_HOOK_RE = re.compile(r"\\(AtBeginDocument|AtEndDocument)\s*\{")
+
+
+def _document_hooks(source: str) -> str:
+    """Run the preamble's ``\\AtBeginDocument{..}``/``\\AtEndDocument{..}`` where
+    LaTeX runs them: their content moves to the start/end of the body (text
+    they print appears; definitions and settings take effect there)."""
+    begin = source.find("\\begin{document}")
+    end = source.rfind("\\end{document}")
+    if begin < 0 or end < begin or "Document" not in source[:begin]:
+        return source
+    head: list[str] = []
+    start_add: list[str] = []
+    end_add: list[str] = []
+    i = 0
+    for m in _HOOK_RE.finditer(source, 0, begin):
+        if m.start() < i:
+            continue
+        try:
+            body, close = _read_balanced(source, m.end() - 1, "{", "}")
+        except AssertionError:
+            continue
+        head.append(source[i:m.start()])
+        (start_add if m.group(1) == "AtBeginDocument" else end_add).append(body)
+        i = close
+    if not start_add and not end_add:
+        return source
+    head.append(source[i:begin])
+    after = begin + len("\\begin{document}")
+    return ("".join(head) + "\\begin{document}" + "".join(f"{b}\n" for b in start_add)
+            + source[after:end] + "".join(f"\n{b}" for b in end_add) + source[end:])
 
 
 def _read_balanced(s: str, i: int, open_ch: str, close_ch: str) -> tuple[str, int]:

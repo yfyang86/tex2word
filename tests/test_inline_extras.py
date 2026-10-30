@@ -82,7 +82,8 @@ def test_ref_styles_parsed():
     assert _ref(r"\begin{document}\ref{x}\end{document}").style == "plain"
     assert _ref(r"\begin{document}\cref{x}\end{document}").style == "abbrev"
     assert _ref(r"\begin{document}\Cref{x}\end{document}").style == "full"
-    assert _ref(r"\begin{document}\autoref{x}\end{document}").style == "full"
+    assert _ref(r"\begin{document}\autoref{x}\end{document}").style == "auto"
+    assert _ref(r"\begin{document}\eqref{x}\end{document}").style == "eqref"
 
 
 def test_cref_renders_type_prefix():

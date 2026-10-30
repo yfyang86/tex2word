@@ -32,11 +32,17 @@ _OPEN = {
 # statement commands taking the rest of the line, mapped to a keyword prefix
 _STMT = {
     "state": "", "statex": "", "return": "return ", "print": "print ",
-    "require": "Input: ", "ensure": "Output: ", "input": "Input: ",
+    "require": "Require: ", "ensure": "Ensure: ", "input": "Input: ",
     "output": "Output: ", "kwin": "Input: ", "kwout": "Output: ",
     "kwresult": "Result: ", "kwdata": "Data: ",
 }
 _CLOSE = {"endif", "endfor", "endwhile", "endloop", "endfunction", "endprocedure"}
+#: the line algpseudocode/algorithmic print for each block end (unless noend)
+_END_TEXT = {"endif": "end if", "endfor": "end for", "endwhile": "end while",
+             "endloop": "end loop", "endfunction": "end function",
+             "endprocedure": "end procedure"}
+#: statements that label the algorithm's input/output: printed, not numbered
+_UNNUMBERED = {"require", "ensure", "input", "output", "kwin", "kwout", "kwresult", "kwdata"}
 # structural commands that flush the current line and emit their own
 _STRUCTURAL = (
     set(_OPEN) | set(_STMT) | _CLOSE
@@ -60,15 +66,33 @@ def _find_algorithmic(nodes: list) -> LatexEnvironmentNode | None:
     return None
 
 
-def parse_algorithm_body(nodes: list, inlines: InlinesFn) -> list[ir.AlgLine]:
+def parse_algorithm_body(nodes: list, inlines: InlinesFn,
+                         end_lines: bool = True) -> list[ir.AlgLine]:
+    """``end_lines``: print "end if"/"end for"/... (algpseudocode without noend)."""
     inner = _find_algorithmic(nodes)
     body = inner.nodelist if inner is not None else nodes
-    return _Parser(inlines).run(body)
+    return _Parser(inlines, end_lines and inner is not None).run(body)
+
+
+def algorithmic_numbering(nodes: list) -> int | None:
+    """``\\begin{algorithmic}[n]`` -> n (0 without the argument); None when the
+    body is not an algorithmic environment (algorithm2e)."""
+    inner = _find_algorithmic(nodes)
+    if inner is None:
+        return None
+    argd = inner.nodeargd
+    for a in (argd.argnlist if argd else []) or []:
+        if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
+            text = "".join(getattr(n, "chars", "") for n in a.nodelist).strip()
+            return int(text) if text.isdigit() else 1
+    return 0
 
 
 class _Parser:
-    def __init__(self, inlines: InlinesFn) -> None:
+    def __init__(self, inlines: InlinesFn, end_lines: bool = False) -> None:
         self.inlines = inlines
+        self.end_lines = end_lines
+        self.unnumbered = False  # the line being built is \Require/\Ensure
         self.lines: list[ir.AlgLine] = []
         self.indent = 0
         #: content for the line currently being built (raw nodes + ir inlines)
@@ -123,9 +147,10 @@ class _Parser:
         if batch:
             out += self.inlines(batch)
         if any(not (isinstance(x, ir.Text) and not x.value.strip()) for x in out):
-            self.lines.append(ir.AlgLine(max(self.indent, 0), out))
+            self.lines.append(ir.AlgLine(max(self.indent, 0), out, number=not self.unnumbered))
         self.prefix = []
         self.pending = []
+        self.unnumbered = False
 
     def _emit(self, parts: list[ir.Inline]) -> None:
         self.lines.append(ir.AlgLine(max(self.indent, 0), parts))
@@ -206,11 +231,14 @@ class _Parser:
             return j
         if name in _CLOSE:
             self.indent = max(self.indent - 1, 0)
+            if self.end_lines:
+                self._emit([_kw(_END_TEXT[name])])
             return i + 1
         if name in _STMT:
             prefix = _STMT[name]
             if prefix.strip():
                 self.prefix = [_kw(prefix.strip()), ir.Text(" ")]
+            self.unnumbered = name in _UNNUMBERED
             return i + 1
         return i + 1
 

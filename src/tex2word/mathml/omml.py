@@ -19,7 +19,7 @@ from .latex_math import MathUnsupported
 _Element = etree._Element
 
 # strip equation-numbering / label noise before parsing a math line
-_LABEL_RE = re.compile(r"\\(?:label|tag|nonumber|notag)\b\s*(?:\{[^{}]*\})?")
+_LABEL_RE = re.compile(r"\\(?:label|tag|nonumber|notag)\b\*?\s*(?:\{[^{}]*\})?")
 
 # CJK ranges: Unified Ideographs (+ext A), compat ideographs, kana, Hangul, and
 # the CJK symbols/punctuation block (（）。… used inside \text{...}).

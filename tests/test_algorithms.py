@@ -50,7 +50,8 @@ def test_algorithm_parsed_with_caption_label():
     alg = _alg(ALGORITHMIC)
     assert alg.label == "alg:bs"
     assert alg.caption[0].value == "Binary search"
-    assert len(alg.lines) == 9
+    # algorithmic prints "end if" / "end while" lines (no [noend] option)
+    assert len(alg.lines) == 11
 
 
 def test_indentation_tracks_blocks():
@@ -68,7 +69,8 @@ def test_indentation_tracks_blocks():
 def test_keywords_and_input_label():
     alg = _alg(ALGORITHMIC)
     joined = " ".join(_line_text(line) for line in alg.lines)
-    assert "Input: sorted array" in joined
+    assert "Require: sorted array" in joined  # algorithmic's own label
+    assert not alg.lines[0].number  # \REQUIRE lines are not numbered
     assert "while" in joined and "then" in joined and "else" in joined
 
 
