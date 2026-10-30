@@ -392,12 +392,18 @@ class LatexWriter:
         return ""
 
     def _ref(self, node: ir.Ref) -> str:
+        keys = ",".join([node.key, *node.more])
+        if node.is_range and node.more:
+            cmd = "Crefrange" if node.style == "full" else "crefrange"
+            return f"\\{cmd}{{{node.key}}}{{{node.more[0]}}}"
         if node.style == "abbrev":
-            return f"\\cref{{{node.key}}}"
+            return f"\\cref{{{keys}}}"
         if node.style == "full":
-            return f"\\Cref{{{node.key}}}"
-        if node.ref_kind == "equation":
-            return f"\\eqref{{{node.key}}}"
+            return f"\\Cref{{{keys}}}"
+        if node.style == "auto":
+            return f"\\autoref{{{node.key}}}"
+        if node.style == "eqref":
+            return f"\\labelcref{{{keys}}}" if node.more else f"\\eqref{{{node.key}}}"
         if node.ref_kind == "page":
             return f"\\pageref{{{node.key}}}"
         return f"\\ref{{{node.key}}}"

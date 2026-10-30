@@ -136,21 +136,31 @@ PART_NUM_ID = 5
 
 #: abstract list definition of ordered (enumerate) lists
 DECIMAL_ABSTRACT_ID = 1
+#: abstract definition of the multilevel heading numbering (numId 3)
+HEADING_ABSTRACT_ID = 2
 #: first numId handed out for restartable ordered-list instances
 FIRST_LIST_NUM_ID = 100
 
 
-def numbering_xml(restarts: list[tuple[int, int, int]] | None = None) -> bytes:
-    """``word/numbering.xml``; ``restarts`` adds one ``w:num`` per ordered list
-    as ``(numId, ilvl, start)``, so each list restarts its numbering (lists
-    sharing one instance continue across the document in Word)."""
+def numbering_xml(restarts: list[tuple[int, ...]] | None = None) -> bytes:
+    """``word/numbering.xml``; ``restarts`` adds ``w:num`` instances as
+    ``(numId, ilvl, start)`` (an ordered list, which restarts its numbering:
+    lists sharing one instance continue across the document in Word) or
+    ``(numId, ilvl, start, abstractNumId)`` (several entries with one numId
+    make one instance with an override per level: restarted headings)."""
     xml = _NUMBERING_XML
     if restarts:
+        nums: dict[int, tuple[int, list[tuple[int, int]]]] = {}
+        for entry in restarts:
+            num_id, ilvl, start = entry[0], entry[1], entry[2]
+            abstract = entry[3] if len(entry) > 3 else DECIMAL_ABSTRACT_ID
+            nums.setdefault(num_id, (abstract, []))[1].append((ilvl, start))
         extra = "".join(
-            f'  <w:num w:numId="{num_id}"><w:abstractNumId w:val="{DECIMAL_ABSTRACT_ID}"/>'
-            f'<w:lvlOverride w:ilvl="{ilvl}"><w:startOverride w:val="{start}"/>'
-            f"</w:lvlOverride></w:num>\n"
-            for num_id, ilvl, start in restarts
+            f'  <w:num w:numId="{num_id}"><w:abstractNumId w:val="{abstract}"/>'
+            + "".join(f'<w:lvlOverride w:ilvl="{ilvl}"><w:startOverride w:val="{start}"/>'
+                      f"</w:lvlOverride>" for ilvl, start in levels)
+            + "</w:num>\n"
+            for num_id, (abstract, levels) in nums.items()
         )
         xml = xml.replace("</w:numbering>", extra + "</w:numbering>")
     return xml.encode("utf-8")

@@ -132,11 +132,15 @@ _REF_KINDS = {
     "crefrange": "generic", "Crefrange": "generic", "labelcref": "generic",
     "nameref": "name", "Nameref": "name",
 }
-# cleveref-style commands carry a type prefix; \ref/\eqref/\pageref stay bare.
+# cleveref-style commands carry a type name; \ref/\pageref stay bare and
+# \eqref/\labelcref put an equation number in parentheses.
 _REF_STYLE = {
-    "autoref": "full", "cref": "abbrev", "Cref": "full", "vref": "full",
-    "crefrange": "abbrev", "Crefrange": "full",
+    "eqref": "eqref", "labelcref": "eqref",
+    "autoref": "auto", "cref": "abbrev", "Cref": "full", "vref": "full",
+    "crefrange": "abbrev", "Crefrange": "full", "cpageref": "abbrev", "Cpageref": "full",
 }
+#: commands that take a comma-separated list of labels
+_REF_LISTS = {"cref", "Cref", "cpageref", "Cpageref", "labelcref", "vref"}
 
 _TEXT_SYMBOLS = {
     # non-ASCII letters (T1/OT1 text commands)
@@ -339,6 +343,42 @@ def _optional_group(node: LatexMacroNode) -> list | None:
         if isinstance(a, LatexGroupNode) and a.delimiters and a.delimiters[0] == "[":
             return a.nodelist
     return None
+
+
+def _algorithm_options(source: str) -> tuple[bool, bool]:
+    """(algpseudocode/algorithmic ``noend``, algorithm2e numbers its lines)."""
+    noend = numbered = False
+    for opts, pkgs in re.findall(r"\\usepackage\s*\[([^\]]*)\]\s*\{([^}]*)\}", source):
+        names = {p.strip() for p in pkgs.split(",")}
+        flags = {o.strip() for o in opts.split(",")}
+        if names & {"algpseudocode", "algorithmic", "algorithmicx"} and "noend" in flags:
+            noend = True
+        if "algorithm2e" in names and flags & {"linesnumbered", "linesnumberedhidden"}:
+            numbered = True
+    if re.search(r"\\LinesNumbered\b", source):
+        numbered = True
+    return noend, numbered
+
+
+def _si_options(node: LatexMacroNode) -> dict[str, str] | None:
+    """A siunitx command's own ``[key=value]`` options."""
+    opt = _optional_group(node)
+    return siunitx.parse_keyvals(_chars_of(opt)) if opt else None
+
+
+def _sisetup(source: str) -> dict[str, str]:
+    """The document's siunitx options: package options, then every \\sisetup."""
+    opts: dict[str, str] = {}
+    for o, pkgs in re.findall(r"\\usepackage\s*\[([^\]]*)\]\s*\{([^}]*)\}", source):
+        if "siunitx" in [p.strip() for p in pkgs.split(",")]:
+            opts.update(siunitx.parse_keyvals(o))
+    for m in re.finditer(r"\\sisetup\s*\{", source):
+        depth, i = 1, m.end()
+        while i < len(source) and depth:
+            depth += {"{": 1, "}": -1}.get(source[i], 0)
+            i += 1
+        opts.update(siunitx.parse_keyvals(source[m.end():i - 1]))
+    return opts
 
 
 def _join_and(items: list[str]) -> str:
@@ -701,6 +741,19 @@ class _Builder(FrontMatterMixin):
         self.book_mode = False  # book/report class: \chapter is the top level
         #: extra \label -> the label its target already carries
         self.label_aliases: dict[str, str] = {}
+        #: subtable panel labels -> [overall table label, panel letter]
+        self.sub_labels: dict[str, list[str]] = {}
+        #: numbered heading counters by level (1-based index - 1), and a value
+        #: \setcounter{section}{n} gave a level's counter for the next heading
+        self.heading_counts: list[int] = [0] * 6
+        self.heading_set: dict[int, int] = {}
+        #: levels the current heading numbering instance overrides (Word
+        #: reapplies a level's start override whenever that level restarts)
+        self.heading_override_depth = 0
+        #: algpseudocode/algorithmic [noend]: no "end if" lines
+        self.alg_noend = False
+        #: algorithm2e numbers its lines ([linesnumbered], \LinesNumbered)
+        self.alg2e_numbered = False
         #: (label, caption, numbered) of an lstlisting, for the next code block
         self._pending_listing: tuple[str | None, list[ir.Inline] | None, bool] | None = None
         self._title_done = False  # past \maketitle: a \thanks is a plain footnote
@@ -886,9 +939,8 @@ class _Builder(FrontMatterMixin):
             kind = _REF_KINDS[name]
             style = _REF_STYLE.get(name, "plain")
             if len(groups) >= 2:
-                out.append(ir.Ref(_chars_of(groups[0]).strip(), kind, style=style))  # type: ignore[arg-type]
-                out.append(ir.Text(" to "))
-                out.append(ir.Ref(_chars_of(groups[1]).strip(), kind, style="plain"))  # type: ignore[arg-type]
+                out.append(ir.Ref(_chars_of(groups[0]).strip(), kind, style=style,  # type: ignore[arg-type]
+                                  more=[_chars_of(groups[1]).strip()], is_range=True))
             elif groups:
                 out.append(ir.Ref(_chars_of(groups[-1]).strip(), kind, style=style))  # type: ignore[arg-type]
             return
@@ -896,6 +948,11 @@ class _Builder(FrontMatterMixin):
             kind = _REF_KINDS[name]
             style = _REF_STYLE.get(name, "plain")
             keys = [k.strip() for k in _chars_of(_group_nodes(node)).split(",") if k.strip()]
+            if name in _REF_LISTS and keys:
+                # one reference to several labels: the backend writes cleveref's
+                # grouped form ("sections 1 and 2 and fig. 3")
+                out.append(ir.Ref(keys[0], kind, style=style, more=keys[1:]))  # type: ignore[arg-type]
+                return
             for idx, key in enumerate(keys):
                 if idx > 0:  # cleveref joins multi-labels with ", " / " and "
                     out.append(ir.Text(" and " if idx == len(keys) - 1 else ", "))
@@ -991,12 +1048,13 @@ class _Builder(FrontMatterMixin):
             return
         if name in ("SI", "qty"):
             groups = _brace_groups(node)
-            num = siunitx.num_to_text(_chars_of(groups[0])) if groups else ""
+            num = siunitx.num_to_text(_chars_of(groups[0]), _si_options(node)) if groups else ""
             unit = siunitx.units_to_text(groups[1]) if len(groups) > 1 else ""
             out.append(ir.Text(f"{num}{siunitx.THIN}{unit}".strip()))
             return
         if name == "num":
-            out.append(ir.Text(siunitx.num_to_text(_chars_of(_group_nodes(node)))))
+            out.append(ir.Text(siunitx.num_to_text(_chars_of(_group_nodes(node)),
+                                                   _si_options(node))))
             return
         if name == "ang":
             out.append(ir.Text(siunitx.ang_to_text(_chars_of(_group_nodes(node)))))
@@ -1004,15 +1062,15 @@ class _Builder(FrontMatterMixin):
         if name in ("numrange", "SIrange", "qtyrange"):  # a to b [unit]
             groups = _brace_groups(node)
             if len(groups) >= 2:
-                a = siunitx.num_to_text(_chars_of(groups[0]))
-                b = siunitx.num_to_text(_chars_of(groups[1]))
+                a = siunitx.num_to_text(_chars_of(groups[0]), _si_options(node))
+                b = siunitx.num_to_text(_chars_of(groups[1]), _si_options(node))
                 unit = siunitx.units_to_text(groups[2]) if len(groups) > 2 else ""
                 out.append(ir.Text(f"{a} to {b}" + (f"{siunitx.THIN}{unit}" if unit else "")))
             return
         if name in ("numlist", "SIlist", "qtylist"):  # a, b and c [unit]
             groups = _brace_groups(node)
             if groups:
-                items = [siunitx.num_to_text(x.strip())
+                items = [siunitx.num_to_text(x.strip(), _si_options(node))
                          for x in _chars_of(groups[0]).split(";") if x.strip()]
                 unit = siunitx.units_to_text(groups[1]) if len(groups) > 1 else ""
                 out.append(ir.Text(_join_and(items) + (f"{siunitx.THIN}{unit}" if unit else "")))
@@ -1228,6 +1286,10 @@ class _Builder(FrontMatterMixin):
                 # \appendix (and class wrappers like fairmeta's \beginappendix)
                 # switch later sections to lettered numbering.
                 self.in_appendix = True
+                continue
+            if isinstance(node, LatexMacroNode) and node.macroname in (
+                "setcounter", "addtocounter"
+            ) and self._heading_counter(node):
                 continue
             if isinstance(node, LatexMacroNode) and node.macroname.rstrip("*") in _SECTION_LEVELS:
                 flush()
@@ -1449,8 +1511,44 @@ class _Builder(FrontMatterMixin):
             appendix=self.in_appendix and numbered and not is_part,
             part=is_part,
         )
+        if numbered and not is_part and not heading.appendix and 1 <= level <= 6:
+            counts = self.heading_counts
+            if level in self.heading_set:  # \setcounter before this heading
+                counts[level - 1] = self.heading_set.pop(level) + 1
+                heading.number_start = counts[:level]
+                self.heading_override_depth = level
+            else:
+                counts[level - 1] += 1
+                if level < self.heading_override_depth:
+                    # leave an instance whose deeper start override would make
+                    # every later sub-level restart at it ("2.4" for "2.1")
+                    heading.number_start = counts[:level]
+                    self.heading_override_depth = level
+            for deeper in range(level, len(counts)):
+                counts[deeper] = 0
+            for deeper in [k for k in self.heading_set if k > level]:
+                del self.heading_set[deeper]  # a higher heading resets them
         out.append(heading)
         self._labelable = heading
+
+    def _heading_counter(self, node: LatexMacroNode) -> bool:
+        """``\\setcounter``/``\\addtocounter`` on a sectioning counter: the next
+        heading of that level is numbered from the new value. True if handled."""
+        groups = _brace_groups(node)
+        if len(groups) < 2:
+            return False
+        name = _chars_of(groups[0]).strip()
+        levels = _SECTION_LEVELS_BOOK if self.book_mode else _SECTION_LEVELS
+        if name not in levels or name == "part" or (name == "chapter" and not self.book_mode):
+            return False
+        try:
+            value = int(_chars_of(groups[1]).strip())
+        except ValueError:
+            return False
+        level = levels[name]
+        current = self.heading_set.get(level, self.heading_counts[level - 1])
+        self.heading_set[level] = value if node.macroname == "setcounter" else current + value
+        return True
 
     def _math_block(self, verbatim: str, env: str, numbered: bool) -> ir.MathBlock:
         from ..mathml.omml import _split_top_level
@@ -1460,15 +1558,21 @@ class _Builder(FrontMatterMixin):
         # drops \label/\tag then splits on top-level "\\" and keeps non-empty
         # lines, so mirror that here (one entry per rendered, numbered line).
         line_labels: list[str | None] = []
-        if "\\label" in latex:
+        line_tags: list[str | None] = []
+        if re.search(r"\\(?:label|tag|nonumber|notag)\b", latex):
             for seg in _split_top_level(latex, "\\\\"):
-                lab = _extract_label(seg) if "\\label" in seg else None
                 if _LABEL_TAG_RE.sub("", seg).strip():
-                    line_labels.append(lab)
+                    line_labels.append(_extract_label(seg) if "\\label" in seg else None)
+                    line_tags.append(_line_tag(seg))
+        if "\\label" not in latex:
+            line_labels = []
+        if all(t is None for t in line_tags):
+            line_tags = []
         label = next((lb for lb in line_labels if lb), None)
         latex = _LABEL_TAG_RE.sub("", latex).strip()
         block = ir.MathBlock(
-            latex=latex, numbered=numbered, env=env, label=label, line_labels=line_labels
+            latex=latex, numbered=numbered, env=env, label=label, line_labels=line_labels,
+            line_tags=line_tags,
         )
         self._labelable = block
         return block
@@ -1693,8 +1797,14 @@ class _Builder(FrontMatterMixin):
                 caption = self.inlines(_group_nodes(child))
             elif child.macroname == "label":
                 label = _chars_of(_group_nodes(child))
-        lines = parse_algorithm_body(node.nodelist, self.inlines)
-        alg = ir.Algorithm(lines=lines, caption=caption, label=label)
+        from .algorithms import algorithmic_numbering
+
+        lines = parse_algorithm_body(node.nodelist, self.inlines,
+                                     end_lines=not self.alg_noend)
+        numbering = algorithmic_numbering(node.nodelist)
+        if numbering is None:  # algorithm2e: numbered with linesnumbered/\LinesNumbered
+            numbering = 1 if self.alg2e_numbered else 0
+        alg = ir.Algorithm(lines=lines, caption=caption, label=label, line_numbers=numbering)
         self._labelable = alg
         return alg
 
@@ -2051,12 +2161,14 @@ class _Builder(FrontMatterMixin):
             return
         caption: list[ir.Inline] | None = None
         caption_numbered = True
+        caption_above = False
         label: str | None = None
         content: list = []
         for child in _unwrap_table_layout(node.nodelist):
             if isinstance(child, LatexMacroNode) and child.macroname == "caption":
                 caption = self.inlines(_group_nodes(child))
                 caption_numbered = not _has_star(child)
+                caption_above = not any(_is_table_body(c) for c in content)
             elif (
                 isinstance(child, LatexMacroNode) and child.macroname == "captionof"
                 and caption is None and _has_captionof([child], "table")
@@ -2083,6 +2195,7 @@ class _Builder(FrontMatterMixin):
         # single-tabular float behaves exactly as before.
         tables[0].caption = caption
         tables[0].caption_numbered = caption_numbered
+        tables[0].caption_above = caption is not None and caption_above
         tables[0].label = label
         tables[0].spanning = spanning
         self._labelable = tables[0]
@@ -2116,9 +2229,12 @@ class _Builder(FrontMatterMixin):
         own captions become "(a) ..." lines."""
         outer_caption: list[ir.Inline] | None = None
         outer_label: str | None = None
+        outer_above = False
         for child in node.nodelist:
             if isinstance(child, LatexMacroNode) and child.macroname == "caption":
                 outer_caption = self.inlines(_group_nodes(child))
+                # written before the first panel -> printed above the panels
+                outer_above = panels[0] not in node.nodelist[: node.nodelist.index(child)]
             elif isinstance(child, LatexMacroNode) and child.macroname == "label":
                 outer_label = outer_label or _chars_of(_group_nodes(child))
         first_table: ir.Table | None = None
@@ -2128,18 +2244,21 @@ class _Builder(FrontMatterMixin):
             tables = [b for b in sub if isinstance(b, ir.Table)]
             if outer_caption is not None and tables:
                 t = tables[0]
-                if t.caption:
-                    sub.insert(sub.index(t), ir.Paragraph(
-                        [ir.Text(f"({chr(ord('a') + i)}) "), *t.caption], align="center"))
+                letter = chr(ord("a") + i)
+                if t.caption:  # the panel's caption becomes its "(a) ..." line
+                    t.subcaption = [ir.Text(f"({letter}) "), *t.caption]
+                    t.subcaption_above = t.caption_above
                 t.caption = None
-                if t.label and outer_label:  # \ref{sub-label} -> the table's number
-                    self.label_aliases.setdefault(t.label, outer_label)
+                t.caption_above = False
+                if t.label and outer_label:  # \ref{sub-label} -> "1a"
+                    self.sub_labels.setdefault(t.label, [outer_label, letter])
                 t.label = None
             if first_table is None and tables:
                 first_table = tables[0]
             out.extend(sub)
         if outer_caption is not None and first_table is not None:
             first_table.caption = outer_caption
+            first_table.caption_above = outer_above
             first_table.label = outer_label
             self._labelable = first_table
 
@@ -2153,6 +2272,7 @@ class _Builder(FrontMatterMixin):
         if getattr(node, "environmentname", "") == "longtable":
             nodes, caption, label = self._longtable_prep(nodes)
         rows = self._tabular_rows(nodes, len(colspec) or 1, colspec)
+        _format_numeric_cells(rows, _numeric_columns(_env_colspec(node)))
         return ir.Table(
             rows=rows, colspec=colspec, booktabs=booktabs, colwidths=colwidths,
             caption=caption, label=label,
@@ -2405,6 +2525,57 @@ def _clean_inlines(nodes: list[ir.Inline], *, trim: bool = False) -> list[ir.Inl
     return merged
 
 
+#: classes whose \maketitle prints no date at all (\date is ignored)
+_NO_DATE_CLASSES = {"IEEEtran", "ieeeconf", "llncs", "acmart", "sn-jnl"}
+#: classes that print a date only when \date is given (no default \today)
+_NO_DEFAULT_DATE_CLASSES = {"amsart", "amsproc", "amsbook"}
+#: classes that set the abstract's name run-in ("Abstract." before the text)
+_ABSTRACT_RUNIN = {"amsart", "amsproc", "amsbook", "llncs", "svjour3", "svmult", "lipics-v2021",
+                   "smfart"}
+#: classes whose abstract has no heading of its own
+_ABSTRACT_NONE = {"letter", "moderncv", "beamer", "revtex4", "revtex4-1", "revtex4-2"}
+#: \abstractname under babel/polyglossia/ctex, by BCP-47 language
+_ABSTRACT_NAMES = {
+    "de": "Zusammenfassung", "fr": "Résumé", "es": "Resumen", "it": "Sommario",
+    "pt": "Resumo", "nl": "Samenvatting", "ru": "Аннотация", "pl": "Streszczenie",
+    "zh": "摘要", "ja": "概要", "ko": "요약",
+}
+
+
+def _abstract_heading(doc_class: str, source: str, language: str | None) -> tuple[str, str]:
+    """The abstract's name and how the class prints it."""
+    m = re.search(r"\\(?:re)?newcommand\*?\s*\{?\\abstractname\}?\s*\{([^{}]*)\}", source) \
+        or re.search(r"\\def\\abstractname\s*\{([^{}]*)\}", source)
+    if m:
+        name = m.group(1).strip()
+    elif doc_class.startswith("ctex"):
+        name = "摘要"
+    else:
+        name = _ABSTRACT_NAMES.get((language or "").split("-")[0].lower(), "Abstract")
+    if doc_class in _ABSTRACT_NONE:
+        return name, "none"
+    if doc_class == "IEEEtran":
+        return name, "dash"
+    if doc_class in _ABSTRACT_RUNIN:
+        return name, "runin"
+    return name, "block"
+
+
+_CREFNAME_RE = re.compile(r"\\(crefname|Crefname)\s*\{([^{}]*)\}\s*\{([^{}]*)\}\s*\{([^{}]*)\}")
+
+
+def _cleveref_setup(preamble: str) -> dict:
+    """cleveref's package options and ``\\crefname``/``\\Crefname`` overrides."""
+    options: list[str] = []
+    for opts, pkgs in re.findall(r"\\usepackage\s*\[([^\]]*)\]\s*\{([^}]*)\}", preamble):
+        if "cleveref" in [p.strip() for p in pkgs.split(",")]:
+            options += [o.strip() for o in opts.split(",") if o.strip()]
+    names: dict[str, dict[str, list[str]]] = {"crefname": {}, "Crefname": {}}
+    for cmd, kind, singular, plural in _CREFNAME_RE.findall(preamble):
+        names[cmd][kind.strip()] = [singular.strip(), plural.strip()]
+    return {"options": options, **names}
+
+
 def _is_display(node: LatexMathNode) -> bool:
     delims = getattr(node, "delimiters", ("$", "$"))
     return delims[0] in ("\\[", "$$")
@@ -2424,7 +2595,20 @@ def _strip_math_delims(verbatim: str, env: str) -> str:
     return v
 
 
-_LABEL_TAG_RE = re.compile(r"\\(?:label|tag|nonumber|notag)\b\s*(?:\{[^{}]*\})?")
+_LABEL_TAG_RE = re.compile(r"\\(?:label|tag|nonumber|notag)\b\*?\s*(?:\{[^{}]*\})?")
+_TAG_RE = re.compile(r"\\tag(\*?)\s*\{([^{}]*)\}")
+
+
+def _line_tag(segment: str) -> str | None:
+    """What replaces a display line's number: None (numbered as usual), ""
+    (\\notag/\\nonumber), "(A)" for \\tag{A}, "A" for \\tag*{A}."""
+    m = _TAG_RE.search(segment)
+    if m:
+        text = m.group(2).strip()
+        return text if m.group(1) else f"({text})"
+    if re.search(r"\\(?:nonumber|notag)\b", segment):
+        return ""
+    return None
 
 
 def _extract_label(latex: str) -> str | None:
@@ -2495,47 +2679,106 @@ _COL_PROCESSOR_ALIGN = {
 }
 
 
-def _parse_colspec(spec: str) -> tuple[list, list[float | None]]:
-    """Parse a column spec into (alignments, per-column EMU widths or None)."""
-    aligns: list = []
-    widths: list[float | None] = []
+def _is_table_body(node) -> bool:
+    """A float child that is (or wraps) the table itself, not caption material."""
+    if isinstance(node, LatexEnvironmentNode):
+        return True
+    return isinstance(node, LatexMacroNode) and node.macroname in (
+        "resizebox", "scalebox", "adjustbox", "rotatebox", "input", "include")
+
+
+def _format_numeric_cells(rows: list[ir.TableRow], columns: set[int]) -> None:
+    """siunitx ``S`` columns print their numbers formatted (``12345`` -> ``12 345``);
+    header text in braces stays as written."""
+    if not columns:
+        return
+    for row in rows:
+        col = 0
+        for cell in row.cells:
+            if col in columns and len(cell.blocks) == 1 and isinstance(cell.blocks[0],
+                                                                       ir.Paragraph):
+                inl = cell.blocks[0].inlines
+                if len(inl) == 1 and isinstance(inl[0], ir.Text):
+                    inl[0].value = siunitx.num_to_text(inl[0].value)
+            col += cell.colspan
+
+
+def _colspec_columns(spec: str) -> list[tuple[str, str, float | None]]:
+    """The columns of a tabular spec as ``(type, alignment, EMU width or None)``.
+
+    ``type`` is the column letter (``l``, ``p``, ``X``, ``S``, ...). ``@{..}``,
+    ``!{..}``, ``<{..}`` and option brackets are skipped (their contents are
+    not columns: ``@{\hspace{1cm}}``, ``S[table-format=2.2]``), and
+    ``*{n}{spec}`` repeats ``spec``."""
+    out: list[tuple[str, str, float | None]] = []
     pending_align: str | None = None  # set by a >{...} column processor
     i = 0
     while i < len(spec):
         c = spec[i]
-        if c == ">" and i + 1 < len(spec) and spec[i + 1] == "{":
+        nxt = spec[i + 1] if i + 1 < len(spec) else ""
+        if c == ">" and nxt == "{":
             body, i = _braced_group(spec, i + 1)
             for key, al in _COL_PROCESSOR_ALIGN.items():
                 if f"\\{key}" in body:
                     pending_align = al
             i += 1
             continue
+        if c in "@!<" and nxt == "{":
+            _, i = _braced_group(spec, i + 1)
+            i += 1
+            continue
+        if c == "*" and nxt == "{":
+            count, i = _braced_group(spec, i + 1)
+            if i + 1 < len(spec) and spec[i + 1] == "{":
+                inner, i = _braced_group(spec, i + 1)
+                out.extend(_colspec_columns(inner) * max(0, _int_or_default(count, 1)))
+            i += 1
+            continue
+        if c == "[":  # options of the previous column (S[...], X[...])
+            close = spec.find("]", i)
+            i = len(spec) if close < 0 else close + 1
+            continue
         if c in "lcr":
-            aligns.append(pending_align or {"l": "left", "c": "center", "r": "right"}[c])
-            widths.append(None)
+            out.append((c, pending_align or {"l": "left", "c": "center", "r": "right"}[c], None))
             pending_align = None
         elif c == "X":
             # tabularx flexible column: a paragraph column that fills the
             # remaining width. Count it (so cells line up) with an auto width;
             # a >{\raggedright}X etc. supplies the alignment.
-            aligns.append(pending_align or "left")
-            widths.append(None)
+            out.append((c, pending_align or "left", None))
             pending_align = None
         elif c in "LCRJ":
             # tabulary auto-width columns (L/C/R = left/centre/right, J = justify)
-            aligns.append(
-                pending_align or {"L": "left", "C": "center", "R": "right", "J": "left"}[c]
-            )
-            widths.append(None)
+            out.append((c, pending_align or {"L": "left", "C": "center", "R": "right",
+                                             "J": "left"}[c], None))
             pending_align = None
-        elif c in "pmb" and i + 1 < len(spec) and spec[i + 1] == "{":
-            aligns.append(pending_align or "left")
+        elif c == "S":  # siunitx number column (aligned on the decimal marker)
+            out.append((c, pending_align or "center", None))
             pending_align = None
+        elif c == "D" and nxt == "{":  # dcolumn: D{sep}{out}{places}
+            for _ in range(3):
+                if i + 1 < len(spec) and spec[i + 1] == "{":
+                    _, i = _braced_group(spec, i + 1)
+            out.append((c, pending_align or "center", None))
+            pending_align = None
+        elif c in "pmb" and nxt == "{":
             body, i = _braced_group(spec, i + 1)
-            widths.append(_length_to_emu(body))
-        # ignore |, @{...}, etc.
+            out.append((c, pending_align or "left", _length_to_emu(body)))
+            pending_align = None
+        # ignore |, spaces, unknown letters
         i += 1
-    return aligns, widths
+    return out
+
+
+def _parse_colspec(spec: str) -> tuple[list, list[float | None]]:
+    """Parse a column spec into (alignments, per-column EMU widths or None)."""
+    cols = _colspec_columns(spec)
+    return [a for _, a, _ in cols], [w for _, _, w in cols]
+
+
+def _numeric_columns(spec: str) -> set[int]:
+    """Indices of siunitx ``S`` columns (their numbers are formatted)."""
+    return {i for i, (t, _, _) in enumerate(_colspec_columns(spec)) if t == "S"}
 
 
 #: LaTeX length units -> EMU (914400 per inch). bp/pt approximated as points.
@@ -3179,7 +3422,10 @@ def _build_context(
         ] + [
             # tabularx/tabulary carry a leading {width}; supertabular/xtabular take
             # just the {colspec}. Declaring the args keeps them out of the body.
-            EnvironmentSpec("tabularx", "{{"), EnvironmentSpec("tabulary", "{{"),
+            EnvironmentSpec("tabularx", "{[{"), EnvironmentSpec("tabulary", "{[{"),
+            # \begin{tabular}[t]{..}: the [pos] argument (pylatexenc knows only
+            # {colspec}, so "[t]" leaked into the first cell as "t]")
+            EnvironmentSpec("tabular", "[{"), EnvironmentSpec("tabular*", "{[{"),
             EnvironmentSpec("supertabular", "{"), EnvironmentSpec("xtabular", "{"),
             EnvironmentSpec("mpsupertabular", "{"),
             # longtable: \begin{longtable}[pos]{colspec} (not in pylatexenc's
@@ -3454,6 +3700,8 @@ def parse_document(
     builder.tcb_envs, builder.tcb_styles = tcb_envs, tcb_styles
     builder.box_styles = _collect_mdframed_envs(theorem_src)  # \newmdenv callouts (+colours)
     builder.box_envs |= set(builder.box_styles)
+    siunitx.configure(_sisetup(expanded))  # number format for \num/\SI/S columns
+    builder.alg_noend, builder.alg2e_numbered = _algorithm_options(expanded)
     builder.book_mode = _is_book_class(expanded)
     cls = re.search(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", expanded)
     builder.doc_class = cls.group(1).strip() if cls else "article"
@@ -3472,17 +3720,23 @@ def parse_document(
     teaser = _preamble_teaser_blocks(preamble, ctx, builder)
     blocks = teaser + builder.blocks(nodes)
     doc = ir.Document(blocks=blocks, meta=builder.meta, book=builder.book_mode,
-                      label_aliases=builder.label_aliases)
+                      label_aliases=builder.label_aliases, sub_labels=builder.sub_labels,
+                      cref=_cleveref_setup(preamble))
 
     _fill_meta_from_preamble(doc, preamble, ctx, report, builder)
     # LaTeX's \maketitle defaults an omitted \date to \today; mirror that when a
     # title is present but no \date was given (an explicit \date{} stays empty).
-    if doc.meta.date is None and doc.meta.title and builder.doc_class != "moderncv":
+    if builder.doc_class in _NO_DATE_CLASSES:
+        doc.meta.date = None  # their \maketitle never prints \date
+    elif (doc.meta.date is None and doc.meta.title
+          and builder.doc_class not in ("moderncv", *_NO_DEFAULT_DATE_CLASSES)):
         doc.meta.date = _default_date(source, builder)
     _collect_bib_resources(preamble, builder)  # biblatex \addbibresource (preamble)
     _detect_bib_style(preamble, builder)        # biblatex/natbib author-year option
     if doc.meta.language is None:
         doc.meta.language = _detect_language(preamble)  # babel/polyglossia -> BCP-47
+    doc.meta.abstract_name, doc.meta.abstract_form = _abstract_heading(
+        builder.doc_class, source, doc.meta.language)
     _detect_fonts(doc, preamble)  # fontspec/xeCJK \setmainfont / \setCJK*font
     doc.meta.columns = _detect_columns(expanded)  # twocolumn / \twocolumn / multicols
     _resolve_bibliography(doc, builder, base_dir, report, csl_path)

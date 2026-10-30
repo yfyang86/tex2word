@@ -16,7 +16,10 @@ does:
 3. it records the text inside each bookmark (and its paragraph number);
 4. it fills each ``REF`` result from the bookmark, in the body and in notes.
 
-``PAGEREF`` results are left alone (page numbers need layout).
+``PAGEREF`` needs layout, which only Word has: its cached result is an
+estimate, 1 plus the page breaks before the bookmark (explicit breaks,
+page-break-before paragraphs, new-page section breaks). That is exact for a
+short document and never the placeholder "0".
 """
 
 from __future__ import annotations
@@ -88,7 +91,7 @@ class _Numbering:
             counts[deeper] = None
         for upper in range(ilvl):  # an unnumbered upper level counts as its start
             if counts[upper] is None:
-                counts[upper] = levels.get(upper, (1, "decimal", ""))[0]
+                counts[upper] = overrides.get(upper, levels.get(upper, (1, "decimal", ""))[0])
         _, fmt, text = levels.get(ilvl, (1, "decimal", f"%{ilvl + 1}"))
         if fmt in ("bullet", "none"):
             return None
@@ -196,9 +199,14 @@ def fill_field_results(
     heading_numbers: dict[int, str] = {}  # level -> latest heading's number text
     bookmark_text: dict[str, list[str]] = {}
     bookmark_number: dict[str, str] = {}
+    bookmark_page: dict[str, int] = {}
     refs: list[_Field] = []
+    page = 1
 
     for p in body.iter(_qn("p")):
+        ppr = p.find(_qn("pPr"))
+        if ppr is not None and _on(ppr.find(_qn("pageBreakBefore"))):
+            page += 1
         number: tuple[str, str] | None = None
         num = _num_of(p)
         if num is not None:
@@ -229,16 +237,20 @@ def fill_field_results(
             elif f.kind == "STYLEREF" and f.args:
                 level = int(f.args[0]) if f.args[0].isdigit() else 1
                 _set(f, heading_numbers.get(level, "0").rstrip("."))
-            elif f.kind == "REF" and f.args:
+            elif f.kind in ("REF", "PAGEREF") and f.args:
                 refs.append(f)
         # bookmarks: their text (after this paragraph's fields are filled) and
         # the paragraph's own number (for REF \r)
         open_marks: dict[str, str] = {}
-        for el in p.iter(_qn("bookmarkStart"), _qn("bookmarkEnd"), _qn("t"), _qn("instrText")):
-            if el.tag == _qn("bookmarkStart"):
+        for el in p.iter(_qn("bookmarkStart"), _qn("bookmarkEnd"), _qn("t"), _qn("br")):
+            if el.tag == _qn("br"):
+                if el.get(_qn("type")) == "page":
+                    page += 1
+            elif el.tag == _qn("bookmarkStart"):
                 name = el.get(_qn("name"), "")
                 open_marks[el.get(_qn("id"), "")] = name
                 bookmark_text.setdefault(name, [])
+                bookmark_page.setdefault(name, page)
                 if number is not None:
                     bookmark_number[name] = number[0]
             elif el.tag == _qn("bookmarkEnd"):
@@ -246,11 +258,21 @@ def fill_field_results(
             elif el.tag == _qn("t"):
                 for name in open_marks.values():
                     bookmark_text[name].append(el.text or "")
+        # a section break that starts a new page (the paragraph ends a section)
+        sect = ppr.find(_qn("sectPr")) if ppr is not None else None
+        if sect is not None:
+            kind = sect.find(_qn("type"))
+            if kind is None or kind.get(_qn("val"), "nextPage") != "continuous":
+                page += 1
     for note in notes:
         for p in note.iter(_qn("p")):
-            refs.extend(f for f in _paragraph_fields(p) if f.kind == "REF" and f.args)
+            refs.extend(f for f in _paragraph_fields(p)
+                        if f.kind in ("REF", "PAGEREF") and f.args)
     for f in refs:
         mark = f.args[0]
+        if f.kind == "PAGEREF":
+            _set(f, str(bookmark_page.get(mark, 1)))
+            continue
         if "\\r" in f.args or "\\n" in f.args or "\\w" in f.args:
             value = bookmark_number.get(mark)
             if value is not None:
@@ -259,6 +281,11 @@ def fill_field_results(
         text = "".join(bookmark_text.get(mark, [])).strip()
         if text:
             _set(f, text)
+
+
+def _on(el: etree._Element | None) -> bool:
+    """An on/off property that is present and not switched off."""
+    return el is not None and el.get(_qn("val"), "true") not in ("0", "false", "off")
 
 
 def _set(f: _Field, value: str) -> None:

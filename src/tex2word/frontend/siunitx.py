@@ -76,14 +76,94 @@ def units_to_text(nodes: list) -> str:
     return out.strip()
 
 
-def num_to_text(s: str) -> str:
-    """Render a number: ``1.5e3`` → ``1.5×10³``; otherwise pass through."""
-    s = s.strip()
-    m = _NUM_EXP.match(s)
-    if m:
-        mant, exp = m.group(1), m.group(2).lstrip("+")
-        return f"{mant}×10{exp.translate(_SUP)}"
-    return s
+# -- number formatting (siunitx defaults, \sisetup and per-command options) -- #
+
+_DEFAULTS: dict[str, str] = {
+    "group-digits": "all",          # all | integer | decimal | none
+    "group-separator": THIN,
+    "group-minimum-digits": "5",    # a part is grouped once it has this many digits
+    "output-decimal-marker": ".",
+}
+_settings: dict[str, str] = dict(_DEFAULTS)
+_NUMBER = re.compile(r"^([+-]?)(\d*)(?:[.,](\d*))?(?:[eE]([+-]?\d+))?$")
+
+
+def parse_keyvals(text: str) -> dict[str, str]:
+    """``key=value, flag`` (one level of braces) -> dict; a bare key is "true"."""
+    out: dict[str, str] = {}
+    depth, cur, parts = 0, "", []
+    for ch in text:
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        if ch == "," and depth == 0:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    parts.append(cur)
+    for part in parts:
+        key, eq, value = part.partition("=")
+        key = key.strip()
+        if key:
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                value = value[1:-1]
+            out[key] = value if eq else "true"
+    return out
+
+
+def configure(options: dict[str, str] | None = None) -> None:
+    """Set the document's number format (``\\sisetup``); None restores defaults."""
+    _settings.clear()
+    _settings.update(_DEFAULTS)
+    if options:
+        _settings.update(options)
+
+
+def _separator(value: str) -> str:
+    v = value.strip(" ")  # not str.strip(): the thin space is the default separator
+    return {"\\,": THIN, "\\thinspace": THIN, "~": "\u00a0", "\\ ": " ", "\;": " ",
+            "\\:": " ", "\\quad": " ", "": ""}.get(v, v)
+
+
+def _group(digits: str, size: int, from_left: bool, sep: str) -> str:
+    if from_left:
+        return sep.join(digits[i:i + 3] for i in range(0, len(digits), 3))
+    head = len(digits) % 3 or 3
+    return sep.join([digits[:head]] + [digits[i:i + 3] for i in range(head, len(digits), 3)])
+
+
+def num_to_text(s: str, options: dict[str, str] | None = None) -> str:
+    """Render a number as siunitx prints it: digits grouped in threes with a
+    thin space once a part has 5 or more digits (``12345`` → ``12 345``),
+    ``1.5e3`` → ``1.5×10³``; anything else passes through."""
+    o = {**_settings, **(options or {})}
+    raw = s.strip()
+    compact = raw.replace("\\,", "").replace("{,}", ",").replace(" ", "").replace(THIN, "")
+    m = _NUMBER.match(compact)
+    if not m or not (m.group(2) or m.group(3)):
+        return raw
+    sign, whole, frac, exp = m.groups()
+    mode = o.get("group-digits", "all").lower()
+    mode = {"true": "all", "false": "none"}.get(mode, mode)
+    try:
+        minimum = int(o.get("group-minimum-digits", "5"))
+    except ValueError:
+        minimum = 5
+    sep = _separator(o.get("group-separator", THIN))
+    if mode in ("all", "integer") and len(whole) >= minimum:
+        whole = _group(whole, 3, False, sep)
+    if frac and mode in ("all", "decimal") and len(frac) >= minimum:
+        frac = _group(frac, 3, True, sep)
+    out = sign + (whole or "0" if frac is not None else whole)
+    if frac is not None:
+        marker = o.get("output-decimal-marker", ".").strip("{}") or "."
+        out += marker + frac
+    if exp is not None:
+        out += f"×10{exp.lstrip('+').translate(_SUP)}"
+    return out
 
 
 def ang_to_text(s: str) -> str:

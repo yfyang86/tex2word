@@ -7,6 +7,67 @@ to editable Word (`.docx`) with native OMML math and live fields; see
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased — what the TeX oracle found (issues #47–#54)
+
+[texprobe](https://github.com/yfyang86/texprobe) builds every synthetic probe
+with a real LaTeX engine and compares the PDF with the Word text. On 1.1.0 it
+flagged 360 probes the generic oracles pass. These fixes clear 331 of them,
+and the generic-oracle baseline (115) is unchanged.
+
+### Fixed
+
+- **Display math numbering** (#47).
+  - `\tag{A}` prints "(A)" and `\tag*{A}` prints "A"; `\notag` and
+    `\nonumber` lines get no number and don't advance the counter.
+  - `\ref` to a tagged line gives "A"; `\eqref` gives "(A)".
+  - `multline` numbers its last line only (it numbered every line).
+  - A plain `\ref` to an equation prints "1", not "(1)". Only `\eqref`,
+    `\labelcref` and cleveref add the parentheses.
+- **`\pageref`** (#48): the cached result is 1 plus the page breaks before
+  the target, not the placeholder "0".
+- **The abstract's heading** (#49).
+  - It is printed the way the class does: "Abstract" above it (article,
+    report, elsarticle, …), run-in "**Abstract.**" (amsart, llncs), or
+    IEEEtran's "***Abstract*—**". REVTeX, letter and beamer print none.
+  - The name follows `\abstractname` and babel ("Zusammenfassung", "Résumé",
+    …), and "摘要" under ctex.
+- **cleveref names** (#50).
+  - Names follow the package: "section", "table", "eq.", "fig." for `\cref`;
+    "Section", "Equation" for `\Cref`.
+  - `\cref{a,b}` groups and pluralises: "sections 1 and 2",
+    "section 1, fig. 2 and eq. (3)". `\crefrange` gives "sections 1 to 3".
+  - The `capitalise` and `noabbrev` options, and `\crefname`/`\Crefname`,
+    are honoured.
+  - `\autoref` uses hyperref's names ("Equation 1", "section 2").
+- **siunitx numbers** (#51).
+  - Digits are grouped in threes with a thin space once a part has 5 or more
+    ("12 345", "0.123 456").
+  - `\sisetup`, package options and per-command options are followed
+    (`group-digits`, `group-separator`, `group-minimum-digits`,
+    `output-decimal-marker`).
+  - `S` table columns are formatted the same way.
+- **Tabular column specs** (#52).
+  - `\begin{tabular}[t]{…}` no longer leaks "t]" into the first cell. This
+    covers nested tables, `tabular*`, `tabularx` and `tabulary` too.
+  - The contents of `@{…}`, `!{…}`, `<{…}` and `S[…]` options no longer count
+    as columns, and `*{n}{…}` is expanded.
+- **Subtables and caption position** (#53).
+  - A table caption written before the tabular is placed above the table.
+  - In a table of subtables, the overall caption comes first and each panel's
+    "(a) …" line keeps its position.
+  - `\ref` to a panel gives "1a".
+- **Smaller fixes** (#54).
+  - `\setcounter`/`\addtocounter` on `section`, `subsection` and `chapter`
+    renumber the following headings, and references follow.
+  - `\AtBeginDocument`/`\AtEndDocument` content is printed where LaTeX prints
+    it.
+  - IEEEtran, llncs, acmart and sn-jnl get no title-block date, because their
+    `\maketitle` prints none; amsart gets no default `\today`.
+  - algorithmic/algpseudocode output matches LaTeX: "Require:"/"Ensure:"
+    lines unnumbered, "end if"/"end for" lines (unless `noend`), and line
+    numbers only with `\begin{algorithmic}[n]`. algorithm2e numbers its lines
+    only with `linesnumbered` or `\LinesNumbered`.
+
 ## 1.1.0 — synthetic probes, journal front matter & real field numbers
 
 A synthetic-LaTeX probe harness (below) found most of what this release

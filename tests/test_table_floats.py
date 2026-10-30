@@ -57,6 +57,11 @@ def test_subtables_with_a_main_caption():
                    r"\begin{tabular}{l}y\\\end{tabular}\end{subtable}\end{table}\ref{s}")
     first, second = _tables(doc)
     assert _txt(first.caption) == "Main" and first.label == "m" and second.caption is None
-    lines = [_txt(b.inlines) for b in doc.blocks if isinstance(b, ir.Paragraph)]
-    assert "(a) One" in lines and "(b) Two" in lines
+    # the overall caption was written first: it goes above the panels; each
+    # panel's own caption is its "(a) ..." line, above its tabular as written
+    assert first.caption_above
+    assert _txt(first.subcaption) == "(a) One" and first.subcaption_above
+    assert _txt(second.subcaption) == "(b) Two"
+    # \ref to a panel: the table's number and the panel's letter ("1a")
     assert doc.labels["s"].bookmark == doc.labels["m"].bookmark
+    assert doc.labels["s"].sub == "a"

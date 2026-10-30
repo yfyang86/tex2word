@@ -22,6 +22,7 @@ from . import fields, images, raster
 from .numbering import (
     BULLET_NUM_ID,
     FIRST_LIST_NUM_ID,
+    HEADING_ABSTRACT_ID,
     HEADING_APPENDIX_NUM_ID,
     HEADING_NUM_ID,
     PART_NUM_ID,
@@ -104,7 +105,9 @@ class DocumentWriter:
         self.math = MathCascade(report, image_renderer=image_math_renderer)
         fields.reset_bookmark_ids()
         #: (numId, ilvl, start) of every ordered list's own numbering instance
-        self.list_restarts: list[tuple[int, int, int]] = []
+        self.list_restarts: list[tuple[int, ...]] = []
+        #: the heading numbering instance in use (a \setcounter{section} starts a new one)
+        self._heading_num_id = HEADING_NUM_ID
         #: number of Heading 1 paragraphs so far, and per SEQ counter the value it
         #: had at that counter's last section-relative number
         self._section_epoch = 0
@@ -116,6 +119,8 @@ class DocumentWriter:
         from ..bib import zotero
 
         zotero.reset_ids()
+        self._labels = doc.labels
+        self._cref = doc.cref or {}
         # CJK glyphs inside math get the document's East-Asian font (xeCJK).
         self.math.cjk_font = doc.meta.cjk_main_font or doc.meta.cjk_sans_font
         for block in doc.blocks:
@@ -198,13 +203,38 @@ class DocumentWriter:
             self._inlines(meta.date, p)
             body.append(p)
         if meta.abstract:
-            for block in meta.abstract:
-                self._block(block, body, default_style="Abstract")
+            self._abstract(meta, body)
         if meta.keywords:
             p = self._styled_paragraph("Abstract")
             p.append(self._run("Keywords: ", bold=True))
             self._inlines(meta.keywords, p)
             body.append(p)
+
+    def _abstract(self, meta: ir.DocumentMeta, body: _Element) -> None:
+        """The abstract with the heading its class prints: a line above it
+        ("Abstract"), run-in ("Abstract." / IEEEtran's "Abstract—"), or none."""
+        name, form = meta.abstract_name or "Abstract", meta.abstract_form
+        if form == "block":
+            p = self._styled_paragraph("Abstract")
+            self._set_align(p, "center")
+            p.append(self._run(name, bold=True))
+            body.append(p)
+        start = len(body)
+        for block in meta.abstract or []:
+            self._block(block, body, default_style="Abstract")
+        if form not in ("runin", "dash"):
+            return
+        first = body[start] if len(body) > start else None
+        if first is None or first.tag != _qn("w:p"):
+            first = self._styled_paragraph("Abstract")
+            body.insert(start, first)
+        ppr = first.find(_qn("w:pPr"))
+        at = 0 if ppr is None else first.index(ppr) + 1
+        if form == "dash":
+            label = self._run(f"{name}—", bold=True, italic=True)
+        else:
+            label = self._run(f"{name}. ", bold=True)
+        first.insert(at, label)
 
     # -- blocks ----------------------------------------------------------- #
 
@@ -267,7 +297,14 @@ class DocumentWriter:
             assert ppr is not None
             numpr = sub(ppr, "w:numPr")
             sub(numpr, "w:ilvl", **{"w:val": str(block.level - 1)})
-            num_id = HEADING_APPENDIX_NUM_ID if block.appendix else HEADING_NUM_ID
+            if block.number_start and not block.appendix:
+                # \setcounter{section}{n}: a new instance of the heading scheme
+                # starting at the new values; later headings continue in it
+                self._heading_num_id = FIRST_LIST_NUM_ID + len(self.list_restarts)
+                for ilvl, value in enumerate(block.number_start):
+                    self.list_restarts.append(
+                        (self._heading_num_id, ilvl, value, HEADING_ABSTRACT_ID))
+            num_id = HEADING_APPENDIX_NUM_ID if block.appendix else self._heading_num_id
             sub(numpr, "w:numId", **{"w:val": str(num_id)})
         start = None
         if block.label:
@@ -299,9 +336,30 @@ class DocumentWriter:
             body.append(p)
             return
 
+        tags = block.line_tags
+        # a block that carries one number (equation, a collapsed align, every
+        # line of a multline) takes the tag of whichever line has one
+        lines = len(result.omath)
+        multline = block.env.startswith("multline") and lines > 1
+        whole_tag = next((t for t in tags if t), None)
+        if whole_tag is None and "" in tags:
+            whole_tag = ""
         for idx, omath in enumerate(result.omath):
-            if block.numbered:
-                body.append(self._numbered_equation(omath, block, idx))
+            label = None
+            if multline:
+                # multline numbers its last line only, and that line takes the label
+                last = idx == lines - 1
+                tag = whole_tag if last else ""
+                label = (block.label or next((x for x in block.line_labels if x), None)
+                         if last else None)
+            elif lines == 1 and len(tags) > 1:
+                tag = whole_tag
+            else:
+                tag = tags[idx] if idx < len(tags) else None
+            if tag or (block.numbered and tag is None):
+                body.append(self._numbered_equation(omath, block, idx, tag,
+                                                    label_override=label if multline else None,
+                                                    no_label=multline and label is None))
             else:
                 p = self._styled_paragraph("Normal")
                 para = el("m:oMathPara")
@@ -309,7 +367,9 @@ class DocumentWriter:
                 p.append(para)
                 body.append(p)
 
-    def _numbered_equation(self, omath: _Element, block: ir.MathBlock, idx: int) -> _Element:
+    def _numbered_equation(self, omath: _Element, block: ir.MathBlock, idx: int,
+                           tag: str | None = None, label_override: str | None = None,
+                           no_label: bool = False) -> _Element:
         p = el("w:p")
         ppr = sub(p, "w:pPr")
         tabs = sub(ppr, "w:tabs")
@@ -319,10 +379,16 @@ class DocumentWriter:
         p.append(self._tab_run())
         p.append(omath)
         p.append(self._tab_run())
-        p.append(self._run("("))
+        # \tag{A} prints "(A)", \tag*{A} prints "A"; the bookmark holds what
+        # \ref prints ("A"), and \eqref adds the parentheses
+        tagged = tag is not None and tag.startswith("(") and tag.endswith(")")
+        if tag is None or tagged:
+            p.append(self._run("("))
         # each numbered line bookmarks its own \label (so \ref to any line
         # resolves); a single equation / external \label falls back to block.label.
-        if idx < len(block.line_labels):
+        if label_override or no_label:
+            line_label = label_override
+        elif idx < len(block.line_labels):
             line_label = block.line_labels[idx]
         else:
             line_label = block.label if idx == 0 and not block.line_labels else None
@@ -330,11 +396,15 @@ class DocumentWriter:
         if line_label:
             start = fields.bookmark_start(_bookmark_for(line_label))
             p.append(start)
-        for run in self._number_runs("Equation", self.number_by_section):
-            p.append(run)
+        if tag is None:
+            for run in self._number_runs("Equation", self.number_by_section):
+                p.append(run)
+        else:
+            p.append(self._run(tag[1:-1] if tagged else tag))
         if start is not None:
             p.append(fields.bookmark_end_for(start))
-        p.append(self._run(")"))
+        if tag is None or tagged:
+            p.append(self._run(")"))
         return p
 
     def _list(
@@ -445,6 +515,15 @@ class DocumentWriter:
                 self._block(inner, body)
 
     def _table(self, block: ir.Table, body: _Element) -> None:
+        # a caption (and a panel's "(a) ..." line) written above the tabular
+        if block.caption is not None and block.caption_above:
+            body.append(self._caption("Table", block.caption, block.label,
+                                      numbered=block.caption_numbered))
+        if block.subcaption and block.subcaption_above:
+            sp = self._styled_paragraph("Caption")
+            self._set_align(sp, "center")
+            self._inlines(block.subcaption, sp)
+            body.append(sp)
         tbl = el("w:tbl")
         tpr = sub(tbl, "w:tblPr")
         ncols = max((sum(c.colspan for c in r.cells) for r in block.rows), default=1)
@@ -495,7 +574,12 @@ class DocumentWriter:
                     vmerge_pending[col] = (cell.rowspan - 1, cell.colspan)
                 col += cell.colspan
         body.append(tbl)
-        if block.caption is not None:
+        if block.subcaption and not block.subcaption_above:
+            sp = self._styled_paragraph("Caption")
+            self._set_align(sp, "center")
+            self._inlines(block.subcaption, sp)
+            body.append(sp)
+        if block.caption is not None and not block.caption_above:
             body.append(self._caption("Table", block.caption, block.label,
                                       numbered=block.caption_numbered))
 
@@ -1015,14 +1099,15 @@ class DocumentWriter:
             tc.append(cap)
         # numbered, indented pseudocode lines
         line_no = 0
+        every = block.line_numbers  # 0: none; n: every n-th line shows its number
         for aline in block.lines:
             p = self._styled_paragraph("SourceCode")
             ppr = p.find(_qn("w:pPr"))
             assert ppr is not None
             sub(ppr, "w:ind", **{"w:left": str(360 + aline.indent * 360)})
-            if aline.number:
+            if every and aline.number:
                 line_no += 1
-                p.append(self._run(f"{line_no:>2}  "))
+                p.append(self._run(f"{line_no:>2}: " if line_no % every == 0 else "    "))
             self._inlines(aline.inlines, p)
             tc.append(p)
         if not block.lines:
@@ -1180,26 +1265,116 @@ class DocumentWriter:
         if node.bookmark is None:
             p.append(self._run("??"))
             return
-        # cleveref-style type prefix ("Figure ", "fig. ", ...)
-        prefix = _REF_PREFIX.get((node.ref_kind, node.style))
-        if prefix:
-            p.append(self._run(prefix))
-        if node.ref_kind == "page":
-            runs = fields.pageref_field(node.bookmark, "0")
-        elif node.ref_kind == "equation":
-            p.append(self._run("("))
-            for run in fields.ref_field(node.bookmark, "0"):
-                p.append(run)
-            p.append(self._run(")"))
+        if node.style in ("abbrev", "full", "auto") or node.more:
+            self._named_ref(node, p)
             return
-        elif node.ref_kind in ("section", "listitem"):
+        self._ref_number(node.bookmark, node.ref_kind, node.style == "eqref", p)
+
+    def _ref_number(self, bookmark: str, kind: str, parens: bool, p: _Element) -> None:
+        """The number of one target as a field ("(3)" for an equation in parens)."""
+        if kind == "page":
+            runs = fields.pageref_field(bookmark, "0")
+        elif kind in ("section", "listitem"):
             # \r inserts the paragraph's (list) number -- section numbers and the
             # auto-numbered list item that an \item\label{} sits on.
-            runs = fields.ref_field(node.bookmark, "0", paragraph_number=True)
+            runs = fields.ref_field(bookmark, "0", paragraph_number=True)
         else:
-            runs = fields.ref_field(node.bookmark, "0")
+            runs = fields.ref_field(bookmark, "0")
+        parens = parens and kind == "equation"
+        if parens:
+            p.append(self._run("("))
         for run in runs:
             p.append(run)
+        if parens:
+            p.append(self._run(")"))
+
+    def _named_ref(self, node: ir.Ref, p: _Element) -> None:
+        """cleveref's ``\\cref``/``\\Cref``/``\\crefrange``/``\\labelcref`` and
+        hyperref's ``\\autoref``: type names (singular or plural per group of
+        consecutive same-type targets) and the numbers, equations in parens."""
+        named = node.style in ("abbrev", "full", "auto")
+        parens = node.style != "auto"  # cleveref formats equations as "(1)"
+        keys = [node.key, *node.more]
+        targets = [(k, self._labels.get(k)) for k in keys]
+
+        def number(key: str, info: ir.LabelInfo | None) -> None:
+            if info is None:
+                p.append(self._run("??"))
+                return
+            kind = "page" if node.ref_kind == "page" else info.kind
+            self._ref_number(info.bookmark, kind, parens, p)
+            if info.sub and kind in ("figure", "table"):
+                p.append(self._run(info.sub))
+
+        if node.is_range and len(targets) == 2:
+            if named:
+                p.append(self._run(self._ref_name(node, targets[0][1], plural=True) + " "))
+            number(*targets[0])
+            p.append(self._run(" to "))
+            number(*targets[1])
+            return
+        groups: list[list[tuple[str, ir.LabelInfo | None]]] = []
+        for key, info in targets:
+            t = self._type_key(node, info)
+            if groups and self._type_key(node, groups[-1][0][1]) == t:
+                groups[-1].append((key, info))
+            else:
+                groups.append([(key, info)])
+        for gi, group in enumerate(groups):
+            if gi:
+                p.append(self._run(" and " if gi == len(groups) - 1 else ", "))
+            if named:
+                p.append(self._run(self._ref_name(node, group[0][1], len(group) > 1) + " "))
+            for i, (key, info) in enumerate(group):
+                if i:
+                    p.append(self._run(" and " if i == len(group) - 1 else ", "))
+                number(key, info)
+
+    @staticmethod
+    def _type_key(node: ir.Ref, info: ir.LabelInfo | None) -> str:
+        if node.ref_kind == "page":
+            return "page"
+        if info is None:
+            return "?"
+        if info.ref_type == "theorem":
+            return "theorem:" + (info.type_name or "")
+        return info.ref_type or info.kind
+
+    def _ref_name(self, node: ir.Ref, info: ir.LabelInfo | None, plural: bool) -> str:
+        """The type name cleveref (or hyperref's \\autoref) prints."""
+        t = self._type_key(node, info)
+        theorem = t.startswith("theorem:")
+        tname = t.split(":", 1)[1] if theorem else ""
+        if node.style == "auto":
+            if theorem:
+                return tname or "Theorem"
+            return _AUTOREF_NAMES.get(t, t.capitalize())
+        options = set(self._cref.get("options", []))
+        full = node.style == "full"
+        # \crefname{type}{..}{..} / \Crefname overrides: the exact type first,
+        # then the type it is named after (a subsection is a "section")
+        lookup = [tname.lower()] if theorem else [t, _CREF_BASE.get(t, t)]
+        table = self._cref.get("Crefname" if full else "crefname", {})
+        for key in lookup:
+            if key in table:
+                return table[key][1 if plural else 0]
+        if full:
+            for key in lookup:
+                if key in self._cref.get("crefname", {}):
+                    name = self._cref["crefname"][key][1 if plural else 0]
+                    return name[:1].upper() + name[1:]
+        if theorem:
+            base = tname or "Theorem"
+            names = (base.lower(), base.lower() + "s", base, base + "s")
+        else:
+            names = _CREF_NAMES.get(_CREF_BASE.get(t, t), (t, t + "s", t.capitalize(),
+                                                           t.capitalize() + "s"))
+            if "noabbrev" in options and t in _CREF_UNABBREV:
+                names = _CREF_UNABBREV[t]
+        name = names[2 + plural] if full else names[plural]
+        if not full and ({"capitalise", "capitalize"} & options):
+            name = name[:1].upper() + name[1:]
+        return name
 
     def _cite(self, node: ir.Cite, p: _Element) -> None:
         rendered = node.rendered
@@ -1440,20 +1615,34 @@ class _RunStyle:
     def with_flag(self, flag: str) -> _RunStyle:
         return _replace(self, **{flag: True})  # type: ignore[arg-type]
 
-# cleveref-style type prefixes, keyed by (target kind, ref style).
-_REF_NAMES = {
-    "figure": ("fig. ", "Figure "),
-    "table": ("tab. ", "Table "),
-    "section": ("sec. ", "Section "),
-    "theorem": ("thm. ", "Theorem "),
-    "algorithm": ("alg. ", "Algorithm "),
-    "listing": ("lst. ", "Listing "),
-    "equation": ("eq. ", "Equation "),
+# cleveref's default names: (\cref singular, plural, \Cref singular, plural).
+# Only equations and figures are abbreviated; the noabbrev option spells
+# them out too.
+_CREF_NAMES = {
+    "equation": ("eq.", "eqs.", "Equation", "Equations"),
+    "figure": ("fig.", "figs.", "Figure", "Figures"),
+    "table": ("table", "tables", "Table", "Tables"),
+    "section": ("section", "sections", "Section", "Sections"),
+    "chapter": ("chapter", "chapters", "Chapter", "Chapters"),
+    "part": ("part", "parts", "Part", "Parts"),
+    "appendix": ("appendix", "appendices", "Appendix", "Appendices"),
+    "algorithm": ("algorithm", "algorithms", "Algorithm", "Algorithms"),
+    "listing": ("listing", "listings", "Listing", "Listings"),
+    "enumi": ("item", "items", "Item", "Items"),
+    "page": ("page", "pages", "Page", "Pages"),
 }
-_REF_PREFIX = {
-    (kind, "abbrev"): names[0] for kind, names in _REF_NAMES.items()
-} | {
-    (kind, "full"): names[1] for kind, names in _REF_NAMES.items()
+_CREF_UNABBREV = {
+    "equation": ("equation", "equations", "Equation", "Equations"),
+    "figure": ("figure", "figures", "Figure", "Figures"),
+}
+#: cleveref names subsections after sections
+_CREF_BASE = {"subsection": "section", "subsubsection": "section", "listitem": "enumi"}
+#: hyperref's \autoref names
+_AUTOREF_NAMES = {
+    "equation": "Equation", "figure": "Figure", "table": "Table", "section": "section",
+    "subsection": "subsection", "subsubsection": "subsubsection", "chapter": "chapter",
+    "part": "Part", "appendix": "Appendix", "algorithm": "Algorithm", "listing": "Listing",
+    "enumi": "item", "page": "page",
 }
 
 
